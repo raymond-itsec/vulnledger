@@ -1,0 +1,14 @@
+id: builtin-directory-listing-enabled
+name: Directory Listing Enabled
+category: Misconfiguration
+risk_level: low
+title: "Directory Listing Enabled on [component]"
+description: |
+  The web server is configured to display directory contents when no index file is present. This allows anyone to browse the file structure of the web application, potentially revealing files that were not intended to be publicly accessible, such as backup files, configuration files, source code, or internal documentation.
+impact: |
+  An attacker can enumerate the application's file structure and discover sensitive files such as backup archives, database dumps, configuration files with credentials, or source code. This information disclosure significantly lowers the barrier for further attacks against the application.
+recommendation: |
+  Disable directory listing on the web server. For Apache, ensure `Options -Indexes` is set. For Nginx, verify that `autoindex` is set to `off`. Additionally, review the web root for sensitive files that should not be publicly accessible and remove or restrict access to them.
+references:
+  - CWE-548
+  - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/

@@ -1,0 +1,15 @@
+id: builtin-missing-security-headers
+name: Missing Security Headers
+category: Misconfiguration
+risk_level: medium
+title: "Missing Security Headers on [component]"
+description: |
+  The application's HTTP responses are missing one or more recommended security headers. These headers instruct browsers to enable built-in security mechanisms that mitigate common web attacks. Missing headers may include Content-Security-Policy, X-Content-Type-Options, X-Frame-Options, Strict-Transport-Security, Referrer-Policy, and Permissions-Policy.
+impact: |
+  Without proper security headers, the application is more susceptible to cross-site scripting (XSS), clickjacking, MIME-type sniffing attacks, and protocol downgrade attacks. Browsers will not enforce security policies that could otherwise prevent exploitation of other vulnerabilities in the application.
+recommendation: |
+  Implement the following security headers at a minimum: `Content-Security-Policy` with a restrictive policy, `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY` (or SAMEORIGIN if framing is required), `Strict-Transport-Security` with a long max-age and includeSubDomains, `Referrer-Policy: strict-origin-when-cross-origin`, and `Permissions-Policy` restricting unnecessary browser features. Test the configuration using tools such as securityheaders.com.
+references:
+  - CWE-693
+  - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+  - https://cheatsheetseries.owasp.org/cheatsheets/HTTP_Headers_Cheat_Sheet.html

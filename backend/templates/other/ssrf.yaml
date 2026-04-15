@@ -1,0 +1,14 @@
+id: builtin-ssrf
+name: Server-Side Request Forgery
+category: Other
+risk_level: high
+title: "Server-Side Request Forgery in [component]"
+description: |
+  The application makes server-side HTTP requests to URLs that are fully or partially controlled by user input without adequate validation. An attacker can manipulate these requests to target internal services, cloud metadata endpoints (e.g., 169.254.169.254), or other resources that are not directly accessible from the internet. This effectively turns the vulnerable server into a proxy for the attacker.
+impact: |
+  Successful SSRF exploitation can allow an attacker to access internal services behind firewalls, read cloud instance metadata (potentially obtaining IAM credentials), scan internal networks, and in some cases achieve remote code execution on internal systems. In cloud environments, SSRF is frequently the initial vector for full infrastructure compromise.
+recommendation: |
+  Implement a strict allowlist of permitted destination hosts and URL schemes. Deny requests to private/internal IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16) and link-local addresses. Validate and sanitize all user-supplied URLs server-side. Where possible, avoid making HTTP requests based on user input entirely. Use network-level controls to restrict the server's outbound access.
+references:
+  - CWE-918
+  - https://owasp.org/Top10/A10_2021-Server-Side_Request_Forgery_%28SSRF%29/

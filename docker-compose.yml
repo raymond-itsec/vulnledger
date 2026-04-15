@@ -1,0 +1,105 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: findings
+      POSTGRES_PASSWORD: findings
+      POSTGRES_DB: findings
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    depends_on:
+      - db
+      - minio
+    ports:
+      - "8000:8000"
+    environment:
+      FINDINGS_DATABASE_URL: postgresql+asyncpg://findings:findings@db:5432/findings
+      FINDINGS_SECRET_KEY: change-me-in-production
+      FINDINGS_MINIO_ENDPOINT: minio:9000
+      FINDINGS_MINIO_ACCESS_KEY: minioadmin
+      FINDINGS_MINIO_SECRET_KEY: minioadmin
+      FINDINGS_MINIO_SECURE: "false"
+      FINDINGS_MAILJET_API_KEY: ""
+      FINDINGS_MAILJET_API_SECRET: ""
+      FINDINGS_MAILJET_FROM_EMAIL: "noreply@findings.local"
+      FINDINGS_APP_BASE_URL: "http://localhost"
+      FINDINGS_CLAMAV_HOST: clamav
+      FINDINGS_CLAMAV_PORT: "3310"
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    volumes:
+      - ./backend:/app
+
+  frontend:
+    build: ./frontend
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "5173:5173"
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+  backup:
+    build: ./backup
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: findings
+      POSTGRES_PASSWORD: findings
+      POSTGRES_DB: findings
+      BACKUP_RETENTION_DAYS: "30"
+      BACKUP_CRON: "0 2 * * *"
+    volumes:
+      - backups:/backups
+
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    ports:
+      - "3310:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+
+volumes:
+  pgdata:
+  minio_data:
+  caddy_data:
+  caddy_config:
+  backups:
+  clamav_data:

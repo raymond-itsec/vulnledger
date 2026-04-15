@@ -1,0 +1,14 @@
+id: builtin-open-redirect
+name: Open Redirect
+category: Other
+risk_level: medium
+title: "Open Redirect in [component]"
+description: |
+  The application accepts user-controlled input as a redirect destination without proper validation. An attacker can craft a URL that appears to originate from the trusted application domain but redirects the victim to a malicious external site. This is commonly exploited in login flows, OAuth callbacks, and URL shortener functionality.
+impact: |
+  Open redirects are primarily used in phishing attacks, where the trusted domain lends credibility to a malicious link. Victims who verify the URL see the legitimate domain and are more likely to interact with the phishing page. Open redirects can also be chained with other vulnerabilities (e.g., SSRF, OAuth token theft) to escalate impact.
+recommendation: |
+  Validate all redirect destinations against a strict allowlist of permitted URLs or domains. If redirecting to relative paths, ensure the path cannot be manipulated to redirect externally (e.g., `//evil.com` or `/\evil.com`). Avoid passing redirect URLs as user-controllable parameters where possible. If a redirect parameter is necessary, use an indirect reference (e.g., a numeric index mapping to predefined destinations).
+references:
+  - CWE-601
+  - https://cheatsheetseries.owasp.org/cheatsheets/Unvalidated_Redirects_and_Forwards_Cheat_Sheet.html

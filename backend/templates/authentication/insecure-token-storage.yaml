@@ -1,0 +1,14 @@
+id: builtin-insecure-token-storage
+name: Insecure Token Storage
+category: Authentication
+risk_level: high
+title: "Insecure Token Storage in [component]"
+description: |
+  The application stores authentication tokens, session identifiers, or API keys in insecure locations accessible to client-side code or other applications. Common examples include storing tokens in `localStorage`, `sessionStorage`, URL parameters, or unprotected cookies without the `HttpOnly` flag. Tokens stored in these locations are vulnerable to theft through cross-site scripting (XSS) attacks, malicious browser extensions, or client-side code injection. Additionally, tokens stored in URLs may be leaked through referrer headers, browser history, or server logs.
+impact: |
+  Compromised authentication tokens allow an attacker to impersonate the affected user and perform any action the user is authorized to perform, including accessing sensitive data, modifying account settings, and initiating transactions. If long-lived tokens such as refresh tokens or API keys are stolen, the attacker may maintain persistent access even after the user changes their password. Token theft at scale (e.g., through a stored XSS vulnerability) can lead to mass account compromise and significant data breaches.
+recommendation: |
+  Store session tokens in `HttpOnly`, `Secure` cookies with the `SameSite` attribute set to `Strict` or `Lax` to prevent access from JavaScript and cross-site requests. For single-page applications that require token-based authentication, use the Backend-for-Frontend (BFF) pattern to keep tokens server-side. If client-side token storage is unavoidable, use short-lived access tokens with secure refresh token rotation, and store tokens in memory rather than persistent storage. Never include tokens in URLs, and implement token binding or device fingerprinting to detect token theft. Establish token revocation mechanisms and monitor for suspicious token usage patterns.
+references:
+  - CWE-922
+  - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/

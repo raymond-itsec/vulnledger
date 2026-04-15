@@ -1,0 +1,15 @@
+id: builtin-weak-hashing-algorithm
+name: Weak Hashing Algorithm
+category: Cryptography
+risk_level: high
+title: "Weak Hashing Algorithm in [component]"
+description: |
+  The application uses a cryptographically weak or deprecated hashing algorithm (e.g., MD5, SHA-1) for security-sensitive operations such as password storage or integrity verification. These algorithms are vulnerable to collision attacks and can be brute-forced with modern hardware in a practical timeframe. Industry standards require the use of purpose-built hashing functions for password storage, such as bcrypt, scrypt, or Argon2.
+impact: |
+  An attacker who gains access to hashed values (e.g., through a database breach) can recover the original plaintext data using precomputed rainbow tables or GPU-accelerated brute-force attacks. For password hashes, this leads to credential compromise and potential account takeover across services where users reuse passwords.
+recommendation: |
+  Replace weak hashing algorithms with modern, purpose-built alternatives. For password hashing, use bcrypt, scrypt, or Argon2id with appropriate cost parameters. For integrity verification, use SHA-256 or SHA-3. Ensure all existing hashes are migrated to the new algorithm, either proactively or on next user authentication.
+references:
+  - CWE-328
+  - https://owasp.org/Top10/A02_2021-Cryptographic_Failures/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html

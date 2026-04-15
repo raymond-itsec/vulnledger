@@ -1,0 +1,14 @@
+id: builtin-sql-injection
+name: SQL Injection
+category: Injection
+risk_level: high
+title: "SQL Injection in [component]"
+description: |
+  The application constructs SQL queries using unsanitized user input, allowing an attacker to inject arbitrary SQL statements. This occurs when user-controllable data is concatenated directly into SQL queries rather than being passed through parameterized queries or prepared statements. Depending on the database engine and application logic, this can allow data extraction, modification, or deletion, and in some cases command execution on the underlying server.
+impact: |
+  An attacker can read, modify, or delete arbitrary data within the database, potentially including sensitive information such as user credentials, personal data, and financial records. In severe cases, SQL injection can be leveraged to execute operating system commands, escalate privileges, or pivot to other internal systems. Data breaches resulting from SQL injection frequently lead to regulatory penalties and significant reputational damage.
+recommendation: |
+  Use parameterized queries (prepared statements) for all database interactions and avoid string concatenation of user input into SQL statements. Apply the principle of least privilege to database accounts used by the application, ensuring they only have access to the tables and operations they require. Implement input validation as a defense-in-depth measure, and consider deploying a web application firewall (WAF) to detect and block common injection patterns. Regularly review data access code during code reviews and use static analysis tools to identify injection sinks.
+references:
+  - CWE-89
+  - https://owasp.org/Top10/A03_2021-Injection/

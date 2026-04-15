@@ -1,0 +1,14 @@
+id: builtin-insufficient-entropy
+name: Insufficient Entropy
+category: Cryptography
+risk_level: medium
+title: "Insufficient Entropy in [component]"
+description: |
+  The application uses a weak or predictable source of randomness for security-sensitive operations such as generating session tokens, CSRF tokens, password reset links, or cryptographic keys. Using non-cryptographic PRNGs (e.g., `Math.random()`, `rand()`, `random.random()`) or insufficient seed values makes the generated values guessable or reproducible by an attacker.
+impact: |
+  An attacker can predict or brute-force security tokens, potentially leading to session hijacking, CSRF bypass, or unauthorized access to password reset flows. If cryptographic keys are generated with insufficient entropy, encrypted data may be decryptable through reduced keyspace attacks.
+recommendation: |
+  Use cryptographically secure random number generators for all security-sensitive operations. In Python use `secrets` module, in JavaScript use `crypto.getRandomValues()` or `crypto.randomUUID()`, in Java use `SecureRandom`. Ensure sufficient token length (at least 128 bits of entropy for session tokens). Never seed random generators with predictable values such as timestamps.
+references:
+  - CWE-331
+  - https://owasp.org/Top10/A02_2021-Cryptographic_Failures/

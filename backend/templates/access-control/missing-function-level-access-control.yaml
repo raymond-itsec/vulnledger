@@ -1,0 +1,14 @@
+id: builtin-missing-function-level-access-control
+name: Missing Function-Level Access Control
+category: Access Control
+risk_level: high
+title: "Missing Function-Level Access Control in [component]"
+description: |
+  The application does not enforce proper authorization checks on server-side functions or API endpoints, relying instead on client-side UI restrictions (such as hiding buttons or menu items) to control access to sensitive functionality. An attacker can directly invoke these unprotected endpoints by crafting HTTP requests, bypassing the client-side presentation layer entirely. This commonly affects administrative endpoints, bulk data operations, and internal API routes that are assumed to be inaccessible to unauthorized users.
+impact: |
+  An attacker can invoke privileged functions without proper authorization, potentially performing administrative actions such as user management, configuration changes, data exports, or system maintenance operations. This can lead to unauthorized data access, data manipulation, service disruption, and complete application compromise. The vulnerability is particularly severe when administrative API endpoints are discoverable through client-side code, API documentation, or predictable URL patterns.
+recommendation: |
+  Implement authorization checks on every server-side function and API endpoint, enforcing a deny-by-default policy where access must be explicitly granted. Use a centralized authorization middleware or framework that intercepts all requests before they reach the application logic, ensuring consistent enforcement. Remove or protect any administrative endpoints that are not needed in production, and avoid relying on URL obscurity as a security measure. Maintain a comprehensive inventory of all API endpoints and their required authorization levels, and validate this inventory through automated security testing as part of the CI/CD pipeline.
+references:
+  - CWE-285
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/

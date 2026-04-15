@@ -1,0 +1,14 @@
+id: builtin-cors-misconfiguration
+name: CORS Misconfiguration
+category: Access Control
+risk_level: medium
+title: "CORS Misconfiguration in [component]"
+description: |
+  The application's Cross-Origin Resource Sharing (CORS) policy is misconfigured, allowing unauthorized origins to make credentialed cross-origin requests to the application's API. Common misconfigurations include reflecting the `Origin` header value in the `Access-Control-Allow-Origin` response header without validation, using wildcard (`*`) origins with credentials, or allowing overly broad origin patterns that can be bypassed. This effectively weakens the browser's same-origin policy, which is a fundamental web security boundary.
+impact: |
+  An attacker can host a malicious website that makes authenticated cross-origin requests to the vulnerable application on behalf of any user who visits the attacker's site. This enables the attacker to read sensitive data from API responses, perform state-changing actions using the victim's session, and exfiltrate confidential information. When combined with other vulnerabilities such as CSRF token leakage, the impact can include full account takeover. The attack is particularly effective against internal applications where users may have elevated privileges.
+recommendation: |
+  Configure the CORS policy with an explicit allowlist of trusted origins rather than dynamically reflecting the request origin or using wildcards. Validate the `Origin` header against the allowlist before setting `Access-Control-Allow-Origin`, and never combine `Access-Control-Allow-Credentials: true` with a wildcard origin. Restrict `Access-Control-Allow-Methods` and `Access-Control-Allow-Headers` to only the HTTP methods and headers required by legitimate cross-origin consumers. Regularly review and audit the CORS configuration as part of security assessments, and consider whether cross-origin access is genuinely required for each endpoint.
+references:
+  - CWE-942
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/

@@ -1,0 +1,14 @@
+id: builtin-insecure-tls-configuration
+name: Insecure TLS Configuration
+category: Cryptography
+risk_level: medium
+title: "Insecure TLS Configuration on [component]"
+description: |
+  The application or server supports outdated TLS protocol versions (TLS 1.0, TLS 1.1) or weak cipher suites that are vulnerable to known cryptographic attacks such as BEAST, POODLE, or SWEET32. Modern security standards require TLS 1.2 as a minimum, with TLS 1.3 preferred, using only strong cipher suites with forward secrecy (ECDHE-based key exchange).
+impact: |
+  An attacker in a man-in-the-middle position can potentially downgrade the connection to a vulnerable protocol version or cipher suite, enabling decryption or manipulation of encrypted traffic. This can expose sensitive data such as authentication credentials, session tokens, and personal information transmitted between the client and server.
+recommendation: |
+  Disable TLS 1.0 and TLS 1.1 support. Configure the server to support only TLS 1.2 and TLS 1.3. Remove weak cipher suites (RC4, DES, 3DES, export ciphers) and prioritize ECDHE-based cipher suites with AEAD encryption (AES-GCM, ChaCha20-Poly1305). Enable HSTS headers to prevent protocol downgrade attacks.
+references:
+  - CWE-326
+  - https://owasp.org/Top10/A02_2021-Cryptographic_Failures/

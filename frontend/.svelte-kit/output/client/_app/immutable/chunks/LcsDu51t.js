@@ -1,0 +1,1 @@
+import{a as e}from"./DaiAS6m1.js";const i={list:(t=1,p=25)=>e.get(`/api/clients?page=${t}&per_page=${p}`),get:t=>e.get(`/api/clients/${t}`),create:t=>e.post("/api/clients",t),update:(t,p)=>e.patch(`/api/clients/${t}`,p)};export{i as c};

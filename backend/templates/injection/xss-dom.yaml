@@ -1,0 +1,14 @@
+id: builtin-xss-dom
+name: Cross-Site Scripting - DOM-based
+category: Injection
+risk_level: medium
+title: "DOM-based Cross-Site Scripting in [component]"
+description: |
+  The application's client-side JavaScript processes user-controllable data from DOM sources (such as `document.location`, `window.name`, or `document.referrer`) and passes it to dangerous sinks (such as `innerHTML`, `eval()`, or `document.write()`) without proper sanitization. The vulnerability exists entirely within the client-side code, and the malicious payload may never be sent to the server, making it invisible to server-side security controls and WAFs. DOM-based XSS can be triggered through URL fragments, postMessage handlers, or other client-side data sources.
+impact: |
+  An attacker can execute arbitrary JavaScript in the context of the victim's browser session by crafting a URL or triggering a client-side event that causes the vulnerable code path to process malicious input. This enables session hijacking, credential theft, and unauthorized actions on behalf of the user. Because the payload may reside entirely in the URL fragment (after the `#`), it may not appear in server logs, making detection and forensic analysis more difficult.
+recommendation: |
+  Avoid using dangerous DOM manipulation sinks such as `innerHTML`, `eval()`, `document.write()`, and `setTimeout()` with string arguments. Use safe alternatives like `textContent`, `createElement()`, and DOM manipulation APIs that do not interpret HTML. When dynamic HTML insertion is necessary, use a client-side HTML sanitization library such as DOMPurify. Implement a strict Content Security Policy that disables `unsafe-inline` and `unsafe-eval` directives, and conduct regular reviews of client-side JavaScript for taint-flow vulnerabilities.
+references:
+  - CWE-79
+  - https://owasp.org/Top10/A03_2021-Injection/

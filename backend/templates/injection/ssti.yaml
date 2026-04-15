@@ -1,0 +1,14 @@
+id: builtin-ssti
+name: Server-Side Template Injection
+category: Injection
+risk_level: high
+title: "Server-Side Template Injection in [component]"
+description: |
+  The application embeds user-controllable input into server-side template expressions, allowing an attacker to inject template directives that are evaluated by the template engine. This occurs when user input is concatenated into template strings rather than passed as data to the template context. Depending on the template engine (e.g., Jinja2, Twig, Freemarker, Velocity), an attacker can escalate from template syntax injection to arbitrary code execution on the server.
+impact: |
+  Exploitation of server-side template injection can lead to full remote code execution on the application server, enabling the attacker to read sensitive files, access databases, pivot to internal systems, and exfiltrate data. Even in cases where code execution is not directly achievable, attackers may be able to extract sensitive configuration data, environment variables, or server-side secrets through template introspection capabilities. The severity depends on the template engine and its sandboxing capabilities, but most engines can be exploited to achieve code execution.
+recommendation: |
+  Never concatenate user input directly into template strings. Instead, pass user data as variables to the template context and let the template engine handle rendering. Use a logic-less template engine (such as Mustache) when full template functionality is not required, as these engines have a significantly smaller attack surface. If user-customizable templates are a business requirement, implement a strict sandbox and audit the template engine's documentation for known escape techniques. Regularly update the template engine to patch known sandbox bypass vulnerabilities.
+references:
+  - CWE-1336
+  - https://owasp.org/Top10/A03_2021-Injection/

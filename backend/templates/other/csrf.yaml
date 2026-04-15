@@ -1,0 +1,15 @@
+id: builtin-csrf
+name: Cross-Site Request Forgery
+category: Other
+risk_level: medium
+title: "Cross-Site Request Forgery in [component]"
+description: |
+  The application does not adequately protect state-changing operations against cross-site request forgery. An attacker can craft a malicious page that causes a victim's browser to submit authenticated requests to the vulnerable application without the user's knowledge or consent. This is possible when the application relies solely on cookies for authentication and lacks anti-CSRF tokens or SameSite cookie attributes.
+impact: |
+  An attacker can perform actions on behalf of an authenticated user, such as changing account settings, transferring funds, modifying data, or performing administrative operations. The impact depends on the privileges of the targeted user and the actions available in the application.
+recommendation: |
+  Implement anti-CSRF tokens (synchronizer token pattern) for all state-changing requests. Set the `SameSite` attribute to `Strict` or `Lax` on session cookies. Verify the `Origin` and `Referer` headers on sensitive endpoints as a defense-in-depth measure. For API endpoints, require a custom header (e.g., `X-Requested-With`) that cannot be set in cross-origin requests.
+references:
+  - CWE-352
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/
+  - https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html

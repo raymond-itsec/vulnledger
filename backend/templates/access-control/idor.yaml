@@ -1,0 +1,14 @@
+id: builtin-idor
+name: Insecure Direct Object Reference
+category: Access Control
+risk_level: high
+title: "Insecure Direct Object Reference in [component]"
+description: |
+  The application exposes internal object identifiers (such as database IDs, filenames, or record keys) in API endpoints or URLs and fails to verify that the authenticated user is authorized to access the referenced object. By manipulating these identifiers, an attacker can access or modify resources belonging to other users without proper authorization checks. This vulnerability commonly affects REST API endpoints that use predictable or sequential identifiers in path parameters or query strings.
+impact: |
+  An attacker can access, modify, or delete data belonging to other users by enumerating or guessing object identifiers. This can result in unauthorized disclosure of sensitive personal information, modification of other users' account settings or data, and deletion of records. When IDOR affects administrative resources, it can lead to full application compromise. The scalability of automated enumeration means that an attacker can rapidly exfiltrate large volumes of data across many user accounts.
+recommendation: |
+  Implement server-side authorization checks on every request to verify that the authenticated user has permission to access the requested resource. Use indirect reference maps or non-sequential, non-guessable identifiers (such as UUIDs) to make enumeration more difficult, though this should not be relied upon as a primary security control. Apply consistent access control policies at the data access layer rather than at individual endpoints to prevent authorization bypass through alternative access paths. Implement logging and monitoring for unusual patterns of object access that may indicate enumeration attempts.
+references:
+  - CWE-639
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/

@@ -1,0 +1,190 @@
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/state';
+  import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
+  import { findingsApi, type Finding, RISK_LEVELS } from '$lib/api/findings';
+  import { auth } from '$lib/stores/auth.svelte';
+  import Badge from '$lib/components/Badge.svelte';
+  import MarkdownView from '$lib/components/MarkdownView.svelte';
+
+  let session = $state<Session | null>(null);
+  let findings = $state<Finding[]>([]);
+  let loading = $state(true);
+  let editing = $state(false);
+  let saving = $state(false);
+  let exporting = $state('');
+  let form = $state({ review_name: '', status: 'planned', notes: '' });
+
+  const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+
+  let riskCounts = $derived(() => {
+    const counts: Record<string, number> = {};
+    for (const f of findings) {
+      counts[f.risk_level] = (counts[f.risk_level] || 0) + 1;
+    }
+    return counts;
+  });
+
+  onMount(async () => {
+    const id = page.params.id!;
+    try {
+      const [s, fRes] = await Promise.all([
+        sessionsApi.get(id),
+        findingsApi.list({ session_id: id, per_page: 100 }),
+      ]);
+      session = s;
+      findings = fRes.items;
+      form = { review_name: s.review_name, status: s.status, notes: s.notes || '' };
+    } finally {
+      loading = false;
+    }
+  });
+
+  async function downloadReport(format: string) {
+    if (!session) return;
+    exporting = format;
+    try {
+      const res = await fetch(`/api/reports/sessions/${session.session_id}/${format}`, {
+        headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
+      });
+      if (!res.ok) throw new Error('Export failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('content-disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      a.download = match?.[1] || `report.${format}`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } finally {
+      exporting = '';
+    }
+  }
+
+  async function handleSave() {
+    if (!session) return;
+    saving = true;
+    try {
+      session = await sessionsApi.update(session.session_id, form);
+      editing = false;
+    } finally {
+      saving = false;
+    }
+  }
+</script>
+
+{#if loading}
+  <p>Loading...</p>
+{:else if !session}
+  <p>Session not found.</p>
+{:else}
+  <div class="page-header">
+    <h1>{session.review_name}</h1>
+    <div style="display:flex;gap:0.5rem;">
+      {#if canEdit && !editing}
+        <button class="btn btn-secondary" onclick={() => (editing = true)}>Edit</button>
+      {/if}
+      {#if canEdit}
+        <a href="/findings?new=1&session_id={session.session_id}" class="btn btn-primary">Add Finding</a>
+      {/if}
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    {#if editing}
+      <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
+        <div class="form-group">
+          <label>Review Name</label>
+          <input bind:value={form.review_name} required />
+        </div>
+        <div class="form-group">
+          <label>Status</label>
+          <select bind:value={form.status}>
+            {#each SESSION_STATUSES as s}
+              <option value={s}>{s.replace('_', ' ')}</option>
+            {/each}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Notes (Markdown)</label>
+          <textarea bind:value={form.notes}></textarea>
+        </div>
+        <div style="display:flex;gap:0.5rem;">
+          <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
+          <button class="btn btn-secondary" type="button" onclick={() => (editing = false)}>Cancel</button>
+        </div>
+      </form>
+    {:else}
+      <dl class="detail-grid">
+        <dt>Date</dt><dd>{session.review_date}</dd>
+        <dt>Reviewer</dt><dd>{session.reviewer_name || '—'}</dd>
+        <dt>Status</dt><dd><Badge text={session.status} variant={session.status} /></dd>
+        <dt>Asset</dt><dd><a href="/assets/{session.asset_id}">View Asset</a></dd>
+      </dl>
+      {#if session.notes}
+        <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+          <h3 style="font-size:0.875rem;color:var(--text-secondary);margin-bottom:0.5rem;">Notes</h3>
+          <MarkdownView content={session.notes} />
+        </div>
+      {/if}
+    {/if}
+  </div>
+
+  <div class="stat-cards">
+    {#each RISK_LEVELS as level}
+      {@const count = riskCounts()[level] || 0}
+      {#if count > 0}
+        <div class="stat-card">
+          <div class="label">{level}</div>
+          <div class="value" style="color: var(--{level})">{count}</div>
+        </div>
+      {/if}
+    {/each}
+  </div>
+
+  <div class="card" style="margin-bottom:1.5rem;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+      <h2 style="font-size:1.1rem;margin:0;">Export Report</h2>
+    </div>
+    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+      <button class="btn btn-primary btn-sm" onclick={() => downloadReport('pdf')} disabled={!!exporting}>
+        {exporting === 'pdf' ? 'Generating...' : 'PDF Report'}
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick={() => downloadReport('csv')} disabled={!!exporting}>
+        {exporting === 'csv' ? 'Generating...' : 'CSV Export'}
+      </button>
+      <button class="btn btn-secondary btn-sm" onclick={() => downloadReport('json')} disabled={!!exporting}>
+        {exporting === 'json' ? 'Generating...' : 'JSON Export'}
+      </button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2 style="margin-bottom:1rem;font-size:1.1rem;">Findings ({findings.length})</h2>
+    {#if findings.length === 0}
+      <p class="empty-state">No findings for this session yet.</p>
+    {:else}
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Risk Level</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {#each findings as f}
+            <tr>
+              <td><a href="/findings/{f.finding_id}">{f.title}</a></td>
+              <td><Badge text={f.risk_level} variant={f.risk_level} /></td>
+              <td><Badge text={f.remediation_status} variant={f.remediation_status} /></td>
+            </tr>
+          {/each}
+        </tbody>
+      </table>
+    {/if}
+  </div>
+{/if}
+
+<style>
+  .detail-grid { display: grid; grid-template-columns: 150px 1fr; gap: 0.5rem 1rem; }
+  .detail-grid dt { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); }
+  .detail-grid dd { font-size: 0.875rem; }
+</style>

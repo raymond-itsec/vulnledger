@@ -1,0 +1,14 @@
+id: builtin-session-fixation
+name: Session Fixation
+category: Authentication
+risk_level: high
+title: "Session Fixation in [component]"
+description: |
+  The application does not regenerate the session identifier after successful authentication, allowing an attacker to fixate a known session token and then hijack the authenticated session. In a session fixation attack, the attacker obtains a valid session ID (by visiting the login page or through other means), forces the victim to authenticate using that session ID, and then uses the now-authenticated session to access the application as the victim. This vulnerability exists when the application accepts session identifiers from URL parameters, cookies, or hidden form fields without invalidating them upon login.
+impact: |
+  An attacker can take over any user's authenticated session by pre-setting the session identifier before the victim logs in. This grants the attacker the full privileges of the compromised user, including access to sensitive data, the ability to perform actions on their behalf, and potential access to administrative functionality. Session fixation attacks can be conducted remotely and at scale, and are particularly effective when combined with social engineering techniques to direct victims to the attacker-controlled login URL.
+recommendation: |
+  Always regenerate the session identifier immediately after successful authentication, invalidating the previous session token. Ensure the application does not accept session identifiers from URL parameters or other user-controllable sources; session tokens should only be transmitted via secure cookies. Set the `Secure`, `HttpOnly`, and `SameSite` attributes on session cookies to prevent interception and cross-site attacks. Implement session timeout policies and provide users with the ability to view and terminate active sessions. Bind sessions to additional client attributes (such as User-Agent or IP address) as a defense-in-depth measure.
+references:
+  - CWE-384
+  - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/

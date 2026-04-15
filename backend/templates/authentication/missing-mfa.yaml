@@ -1,0 +1,14 @@
+id: builtin-missing-mfa
+name: Missing Multi-Factor Authentication
+category: Authentication
+risk_level: medium
+title: "Missing Multi-Factor Authentication on [component]"
+description: |
+  The application does not implement multi-factor authentication (MFA) for user accounts, relying solely on single-factor authentication (typically a password). Without MFA, a compromised password is sufficient for an attacker to gain full access to a user's account. This is particularly concerning for accounts with elevated privileges, access to sensitive data, or the ability to perform financial transactions. The absence of MFA significantly increases the risk of account takeover through credential theft, phishing, or brute-force attacks.
+impact: |
+  Without MFA, any compromise of a user's password grants the attacker complete access to the associated account. This is especially dangerous given the prevalence of credential stuffing attacks using passwords leaked from breaches of other services. Compromised administrative accounts can lead to full application takeover, while compromised user accounts can result in data theft, fraudulent transactions, and privacy violations. Organizations may also face regulatory non-compliance, as MFA is increasingly required by standards such as PCI DSS, SOC 2, and various data protection regulations.
+recommendation: |
+  Implement multi-factor authentication using time-based one-time passwords (TOTP), hardware security keys (FIDO2/WebAuthn), or push-based authentication as a second factor. At minimum, enforce MFA for all administrative accounts, privileged operations, and sensitive data access. Provide MFA as an option for all users and consider making it mandatory based on risk assessment. Avoid SMS-based OTP as a primary MFA method due to known vulnerabilities in the SMS protocol (SIM swapping, SS7 attacks), and prefer authenticator apps or hardware tokens. Implement remember-device functionality with appropriate expiration to balance security with usability.
+references:
+  - CWE-308
+  - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/

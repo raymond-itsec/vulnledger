@@ -1,0 +1,33 @@
+{
+	"/": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/assets": [
+		"src/routes/+layout.ts"
+	],
+	"/assets/[id]": [
+		"src/routes/+layout.ts"
+	],
+	"/clients": [
+		"src/routes/+layout.ts"
+	],
+	"/clients/[id]": [
+		"src/routes/+layout.ts"
+	],
+	"/findings": [
+		"src/routes/+layout.ts"
+	],
+	"/findings/[id]": [
+		"src/routes/+layout.ts"
+	],
+	"/sessions": [
+		"src/routes/+layout.ts"
+	],
+	"/sessions/[id]": [
+		"src/routes/+layout.ts"
+	],
+	"/templates": [
+		"src/routes/+layout.ts"
+	]
+}

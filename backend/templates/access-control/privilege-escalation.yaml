@@ -1,0 +1,14 @@
+id: builtin-privilege-escalation
+name: Privilege Escalation
+category: Access Control
+risk_level: critical
+title: "Privilege Escalation in [component]"
+description: |
+  The application allows a user to gain elevated privileges beyond those assigned to their role, either by manipulating request parameters, exploiting flaws in role assignment logic, or bypassing authorization checks on administrative functions. Vertical privilege escalation occurs when a regular user gains administrative access, while horizontal privilege escalation occurs when a user accesses resources or functionality belonging to another user at the same privilege level. This vulnerability often stems from client-side role enforcement, insecure role assignment mechanisms, or inconsistent authorization checks across the application.
+impact: |
+  Successful privilege escalation can grant an attacker full administrative control over the application, enabling them to access all user data, modify system configuration, create or delete accounts, and potentially compromise the underlying infrastructure. Even horizontal escalation can lead to significant data breaches when an attacker accesses sensitive information across multiple user accounts. Privilege escalation is frequently the pivotal step in attack chains that lead to complete system compromise, making it one of the most critical vulnerability classes.
+recommendation: |
+  Enforce authorization checks server-side for every privileged operation, and never rely on client-side controls (hidden UI elements, disabled buttons, or client-side role checks) for access control. Implement role-based access control (RBAC) or attribute-based access control (ABAC) at a centralized authorization layer that is applied consistently across all endpoints. Deny access by default and require explicit grants for each role-function combination. Audit role assignment and modification workflows to ensure they require appropriate authorization, and log all privilege changes for monitoring. Conduct regular access control reviews and penetration testing focused on authorization bypass scenarios.
+references:
+  - CWE-269
+  - https://owasp.org/Top10/A01_2021-Broken_Access_Control/

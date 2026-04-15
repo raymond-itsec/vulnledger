@@ -1,0 +1,1 @@
+import{a as e}from"./DaiAS6m1.js";const n=["planned","in_progress","completed","cancelled"],o={list:(s,a=1,t=25)=>{const i=new URLSearchParams({page:String(a),per_page:String(t)});return s&&i.set("asset_id",s),e.get(`/api/sessions?${i}`)},get:s=>e.get(`/api/sessions/${s}`),create:s=>e.post("/api/sessions",s),update:(s,a)=>e.patch(`/api/sessions/${s}`,a)};export{n as S,o as s};

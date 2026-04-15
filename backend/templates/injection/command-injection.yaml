@@ -1,0 +1,14 @@
+id: builtin-command-injection
+name: Command Injection
+category: Injection
+risk_level: critical
+title: "OS Command Injection in [component]"
+description: |
+  The application passes user-controllable input to operating system shell commands without adequate sanitization or validation, allowing an attacker to inject and execute arbitrary commands on the host system. This typically occurs when the application invokes system utilities (e.g., via `exec()`, `system()`, `popen()`, or backtick operators) with user-supplied arguments. Command metacharacters such as `;`, `|`, `&&`, or `$()` can be used to chain additional commands onto the intended operation.
+impact: |
+  Successful exploitation grants the attacker the ability to execute arbitrary operating system commands with the privileges of the application process. This can lead to complete server compromise, including reading and exfiltrating sensitive files, installing backdoors or malware, pivoting to internal network resources, and disrupting service availability. Command injection is considered one of the most severe vulnerability classes because it provides direct access to the underlying infrastructure.
+recommendation: |
+  Eliminate the use of shell commands where possible by replacing them with native language libraries or APIs that accomplish the same task without invoking a shell. When shell execution is unavoidable, use parameterized interfaces that separate the command from its arguments (e.g., `subprocess.run()` with a list argument in Python, or `ProcessBuilder` in Java) and never pass user input through a shell interpreter. Apply strict input validation using allowlists of permitted characters or values, and run the application with minimal operating system privileges to limit the blast radius of any exploitation.
+references:
+  - CWE-78
+  - https://owasp.org/Top10/A03_2021-Injection/

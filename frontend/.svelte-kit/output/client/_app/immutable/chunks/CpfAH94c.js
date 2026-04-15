@@ -1,0 +1,1 @@
+import{a as t}from"./DaiAS6m1.js";const r={list:(e,a=1,s=100)=>{const p=new URLSearchParams({page:String(a),per_page:String(s)});return e&&p.set("category",e),t.get(`/api/templates?${p}`)},get:e=>t.get(`/api/templates/${e}`),create:e=>t.post("/api/templates",e),update:(e,a)=>t.patch(`/api/templates/${e}`,a),delete:e=>t.delete(`/api/templates/${e}`)};export{r as t};

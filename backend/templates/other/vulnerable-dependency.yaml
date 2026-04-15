@@ -1,0 +1,14 @@
+id: builtin-vulnerable-dependency
+name: Dependency with Known Vulnerability
+category: Other
+risk_level: high
+title: "Vulnerable Dependency: [library] [version]"
+description: |
+  The application uses a third-party library or framework version that contains known security vulnerabilities with published CVEs. Attackers actively scan for applications using vulnerable dependency versions and may have access to public exploit code. The risk is compounded when the vulnerable component processes untrusted input or is exposed to network traffic.
+impact: |
+  Depending on the specific vulnerability, impact can range from denial of service to remote code execution. Known vulnerabilities in popular libraries are frequently targeted in automated attacks. The impact is determined by the severity of the specific CVE and how the vulnerable component is used within the application.
+recommendation: |
+  Update the affected dependency to the latest patched version. If an immediate update is not possible, evaluate available mitigations or workarounds documented in the CVE advisory. Implement automated dependency scanning in the CI/CD pipeline (e.g., Dependabot, Snyk, OWASP Dependency-Check) to detect vulnerable dependencies early. Establish a process for regularly reviewing and updating dependencies.
+references:
+  - CWE-1395
+  - https://owasp.org/Top10/A06_2021-Vulnerable_and_Outdated_Components/

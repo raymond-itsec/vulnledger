@@ -1,0 +1,14 @@
+id: builtin-verbose-error-messages
+name: Verbose Error Messages
+category: Misconfiguration
+risk_level: low
+title: "Verbose Error Messages in [component]"
+description: |
+  The application returns detailed error messages, stack traces, or debug information to end users in production. This may include internal file paths, database query details, framework versions, or configuration values. While helpful during development, this information significantly aids an attacker in understanding the application's internals and identifying further attack vectors.
+impact: |
+  Detailed error messages expose the application's technology stack, internal architecture, file system layout, and potentially sensitive configuration details. Attackers use this information to craft targeted attacks, identify vulnerable library versions, and understand application logic without needing source code access.
+recommendation: |
+  Configure the application to display generic error messages to users in production environments while logging detailed error information server-side for debugging purposes. Ensure debug mode is disabled in production. Implement a centralized error handler that catches unhandled exceptions and returns a standardized error response without internal details.
+references:
+  - CWE-209
+  - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/

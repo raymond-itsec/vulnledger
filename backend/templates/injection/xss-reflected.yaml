@@ -1,0 +1,14 @@
+id: builtin-xss-reflected
+name: Cross-Site Scripting - Reflected
+category: Injection
+risk_level: high
+title: "Reflected Cross-Site Scripting in [component]"
+description: |
+  The application reflects user-supplied input in HTTP responses without proper encoding or sanitization, enabling reflected cross-site scripting (XSS). When a victim clicks a crafted URL containing malicious JavaScript, the script executes in the context of the victim's browser session. This vulnerability typically arises in search fields, error messages, or any endpoint that echoes request parameters back to the user.
+impact: |
+  An attacker can execute arbitrary JavaScript in the browser of any user who clicks a malicious link, enabling session hijacking through cookie theft, credential harvesting via phishing overlays, and unauthorized actions performed on behalf of the victim. Reflected XSS is commonly used as an entry point for more complex attack chains, including account takeover and internal network reconnaissance. The attack surface increases when the application is used by privileged users such as administrators.
+recommendation: |
+  Apply context-sensitive output encoding for all user-supplied data rendered in HTML, JavaScript, CSS, and URL contexts. Implement a strict Content Security Policy (CSP) that prevents inline script execution and restricts script sources to trusted origins. Use modern framework features that auto-escape output by default, and validate input against expected patterns on the server side. Enable the `HttpOnly` and `Secure` flags on session cookies to limit the impact of successful exploitation.
+references:
+  - CWE-79
+  - https://owasp.org/Top10/A03_2021-Injection/

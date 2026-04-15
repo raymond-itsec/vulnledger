@@ -1,0 +1,14 @@
+id: builtin-xss-stored
+name: Cross-Site Scripting - Stored
+category: Injection
+risk_level: high
+title: "Stored Cross-Site Scripting in [component]"
+description: |
+  The application stores user-supplied input and later renders it in web pages served to other users without proper sanitization or encoding. Unlike reflected XSS, the malicious payload is persisted in the application's data store (database, file system, or cache) and is delivered to victims automatically when they access the affected page. This makes stored XSS particularly dangerous as it does not require social engineering to lure victims to a crafted URL.
+impact: |
+  Every user who views the page containing the stored payload will have malicious JavaScript executed in their browser session. This can lead to mass session hijacking, persistent credential theft, defacement of application content, and propagation of worm-like attacks that spread through user-generated content. When administrative users are affected, the attacker may gain full control over the application. Stored XSS is frequently rated as higher severity than reflected XSS due to its broader and more persistent impact.
+recommendation: |
+  Sanitize all user-supplied content upon input using an allowlist-based HTML sanitizer for fields that require rich text, and apply strict context-sensitive output encoding for all other fields. Implement a Content Security Policy (CSP) with nonce-based script allowlisting to mitigate the impact of any bypasses. Store content in its raw form but always encode on output, and conduct regular security reviews of any content rendering pipelines. Consider implementing content moderation workflows for high-risk user-generated content areas.
+references:
+  - CWE-79
+  - https://owasp.org/Top10/A03_2021-Injection/
