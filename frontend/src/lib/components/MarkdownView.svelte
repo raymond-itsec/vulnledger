@@ -1,9 +1,27 @@
 <script lang="ts">
   let { content = '' }: { content: string } = $props();
 
+  function escapeHtml(value: string): string {
+    return value
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function sanitizeUrl(url: string): string | null {
+    const value = url.trim();
+    if (/^(https?:\/\/|mailto:|\/|#)/i.test(value)) {
+      return escapeHtml(value);
+    }
+    return null;
+  }
+
   function renderMarkdown(md: string): string {
     if (!md) return '';
-    let html = md
+
+    let html = escapeHtml(md)
       // code blocks
       .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
       // inline code
@@ -16,7 +34,11 @@
       .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
       .replace(/\*(.+?)\*/g, '<em>$1</em>')
       // links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text: string, url: string) => {
+        const safeUrl = sanitizeUrl(url);
+        if (!safeUrl) return text;
+        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+      })
       // unordered lists
       .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
       // paragraphs

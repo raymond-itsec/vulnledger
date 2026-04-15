@@ -5,6 +5,7 @@ import yaml
 from sqlalchemy import select
 
 from app.database import async_session
+from app.config import settings
 from app.models.finding_template import FindingTemplate
 from app.models.user import User
 from app.services.auth import hash_password
@@ -16,20 +17,35 @@ TEMPLATES_DIR = Path(__file__).parent.parent.parent / "templates"
 
 async def seed_admin_user() -> None:
     async with async_session() as db:
-        result = await db.execute(select(User).where(User.username == "admin"))
+        username = settings.initial_admin_username.strip()
+        password = settings.initial_admin_password
+        email = settings.initial_admin_email.strip()
+
+        if not username or not password or not email:
+            existing_admin = await db.execute(select(User.user_id).where(User.role == "admin").limit(1))
+            if existing_admin.scalar_one_or_none():
+                return
+            logger.warning(
+                "Skipping initial admin seed because FINDINGS_INITIAL_ADMIN_USERNAME, "
+                "FINDINGS_INITIAL_ADMIN_PASSWORD, or FINDINGS_INITIAL_ADMIN_EMAIL is not set"
+            )
+            return
+
+        result = await db.execute(select(User).where(User.username == username))
         if result.scalar_one_or_none():
             return
+
         admin = User(
-            username="admin",
-            password_hash=hash_password("changeme"),
-            full_name="Administrator",
-            email="admin@localhost",
+            username=username,
+            password_hash=hash_password(password),
+            full_name=settings.initial_admin_full_name,
+            email=email,
             role="admin",
             is_active=True,
         )
         db.add(admin)
         await db.commit()
-        logger.info("Seeded default admin user (username: admin, password: changeme)")
+        logger.info("Seeded initial admin user: %s", username)
 
 
 async def sync_builtin_templates() -> None:

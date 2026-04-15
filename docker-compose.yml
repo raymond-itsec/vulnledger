@@ -3,11 +3,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: findings
-      POSTGRES_PASSWORD: findings
-      POSTGRES_DB: findings
+      POSTGRES_USER: ${POSTGRES_USER:-findings}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-findings}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -16,11 +16,11 @@ services:
     restart: unless-stopped
     command: server /data --console-address ":9001"
     environment:
-      MINIO_ROOT_USER: minioadmin
-      MINIO_ROOT_PASSWORD: minioadmin
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
     ports:
-      - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:${MINIO_PORT:-9000}:9000"
+      - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
 
@@ -31,18 +31,22 @@ services:
       - db
       - minio
     ports:
-      - "8000:8000"
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
-      FINDINGS_DATABASE_URL: postgresql+asyncpg://findings:findings@db:5432/findings
-      FINDINGS_SECRET_KEY: change-me-in-production
+      FINDINGS_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-findings}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-findings}
+      FINDINGS_SECRET_KEY: ${FINDINGS_SECRET_KEY:?Set FINDINGS_SECRET_KEY in .env}
       FINDINGS_MINIO_ENDPOINT: minio:9000
-      FINDINGS_MINIO_ACCESS_KEY: minioadmin
-      FINDINGS_MINIO_SECRET_KEY: minioadmin
+      FINDINGS_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      FINDINGS_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
       FINDINGS_MINIO_SECURE: "false"
       FINDINGS_MAILJET_API_KEY: ""
       FINDINGS_MAILJET_API_SECRET: ""
       FINDINGS_MAILJET_FROM_EMAIL: "noreply@findings.local"
-      FINDINGS_APP_BASE_URL: "http://localhost"
+      FINDINGS_APP_BASE_URL: ${FINDINGS_APP_BASE_URL:-http://localhost}
+      FINDINGS_INITIAL_ADMIN_USERNAME: ${FINDINGS_INITIAL_ADMIN_USERNAME:?Set FINDINGS_INITIAL_ADMIN_USERNAME in .env}
+      FINDINGS_INITIAL_ADMIN_PASSWORD: ${FINDINGS_INITIAL_ADMIN_PASSWORD:?Set FINDINGS_INITIAL_ADMIN_PASSWORD in .env}
+      FINDINGS_INITIAL_ADMIN_EMAIL: ${FINDINGS_INITIAL_ADMIN_EMAIL:?Set FINDINGS_INITIAL_ADMIN_EMAIL in .env}
+      FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:-Administrator}
       FINDINGS_CLAMAV_HOST: clamav
       FINDINGS_CLAMAV_PORT: "3310"
     command: >
@@ -56,17 +60,20 @@ services:
     depends_on:
       - backend
     ports:
-      - "5173:5173"
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
 
   caddy:
-    image: caddy:2-alpine
+    image: caddy:2.11.2-alpine
     restart: unless-stopped
     depends_on:
       - frontend
       - backend
+    environment:
+      CADDY_HOST: ${CADDY_HOST:-http://localhost}
     ports:
       - "80:80"
       - "443:443"
+      - "443:443/udp"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
@@ -80,9 +87,9 @@ services:
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
-      POSTGRES_USER: findings
-      POSTGRES_PASSWORD: findings
-      POSTGRES_DB: findings
+      POSTGRES_USER: ${POSTGRES_USER:-findings}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-findings}
       BACKUP_RETENTION_DAYS: "30"
       BACKUP_CRON: "0 2 * * *"
     volumes:
@@ -92,7 +99,7 @@ services:
     image: clamav/clamav:stable
     restart: unless-stopped
     ports:
-      - "3310:3310"
+      - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
       - clamav_data:/var/lib/clamav
 

@@ -1,10 +1,12 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import '../app.css';
-  import { auth, logout } from '$lib/stores/auth.svelte';
+  import { auth, bootstrapAuth, logout } from '$lib/stores/auth.svelte';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
 
   let { children }: { children: Snippet } = $props();
+  let authReady = $state(false);
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: '⊞' },
@@ -26,9 +28,18 @@
     if (href === '/') return currentPath === '/';
     return currentPath.startsWith(href);
   }
+
+  onMount(async () => {
+    await bootstrapAuth();
+    authReady = true;
+  });
 </script>
 
-{#if !auth.isAuthenticated}
+{#if !authReady}
+  <main class="content loading-shell">
+    <p>Loading...</p>
+  </main>
+{:else if !auth.isAuthenticated}
   {@render children()}
 {:else}
   <div class="app-layout">
@@ -137,5 +148,8 @@
     margin-left: 240px;
     padding: 2rem;
     min-height: 100vh;
+  }
+  .loading-shell {
+    margin-left: 0;
   }
 </style>

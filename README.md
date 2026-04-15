@@ -55,7 +55,7 @@ A self-hosted web application for managing security code review findings. Built 
 - 🚦 **Rate Limiting** — Brute-force protection on login, configurable API limits
 - 🛡️ **Security Headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
 - 🔑 **Optional OIDC SSO** — Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
-- 🦠 **Virus Scanning** — ClamAV integration scans every file upload before storage
+- 🦠 **Virus Scanning** — ClamAV integration scans every file upload before storage and blocks uploads if the scanner is configured but unavailable
 - 💾 **Automated Backups** — Scheduled PostgreSQL dumps with configurable retention
 
 ---
@@ -124,15 +124,15 @@ A self-hosted web application for managing security code review findings. Built 
 1. User submits credentials → `POST /api/auth/login`
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
 3. Frontend stores access token in memory (not localStorage — XSS safe)
-4. On 401, frontend automatically calls `POST /api/auth/refresh` using the cookie
-5. Refresh rotates both tokens transparently
+4. On page load or after a 401, the frontend calls `POST /api/auth/refresh` using the cookie
+5. Refresh rotates both tokens transparently and restores the in-memory access token
 
 ### OIDC SSO Flow (Optional)
 1. User clicks "Sign in with SSO" → `GET /api/auth/oidc/login`
 2. Redirect to Identity Provider (IdP)
 3. IdP callback → `GET /api/auth/oidc/callback`
 4. Backend auto-provisions user from OIDC claims if new
-5. Redirect to frontend with token
+5. Redirect to the frontend, which restores the session from the refresh cookie
 
 ---
 
@@ -179,15 +179,20 @@ FindingTemplates (25 built-in + custom)
 git clone <your-repo-url> findings
 cd findings
 
-# 2. Start all services
+# 2. Create your local environment file
+cp .env.example .env
+
+# 3. Review the secrets and initial admin values in .env
+
+# 4. Start all services
 docker compose up -d
 
-# 3. Open in browser
+# 5. Open in browser
 open http://localhost
 ```
 
 That's it. The app will be available at `http://localhost` with:
-- 📌 Default admin login: `admin` / `changeme`
+- 📌 Your configured initial admin account from `.env`
 - 📌 25 finding templates auto-synced on startup
 - 📌 PostgreSQL, MinIO, and all services running
 
@@ -255,12 +260,15 @@ Create a `.env` file in the project root (or set environment variables):
 ```env
 # Required
 FINDINGS_DATABASE_URL=postgresql+asyncpg://findings:findings@localhost:5432/findings
-FINDINGS_SECRET_KEY=your-secret-key-change-in-production
+FINDINGS_SECRET_KEY=change-this-jwt-signing-key
+FINDINGS_INITIAL_ADMIN_USERNAME=admin
+FINDINGS_INITIAL_ADMIN_PASSWORD=change-this-admin-password
+FINDINGS_INITIAL_ADMIN_EMAIL=admin@example.com
 
 # MinIO (file attachments)
 FINDINGS_MINIO_ENDPOINT=localhost:9000
-FINDINGS_MINIO_ACCESS_KEY=minioadmin
-FINDINGS_MINIO_SECRET_KEY=minioadmin
+FINDINGS_MINIO_ACCESS_KEY=findings-storage
+FINDINGS_MINIO_SECRET_KEY=change-this-minio-secret
 
 # Optional: Email notifications
 FINDINGS_MAILJET_API_KEY=your-mailjet-key
@@ -297,27 +305,11 @@ cd /opt/findings
 cp .env.example .env
 nano .env  # Set production values (see below)
 
-# 3. Update Caddyfile with your domain
-nano Caddyfile
+# 3. Set your public host in .env
+# CADDY_HOST=yourdomain.com
 ```
 
-Replace the Caddyfile contents with your domain:
-
-```caddyfile
-yourdomain.com {
-    encode gzip
-
-    handle /api/* {
-        reverse_proxy backend:8000
-    }
-
-    handle {
-        reverse_proxy frontend:5173
-    }
-}
-```
-
-> 💡 Caddy automatically provisions and renews Let's Encrypt TLS certificates.
+> 💡 Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
 
 ```bash
 # 4. Start all services
@@ -335,8 +327,11 @@ These **must** be changed from defaults:
 ```env
 # ⚠️ CRITICAL — change these!
 FINDINGS_SECRET_KEY=<random-64-char-string>
-FINDINGS_MINIO_ACCESS_KEY=<strong-access-key>
-FINDINGS_MINIO_SECRET_KEY=<strong-secret-key>
+MINIO_ROOT_USER=<strong-access-key>
+MINIO_ROOT_PASSWORD=<strong-secret-key>
+FINDINGS_INITIAL_ADMIN_USERNAME=<admin-username>
+FINDINGS_INITIAL_ADMIN_PASSWORD=<strong-admin-password>
+FINDINGS_INITIAL_ADMIN_EMAIL=<admin-email>
 
 # Database (use strong password)
 POSTGRES_PASSWORD=<strong-db-password>
@@ -434,13 +429,13 @@ The default `docker-compose.yml` runs all 7 services:
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `db` | postgres:16-alpine | 5432 | Primary database |
-| `minio` | minio/minio | 9000, 9001 | Object storage for attachments |
-| `backend` | Custom (Python 3.12) | 8000 | FastAPI REST API |
-| `frontend` | Custom (Node 22) | 5173 | SvelteKit SPA |
-| `caddy` | caddy:2-alpine | 80, 443 | Reverse proxy with auto-TLS |
+| `db` | postgres:16-alpine | `127.0.0.1:5432` | Primary database |
+| `minio` | minio/minio | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for attachments |
+| `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
+| `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
+| `caddy` | caddy:2.11.2-alpine | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
 | `backup` | Custom (postgres + cron) | — | Scheduled database backups |
-| `clamav` | clamav/clamav:stable | 3310 | Antivirus scanning |
+| `clamav` | clamav/clamav:stable | `127.0.0.1:3310` | Antivirus scanning |
 
 ### Volumes
 
@@ -461,13 +456,13 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FINDINGS_DATABASE_URL` | `postgresql+asyncpg://findings:findings@db:5432/findings` | PostgreSQL connection string |
-| `FINDINGS_SECRET_KEY` | `change-me-in-production` | JWT signing key (**change this!**) |
+| `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required) |
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access token lifetime |
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
-| `FINDINGS_MINIO_ACCESS_KEY` | `minioadmin` | MinIO access key |
-| `FINDINGS_MINIO_SECRET_KEY` | `minioadmin` | MinIO secret key |
+| `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
+| `FINDINGS_MINIO_SECRET_KEY` | _(empty)_ | MinIO secret key |
 | `FINDINGS_MINIO_SECURE` | `false` | Use HTTPS for MinIO |
 | `FINDINGS_MAILJET_API_KEY` | _(empty)_ | Mailjet API key (empty = emails disabled) |
 | `FINDINGS_MAILJET_API_SECRET` | _(empty)_ | Mailjet API secret |
@@ -482,6 +477,10 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | `FINDINGS_OIDC_DISCOVERY_URL` | _(empty)_ | OIDC discovery URL (`.well-known/openid-configuration`) |
 | `FINDINGS_OIDC_REDIRECT_URI` | _(empty)_ | OIDC callback URL |
 | `FINDINGS_OIDC_DEFAULT_ROLE` | `reviewer` | Default role for auto-provisioned SSO users |
+| `FINDINGS_INITIAL_ADMIN_USERNAME` | _(empty)_ | Username for the one-time seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_PASSWORD` | _(empty)_ | Password for the one-time seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_EMAIL` | _(empty)_ | Email for the one-time seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
 

@@ -4,11 +4,13 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import joinedload
 
-from app.api.deps import get_current_user, require_role
+from app.api.deps import get_client_scope, get_current_user, require_role
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.finding_attachment import FindingAttachment
+from app.models.review_session import ReviewSession
 from app.models.user import User
 from app.schemas.attachment import AttachmentResponse
 from app.services.antivirus import scan_file
@@ -25,6 +27,31 @@ router = APIRouter(tags=["attachments"])
 admin_or_reviewer = require_role("admin", "reviewer")
 
 
+async def _get_accessible_finding(
+    finding_id: UUID,
+    db: AsyncSession,
+    user: User,
+) -> Finding:
+    result = await db.execute(
+        select(Finding)
+        .options(joinedload(Finding.session).joinedload(ReviewSession.asset))
+        .where(Finding.finding_id == finding_id)
+    )
+    finding = result.unique().scalar_one_or_none()
+    if not finding:
+        raise HTTPException(status_code=404, detail="Finding not found")
+
+    scope = get_client_scope(user)
+    if scope and (
+        not finding.session
+        or not finding.session.asset
+        or finding.session.asset.client_id != scope
+    ):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    return finding
+
+
 @router.get(
     "/findings/{finding_id}/attachments",
     response_model=list[AttachmentResponse],
@@ -32,11 +59,9 @@ admin_or_reviewer = require_role("admin", "reviewer")
 async def list_attachments(
     finding_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
-    result = await db.execute(select(Finding).where(Finding.finding_id == finding_id))
-    if not result.scalar_one_or_none():
-        raise HTTPException(status_code=404, detail="Finding not found")
+    await _get_accessible_finding(finding_id, db, user)
     result = await db.execute(
         select(FindingAttachment)
         .where(FindingAttachment.finding_id == finding_id)
@@ -115,14 +140,29 @@ async def upload_attachment(
 async def download_attachment(
     attachment_id: UUID,
     db: AsyncSession = Depends(get_db),
-    _: User = Depends(get_current_user),
+    user: User = Depends(get_current_user),
 ):
     result = await db.execute(
-        select(FindingAttachment).where(FindingAttachment.attachment_id == attachment_id)
+        select(FindingAttachment)
+        .options(
+            joinedload(FindingAttachment.finding)
+            .joinedload(Finding.session)
+            .joinedload(ReviewSession.asset)
+        )
+        .where(FindingAttachment.attachment_id == attachment_id)
     )
-    attachment = result.scalar_one_or_none()
+    attachment = result.unique().scalar_one_or_none()
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
+
+    scope = get_client_scope(user)
+    if scope and (
+        not attachment.finding
+        or not attachment.finding.session
+        or not attachment.finding.session.asset
+        or attachment.finding.session.asset.client_id != scope
+    ):
+        raise HTTPException(status_code=403, detail="Access denied")
 
     try:
         data, content_type = download_file(attachment.storage_key)

@@ -20,6 +20,7 @@ from app.services.auth import (
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 limiter = Limiter(key_func=get_remote_address)
+COOKIE_SECURE = settings.app_base_url.startswith("https://")
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -43,7 +44,7 @@ async def login(request: Request, body: LoginRequest, response: Response, db: As
         key="refresh_token",
         value=refresh,
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         samesite="strict",
         max_age=7 * 24 * 3600,
         path="/api/auth",
@@ -83,7 +84,7 @@ async def refresh(
         key="refresh_token",
         value=new_refresh,
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         samesite="strict",
         max_age=7 * 24 * 3600,
         path="/api/auth",

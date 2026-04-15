@@ -8,7 +8,8 @@ Only loaded when FINDINGS_OIDC_ENABLED=true. Provides:
 import logging
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Depends, HTTPException, Response
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
 from starlette.requests import Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,9 +17,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.services.auth import create_access_token, create_refresh_token, hash_password
+from app.services.auth import create_refresh_token, hash_password
 
 logger = logging.getLogger(__name__)
+COOKIE_SECURE = settings.app_base_url.startswith("https://")
 
 router = APIRouter(prefix="/auth/oidc", tags=["oidc"])
 
@@ -43,7 +45,6 @@ async def oidc_login(request: Request):
 @router.get("/callback")
 async def oidc_callback(
     request: Request,
-    response: Response,
     db: AsyncSession = Depends(get_db),
 ):
     try:
@@ -89,21 +90,17 @@ async def oidc_callback(
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     # Issue tokens
-    access_token = create_access_token(user.user_id, user.role, user.linked_client_id)
     refresh = create_refresh_token(user.user_id)
-    response.set_cookie(
+    # Redirect to frontend and let the SPA bootstrap from the refresh cookie.
+    base = settings.app_base_url.rstrip("/")
+    redirect = RedirectResponse(url=f"{base}/", status_code=302)
+    redirect.set_cookie(
         key="refresh_token",
         value=refresh,
         httponly=True,
-        secure=True,
+        secure=COOKIE_SECURE,
         samesite="strict",
         max_age=7 * 24 * 3600,
         path="/api/auth",
     )
-
-    # Redirect to frontend with token
-    base = settings.app_base_url.rstrip("/")
-    return Response(
-        status_code=302,
-        headers={"Location": f"{base}/?oidc_token={access_token}"},
-    )
+    return redirect

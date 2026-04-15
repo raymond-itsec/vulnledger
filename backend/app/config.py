@@ -3,13 +3,13 @@ from pydantic_settings import BaseSettings
 
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
-    secret_key: str = "change-me-in-production"
+    secret_key: str = ""
     access_token_expire_minutes: int = 15
     refresh_token_expire_days: int = 7
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     minio_endpoint: str = "minio:9000"
-    minio_access_key: str = "minioadmin"
-    minio_secret_key: str = "minioadmin"
+    minio_access_key: str = ""
+    minio_secret_key: str = ""
     minio_secure: bool = False
     mailjet_api_key: str = ""
     mailjet_api_secret: str = ""
@@ -26,6 +26,10 @@ class Settings(BaseSettings):
     oidc_discovery_url: str = ""
     oidc_redirect_uri: str = ""
     oidc_default_role: str = "reviewer"
+    initial_admin_username: str = ""
+    initial_admin_password: str = ""
+    initial_admin_email: str = ""
+    initial_admin_full_name: str = "Administrator"
     # ClamAV (optional — leave empty to disable)
     clamav_host: str = ""
     clamav_port: int = 3310

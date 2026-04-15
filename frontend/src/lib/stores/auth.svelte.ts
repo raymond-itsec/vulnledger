@@ -57,9 +57,17 @@ export async function refreshToken(): Promise<boolean> {
   }
 }
 
-export async function setToken(accessToken: string): Promise<void> {
-  token = accessToken;
-  await fetchMe();
+export async function bootstrapAuth(): Promise<void> {
+  if (token) {
+    await fetchMe();
+    return;
+  }
+
+  const refreshed = await refreshToken();
+  if (!refreshed) {
+    token = null;
+    user = null;
+  }
 }
 
 export function logout(): void {

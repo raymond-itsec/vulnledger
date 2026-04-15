@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { auth, login as doLogin, setToken } from '$lib/stores/auth.svelte';
+  import { auth, login as doLogin } from '$lib/stores/auth.svelte';
   import { clientsApi } from '$lib/api/clients';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { findingsApi, type Finding, RISK_LEVELS, REMEDIATION_STATUSES } from '$lib/api/findings';
@@ -73,18 +73,8 @@
   }
 
   onMount(async () => {
-    // Handle OIDC callback token in URL
-    const params = new URLSearchParams(window.location.search);
-    const oidcToken = params.get('oidc_token');
-    if (oidcToken) {
-      await setToken(oidcToken);
-      window.history.replaceState({}, '', '/');
-    }
     // Check if OIDC is available
     try {
-      const res = await fetch('/api/health');
-      const data = await res.json();
-      // We'll check for OIDC route availability
       const oidcRes = await fetch('/api/auth/oidc/login', { method: 'HEAD', redirect: 'manual' });
       oidcAvailable = oidcRes.status !== 404;
     } catch {

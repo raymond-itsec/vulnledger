@@ -18,6 +18,9 @@ from app.services.storage import ensure_bucket
 
 logger = logging.getLogger(__name__)
 
+if not settings.secret_key:
+    raise RuntimeError("FINDINGS_SECRET_KEY must be set before starting the backend")
+
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_api])
 

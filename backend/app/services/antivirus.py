@@ -36,9 +36,12 @@ def scan_file(data: bytes, filename: str) -> tuple[bool, str]:
     Returns:
         (is_clean, message) — True if clean or scanner unavailable, False if infected.
     """
+    if not settings.clamav_host:
+        return True, "Scanner disabled"
+
     scanner = _get_scanner()
     if scanner is None:
-        return True, "Scanner not available — skipped"
+        return False, "Scanner not available"
 
     try:
         result = scanner.instream(io.BytesIO(data))
@@ -51,7 +54,7 @@ def scan_file(data: bytes, filename: str) -> tuple[bool, str]:
             return False, f"Virus detected: {reason}"
         else:
             logger.error("ClamAV scan error for %s: %s %s", filename, status, reason)
-            return True, f"Scan inconclusive: {status}"
+            return False, f"Scan inconclusive: {status}"
     except Exception as e:
         logger.exception("ClamAV scan failed for %s", filename)
-        return True, f"Scan error: {e}"
+        return False, f"Scan error: {e}"
