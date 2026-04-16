@@ -41,6 +41,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 - 📄 **PDF Reports** — Professional, styled security review reports with executive summary, risk breakdown, and detailed findings (WeasyPrint)
 - 📊 **CSV Export** — Spreadsheet-friendly export of all findings per session
 - 📦 **JSON Export** — Structured data export for integration with other tools
+- 🗂️ **Stored Export History** — Generated PDF/CSV/JSON exports are recorded per session with export date, file name, creator, and later download access
 - 📧 **Email Notifications** — Via Mailjet: new finding alerts, status change notifications, report-ready notifications
 
 ### Dashboard
@@ -52,6 +53,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 ### Security & Operations
 - 🔐 **JWT Authentication** — Access tokens (15 min) + HttpOnly refresh token cookies (7 days)
 - 👤 **Role-Based Access Control** — Admin, Reviewer, Client User roles with data isolation
+- 🧭 **Versioned Taxonomies** — DB-managed risk, remediation, session-status, and asset-type taxonomies with explicit active versions
 - 🚦 **Rate Limiting** — Brute-force protection on login, configurable API limits
 - 🛡️ **Security Headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
 - 🔑 **Optional OIDC SSO** — Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
@@ -120,6 +122,11 @@ VulnLedger is a self-hosted web application for managing security code review fi
 4. The backend communicates with **PostgreSQL** for data, **MinIO** for files, **ClamAV** for scanning, and **Mailjet** for email
 5. The **backup service** independently dumps PostgreSQL on a cron schedule
 
+### Storage Layout
+- **Evidence bucket** — Uploaded finding attachments are stored in the configured MinIO evidence bucket
+- **Reports bucket** — Generated PDF, CSV, and JSON exports are stored in a separate MinIO reports bucket
+- **Stored export downloads** — Session detail pages can list and download previously generated exports through the backend
+
 ### Authentication Flow
 1. User submits credentials → `POST /api/auth/login`
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
@@ -156,8 +163,24 @@ Findings ──▶ FindingHistory (per-field change log)               │
   ▼                                    (client_user sees only their client's data)
 FindingAttachments (MinIO)
 
+ReviewSessions ──▶ ReportExports (stored export metadata + MinIO object key + taxonomy version)
+
+TaxonomyVersions ──▶ TaxonomyEntries
+       ▲
+       └──── active version drives risk/status/asset validation, labels, colors, and export rendering
+
 FindingTemplates (25 built-in + custom)
 ```
+
+### Taxonomy Model
+
+VulnLedger uses DB-managed versioned taxonomies for:
+- `risk_level`
+- `remediation_status`
+- `session_status`
+- `asset_type`
+
+Each taxonomy entry stores a machine value plus its label, sort order, optional color, and active state. The active taxonomy version drives live backend validation and frontend UI options. Stored exports also record the taxonomy version that was active when the artifact was generated.
 
 ### Roles
 | Role | Permissions |
@@ -212,6 +235,7 @@ The VulnLedger repository includes a helper script for smoother installs:
 ```bash
 ./scripts/first-run.sh init    # create .env from .env.example
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
+./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
 ./scripts/first-run.sh up      # build and start the stack
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
@@ -297,6 +321,17 @@ FINDINGS_INITIAL_ADMIN_EMAIL=admin@example.com
 FINDINGS_MINIO_ENDPOINT=localhost:9000
 FINDINGS_MINIO_ACCESS_KEY=findings-storage
 FINDINGS_MINIO_SECRET_KEY=change-this-minio-secret
+FINDINGS_MINIO_SECURE=false
+FINDINGS_MINIO_EVIDENCE_BUCKET=finding-attachments
+FINDINGS_MINIO_REPORTS_BUCKET=generated-reports
+
+# Optional: Upload / report guardrails
+# The backend value is the authoritative attachment limit.
+# Keep the Caddy limit at or slightly above it so oversized uploads are rejected early.
+FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB=25
+FINDINGS_REPORT_MAX_FINDINGS=250
+FINDINGS_REPORT_MAX_INPUT_CHARS=200000
+FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB=25
 
 # Optional: Email notifications
 # Register: https://www.mailjet.com/pricing/
@@ -317,6 +352,9 @@ FINDINGS_OIDC_REDIRECT_URI=
 # Optional: ClamAV
 FINDINGS_CLAMAV_HOST=localhost
 FINDINGS_CLAMAV_PORT=3310
+
+# Optional: Reverse proxy upload cap (Caddy)
+CADDY_ATTACHMENT_MAX_SIZE=30MB
 ```
 
 ---
@@ -463,8 +501,8 @@ The default `docker-compose.yml` runs all 7 services:
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `db` | postgres:16-alpine | `127.0.0.1:5432` | Primary database |
-| `minio` | minio/minio | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for attachments |
+| `db` | postgres:16.13-alpine3.23 | `127.0.0.1:5432` | Primary database |
+| `minio` | minio/minio:RELEASE.2025-09-07T16-13-09Z | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for evidence and generated exports |
 | `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
 | `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
 | `caddy` | caddy:2.11.2-alpine | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
@@ -476,7 +514,7 @@ The default `docker-compose.yml` runs all 7 services:
 | Volume | Data | Backup? |
 |--------|------|---------|
 | `pgdata` | PostgreSQL data | ✅ Auto-backed up by backup service |
-| `minio_data` | File attachments | ⚠️ Back up separately or use MinIO replication |
+| `minio_data` | Evidence files and generated report exports | ⚠️ Back up separately or use MinIO replication |
 | `backups` | SQL dump files | 📁 Mount to host or NFS for off-server storage |
 | `caddy_data` | TLS certificates | 🔄 Auto-managed by Caddy |
 | `clamav_data` | Virus definitions | 🔄 Auto-updated by ClamAV |
@@ -485,7 +523,7 @@ The default `docker-compose.yml` runs all 7 services:
 
 ## ⚙️ Configuration Reference
 
-All settings use the `FINDINGS_` prefix and can be set via environment variables or `.env` file.
+Application settings use the `FINDINGS_` prefix. The deployment also exposes supporting Docker, port, and Caddy variables through the same `.env` file.
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -498,6 +536,12 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
 | `FINDINGS_MINIO_SECRET_KEY` | _(empty)_ | MinIO secret key |
 | `FINDINGS_MINIO_SECURE` | `false` | Use HTTPS for MinIO |
+| `FINDINGS_MINIO_EVIDENCE_BUCKET` | `finding-attachments` | MinIO bucket for uploaded finding evidence |
+| `FINDINGS_MINIO_REPORTS_BUCKET` | `generated-reports` | MinIO bucket for generated PDF/CSV/JSON exports |
+| `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` | `25` | Authoritative attachment size limit enforced by the backend |
+| `FINDINGS_REPORT_MAX_FINDINGS` | `250` | Maximum number of findings allowed in a single export |
+| `FINDINGS_REPORT_MAX_INPUT_CHARS` | `200000` | Maximum combined text size allowed before report generation |
+| `FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB` | `25` | Maximum generated report size before the backend rejects the export |
 | `FINDINGS_MAILJET_API_KEY` | _(empty)_ | Mailjet API key (empty = emails disabled) |
 | `FINDINGS_MAILJET_API_SECRET` | _(empty)_ | Mailjet API secret |
 | `FINDINGS_MAILJET_FROM_EMAIL` | `noreply@findings.local` | Sender email address |
@@ -525,6 +569,7 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | `CLAMAV_PORT` | `3310` | Host port published for ClamAV |
 | `CADDY_HTTP_PORT` | `80` | Host port published for Caddy HTTP |
 | `CADDY_HTTPS_PORT` | `443` | Host port published for Caddy HTTPS and HTTP/3 |
+| `CADDY_ATTACHMENT_MAX_SIZE` | `30MB` | Reverse-proxy upload body limit; keep this at or slightly above `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` |
 
 ### Backup Configuration
 
@@ -623,9 +668,16 @@ All endpoints are prefixed with `/api`. Authentication is via Bearer token in th
 | `PATCH` | `/api/templates/:id` | Update template | Admin/Reviewer |
 | `DELETE` | `/api/templates/:id` | Delete template | Admin/Reviewer |
 | | | | |
+| `GET` | `/api/taxonomy/current` | Get the active taxonomy version | Authenticated |
+| `GET` | `/api/taxonomy/versions` | List all taxonomy versions | Admin |
+| `POST` | `/api/taxonomy/versions` | Create and activate a new taxonomy version | Admin |
+| `POST` | `/api/taxonomy/activate` | Activate an existing taxonomy version | Admin |
+| | | | |
 | `GET` | `/api/reports/sessions/:id/pdf` | Download PDF report | Authenticated |
 | `GET` | `/api/reports/sessions/:id/csv` | Download CSV export | Authenticated |
 | `GET` | `/api/reports/sessions/:id/json` | Download JSON export | Authenticated |
+| `GET` | `/api/reports/sessions/:id/exports` | List stored exports for a session | Authenticated |
+| `GET` | `/api/reports/exports/:id/download` | Download a previously stored export artifact | Authenticated |
 | | | | |
 | `GET` | `/api/health` | Health check | Authenticated |
 
@@ -661,9 +713,15 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 
 ### File Security
 - **Content-Type Validation** — Only allowed MIME types accepted (images, PDF, text, CSV, JSON, ZIP)
-- **Size Limits** — 25 MB max per file
+- **Size Limits** — Attachment uploads are limited in both Caddy and the backend; the backend is authoritative, and the Caddy cap should be set at or slightly above it to reject oversized uploads early
 - **Virus Scanning** — ClamAV scans every upload before storage (when enabled)
-- **Proxied Downloads** — Files served through the backend (MinIO not exposed to internet)
+- **Separated Storage Buckets** — Evidence and generated exports are stored in different MinIO buckets
+- **Proxied Downloads** — Evidence files and stored exports are served through the backend (MinIO not exposed to the internet)
+
+### Reporting Controls
+- **Export Guardrails** — The backend rejects oversized exports based on finding count, total input size, and generated output size
+- **Stored Export Metadata** — Each export records the export date, file name, creating user, format, size, and taxonomy version used at generation time
+- **Historical Taxonomy Reference** — Stored exports are linked to the taxonomy version that was active when they were created
 
 ### Operational
 - **No Cloud Dependencies** — Fully self-hosted, EU-friendly, no US Cloud Act exposure
@@ -731,9 +789,9 @@ findings/
 ├── backend/
 │   ├── app/
 │   │   ├── api/            # FastAPI route handlers
-│   │   ├── models/         # SQLAlchemy models (9 models)
+│   │   ├── models/         # SQLAlchemy models
 │   │   ├── schemas/        # Pydantic request/response schemas
-│   │   ├── services/       # Business logic (auth, email, reports, storage, antivirus)
+│   │   ├── services/       # Business logic (auth, email, reports, storage, taxonomy, antivirus)
 │   │   ├── config.py       # Settings (pydantic-settings)
 │   │   ├── database.py     # Async engine & session factory
 │   │   └── main.py         # FastAPI app, middleware, lifespan

@@ -9,12 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 - Split MinIO storage so evidence attachments and generated report artifacts use separate buckets, with new environment settings for bucket names and storage security.
+- Added DB-managed, versioned taxonomies for risk levels, remediation statuses, session statuses, and asset types, with a seeded default taxonomy and admin APIs to create, list, and activate taxonomy versions.
+- Moved backend validation, report rendering, and the frontend badge/form/filter options onto the active taxonomy version instead of hardcoded status and risk definitions.
 - Added explicit report export guardrails for maximum finding count, maximum input size, and maximum generated output size.
 - Added explicit attachment body-size controls in both the backend configuration and the Caddy reverse proxy configuration.
 
 ### Fixed
 - Switched attachment downloads to stream from MinIO instead of buffering the entire object in backend memory.
 - Stored generated PDF, CSV, and JSON report artifacts in the dedicated reports bucket during export.
+- Added persistent report export records, including export date, file name, creator, stored object key, and taxonomy version, plus endpoints and UI support to list and download prior exports per session.
 - Added schema-level length and count limits for large finding and session fields so oversized content is rejected before it can amplify report rendering cost.
 
 ## [v0.1.9] - 2026-04-16
