@@ -35,7 +35,7 @@
       sessions = sRes.items;
       form = { asset_name: a.asset_name, asset_type: a.asset_type, description: a.description || '' };
       if (canEdit) {
-        try { reviewers = (await usersApi.list(1, 100)).items; } catch { /* non-admin */ }
+        try { reviewers = await usersApi.listReviewers(); } catch { /* ignore */ }
       }
     } finally {
       loading = false;

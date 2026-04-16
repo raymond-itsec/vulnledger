@@ -1,4 +1,4 @@
-import { auth } from '$lib/stores/auth.svelte';
+import { authorizedFetch } from './client';
 
 export interface Attachment {
   attachment_id: string;
@@ -10,17 +10,9 @@ export interface Attachment {
   uploaded_at: string;
 }
 
-function getHeaders(): Record<string, string> {
-  const headers: Record<string, string> = {};
-  if (auth.token) headers['Authorization'] = `Bearer ${auth.token}`;
-  return headers;
-}
-
 export const attachmentsApi = {
   list: async (findingId: string): Promise<Attachment[]> => {
-    const res = await fetch(`/api/findings/${findingId}/attachments`, {
-      headers: getHeaders(),
-    });
+    const res = await authorizedFetch(`/api/findings/${findingId}/attachments`);
     if (!res.ok) throw new Error('Failed to load attachments');
     return res.json();
   },
@@ -28,9 +20,8 @@ export const attachmentsApi = {
   upload: async (findingId: string, file: File): Promise<Attachment> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await fetch(`/api/findings/${findingId}/attachments`, {
+    const res = await authorizedFetch(`/api/findings/${findingId}/attachments`, {
       method: 'POST',
-      headers: getHeaders(),
       body: formData,
     });
     if (!res.ok) {
@@ -40,13 +31,25 @@ export const attachmentsApi = {
     return res.json();
   },
 
-  downloadUrl: (attachmentId: string): string =>
-    `/api/attachments/${attachmentId}/download`,
+  download: async (attachmentId: string, fileName: string): Promise<void> => {
+    const res = await authorizedFetch(`/api/attachments/${attachmentId}/download`);
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: res.statusText }));
+      throw new Error(err.detail || 'Failed to download attachment');
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    link.click();
+    URL.revokeObjectURL(url);
+  },
 
   delete: async (attachmentId: string): Promise<void> => {
-    const res = await fetch(`/api/attachments/${attachmentId}`, {
+    const res = await authorizedFetch(`/api/attachments/${attachmentId}`, {
       method: 'DELETE',
-      headers: getHeaders(),
     });
     if (!res.ok) throw new Error('Failed to delete attachment');
   },

@@ -1,14 +1,11 @@
 import { auth, refreshToken, logout } from '$lib/stores/auth.svelte';
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+export async function authorizedFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
   if (auth.token) {
     headers['Authorization'] = `Bearer ${auth.token}`;
-  }
-  if (options.body && typeof options.body === 'string') {
-    headers['Content-Type'] = 'application/json';
   }
 
   let res = await fetch(path, { ...options, headers });
@@ -23,6 +20,19 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
       throw new Error('Session expired');
     }
   }
+
+  return res;
+}
+
+async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string> || {}),
+  };
+  if (options.body && typeof options.body === 'string') {
+    headers['Content-Type'] = 'application/json';
+  }
+
+  const res = await authorizedFetch(path, { ...options, headers });
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ detail: res.statusText }));

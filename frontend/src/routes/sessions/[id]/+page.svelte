@@ -3,7 +3,7 @@
   import { page } from '$app/state';
   import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
   import { findingsApi, type Finding, RISK_LEVELS } from '$lib/api/findings';
-  import { auth } from '$lib/stores/auth.svelte';
+  import { authorizedFetch } from '$lib/api/client';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
 
@@ -44,9 +44,7 @@
     if (!session) return;
     exporting = format;
     try {
-      const res = await fetch(`/api/reports/sessions/${session.session_id}/${format}`, {
-        headers: auth.token ? { Authorization: `Bearer ${auth.token}` } : {},
-      });
+      const res = await authorizedFetch(`/api/reports/sessions/${session.session_id}/${format}`);
       if (!res.ok) throw new Error('Export failed');
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);

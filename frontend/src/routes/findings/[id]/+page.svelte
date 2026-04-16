@@ -111,6 +111,14 @@
       // ignore
     }
   }
+
+  async function handleDownloadAttachment(att: Attachment) {
+    try {
+      await attachmentsApi.download(att.attachment_id, att.file_name);
+    } catch (err: any) {
+      uploadError = err.message;
+    }
+  }
 </script>
 
 {#if loading}
@@ -235,9 +243,13 @@
             {#each attachments as att}
               <tr>
                 <td>
-                  <a href={attachmentsApi.downloadUrl(att.attachment_id)} target="_blank" rel="noopener">
+                  <button
+                    class="link-button"
+                    type="button"
+                    onclick={() => handleDownloadAttachment(att)}
+                  >
                     {att.file_name}
-                  </a>
+                  </button>
                 </td>
                 <td>{att.content_type || '—'}</td>
                 <td>{formatFileSize(att.size_bytes)}</td>
@@ -320,4 +332,14 @@
   }
   .history-toggle:hover { color: var(--text-primary); }
   .val-cell { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; }
+  .link-button {
+    background: none;
+    border: none;
+    color: var(--accent);
+    cursor: pointer;
+    font: inherit;
+    padding: 0;
+    text-align: left;
+    text-decoration: underline;
+  }
 </style>

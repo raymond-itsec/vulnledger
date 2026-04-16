@@ -27,6 +27,19 @@ async def list_users(
     return await paginate(db, query, page, per_page)
 
 
+@router.get("/reviewers", response_model=list[UserResponse])
+async def list_reviewers(
+    db: AsyncSession = Depends(get_db),
+    _: User = Depends(require_role("admin", "reviewer")),
+):
+    result = await db.execute(
+        select(User)
+        .where(User.is_active.is_(True), User.role.in_(("admin", "reviewer")))
+        .order_by(User.full_name, User.username)
+    )
+    return result.scalars().all()
+
+
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def create_user(
     body: UserCreate,

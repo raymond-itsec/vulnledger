@@ -46,7 +46,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>Findings</h1>
-        <span class="version">v0.1</span>
+        <span class="version">v0.1.2</span>
       </div>
       <nav>
         {#each visibleNav as item}

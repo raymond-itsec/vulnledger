@@ -18,6 +18,27 @@ router = APIRouter(prefix="/sessions", tags=["sessions"])
 admin_or_reviewer = require_role("admin", "reviewer")
 
 
+async def _validate_session_relations(
+    db: AsyncSession,
+    asset_id: UUID,
+    reviewer_id: UUID,
+) -> None:
+    asset_result = await db.execute(
+        select(ReviewedAsset.asset_id).where(ReviewedAsset.asset_id == asset_id)
+    )
+    if asset_result.scalar_one_or_none() is None:
+        raise HTTPException(status_code=404, detail="Asset not found")
+
+    reviewer_result = await db.execute(
+        select(User).where(User.user_id == reviewer_id)
+    )
+    reviewer = reviewer_result.scalar_one_or_none()
+    if not reviewer or not reviewer.is_active:
+        raise HTTPException(status_code=422, detail="Reviewer not found or inactive")
+    if reviewer.role not in {"admin", "reviewer"}:
+        raise HTTPException(status_code=422, detail="Reviewer must have admin or reviewer role")
+
+
 def _to_response(session: ReviewSession) -> SessionResponse:
     return SessionResponse(
         session_id=session.session_id,
@@ -64,6 +85,7 @@ async def create_session(
 ):
     if body.status not in VALID_STATUSES:
         raise HTTPException(status_code=422, detail=f"status must be one of: {VALID_STATUSES}")
+    await _validate_session_relations(db, body.asset_id, body.reviewer_id)
     session = ReviewSession(
         asset_id=body.asset_id,
         review_name=body.review_name,
@@ -121,6 +143,10 @@ async def update_session(
     update_data = body.model_dump(exclude_unset=True)
     if "status" in update_data and update_data["status"] not in VALID_STATUSES:
         raise HTTPException(status_code=422, detail=f"status must be one of: {VALID_STATUSES}")
+    reviewer_id = update_data.get("reviewer_id", session.reviewer_id)
+    asset_id = update_data.get("asset_id", session.asset_id)
+    if "reviewer_id" in update_data:
+        await _validate_session_relations(db, asset_id, reviewer_id)
     for field, value in update_data.items():
         setattr(session, field, value)
     await db.commit()
