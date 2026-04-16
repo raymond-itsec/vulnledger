@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [v0.1.1] - 2026-04-16
 
+### Fixed
+- Switched password hashing to `bcrypt_sha256` with bcrypt fallback so long initial admin passwords no longer fail during startup.
+
+## [v0.1.0] - 2026-04-15
+
 ### Added
 - Added a project changelog in Keep a Changelog format.
 - Added a `.env.example` template for secure first-run configuration.

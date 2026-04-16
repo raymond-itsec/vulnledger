@@ -6,7 +6,12 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# Use bcrypt_sha256 by default so long passwords don't fail at 72 bytes.
+# Keep plain bcrypt in the context so existing hashes continue to verify.
+pwd_context = CryptContext(
+    schemes=["bcrypt_sha256", "bcrypt"],
+    deprecated="auto",
+)
 
 ALGORITHM = "HS256"
 
