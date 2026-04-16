@@ -34,7 +34,11 @@ class Settings(BaseSettings):
     clamav_host: str = ""
     clamav_port: int = 3310
 
-    model_config = {"env_prefix": "FINDINGS_", "env_file": ".env"}
+    model_config = {
+        "env_prefix": "FINDINGS_",
+        "env_file": ".env",
+        "extra": "ignore",
+    }
 
 
 settings = Settings()
