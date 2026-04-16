@@ -1,6 +1,10 @@
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
+	request_body /api/findings/*/attachments {
+		max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
+	}
+
 	handle /api/* {
 		reverse_proxy backend:8000
 	}

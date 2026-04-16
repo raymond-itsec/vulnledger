@@ -3,9 +3,10 @@
   import { goto } from '$app/navigation';
   import { page as pageState } from '$app/state';
   import { assetsApi, type Asset } from '$lib/api/assets';
-  import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
+  import { sessionsApi, type Session } from '$lib/api/sessions';
   import { usersApi, type User } from '$lib/api/users';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -32,6 +33,7 @@
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasAssets = $derived(assets.length > 0);
+  const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
 
   async function load(p = 1) {
     const res = await sessionsApi.list(undefined, p);
@@ -132,8 +134,8 @@
 <div class="filters">
   <select bind:value={filterStatus} onchange={() => load(1)}>
     <option value="">All Statuses</option>
-    {#each SESSION_STATUSES as s}
-      <option value={s}>{s.replace('_', ' ')}</option>
+    {#each sessionStatuses as s}
+      <option value={s.value}>{s.label}</option>
     {/each}
   </select>
 </div>
@@ -203,8 +205,8 @@
       <div class="form-group">
         <label>Status</label>
         <select bind:value={form.status}>
-          {#each SESSION_STATUSES as s}
-            <option value={s}>{s.replace('_', ' ')}</option>
+          {#each sessionStatuses as s}
+            <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>

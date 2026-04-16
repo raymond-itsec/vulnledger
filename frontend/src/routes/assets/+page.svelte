@@ -2,9 +2,10 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page as pageState } from '$app/state';
-  import { assetsApi, type Asset, ASSET_TYPES } from '$lib/api/assets';
+  import { assetsApi, type Asset } from '$lib/api/assets';
   import { clientsApi, type Client } from '$lib/api/clients';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
@@ -19,6 +20,7 @@
   let showModal = $state(false);
   let form = $state({ client_id: '', asset_name: '', asset_type: 'web_application', description: '' });
   let saving = $state(false);
+  const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasClients = $derived(clients.length > 0);
@@ -109,7 +111,7 @@
         {#each assets as asset}
           <tr>
             <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
-            <td>{ASSET_TYPES.find((t) => t.value === asset.asset_type)?.label || asset.asset_type}</td>
+            <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
             <td><a href="/clients/{asset.client_id}">{clientName(asset.client_id)}</a></td>
             <td>{asset.description || '—'}</td>
           </tr>
@@ -138,7 +140,7 @@
     <div class="form-group">
       <label>Type</label>
       <select bind:value={form.asset_type}>
-        {#each ASSET_TYPES as t}
+        {#each assetTypes as t}
           <option value={t.value}>{t.label}</option>
         {/each}
       </select>

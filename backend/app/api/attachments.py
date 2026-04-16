@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
-from fastapi.responses import Response
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
@@ -17,9 +17,9 @@ from app.services.antivirus import scan_file
 from app.services.storage import (
     ALLOWED_CONTENT_TYPES,
     MAX_FILE_SIZE,
-    delete_file,
-    download_file,
-    upload_file,
+    delete_evidence_file,
+    stream_evidence_file,
+    upload_evidence_file,
 )
 
 router = APIRouter(tags=["attachments"])
@@ -112,7 +112,7 @@ async def upload_attachment(
 
     # Upload to MinIO
     try:
-        storage_key = upload_file(
+        storage_key = upload_evidence_file(
             str(finding_id),
             file.filename or "unnamed",
             content_type,
@@ -165,12 +165,12 @@ async def download_attachment(
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
-        data, content_type = download_file(attachment.storage_key)
+        file_iterator, content_type = stream_evidence_file(attachment.storage_key)
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Storage error: {e}")
 
-    return Response(
-        content=data,
+    return StreamingResponse(
+        file_iterator,
         media_type=content_type,
         headers={
             "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
@@ -195,7 +195,7 @@ async def delete_attachment(
         raise HTTPException(status_code=404, detail="Attachment not found")
 
     try:
-        delete_file(attachment.storage_key)
+        delete_evidence_file(attachment.storage_key)
     except Exception:
         pass  # File may already be gone
 

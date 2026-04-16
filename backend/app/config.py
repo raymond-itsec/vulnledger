@@ -11,6 +11,12 @@ class Settings(BaseSettings):
     minio_access_key: str = ""
     minio_secret_key: str = ""
     minio_secure: bool = False
+    minio_evidence_bucket: str = "finding-attachments"
+    minio_reports_bucket: str = "generated-reports"
+    attachment_max_file_size_mb: int = 25
+    report_max_findings: int = 250
+    report_max_input_chars: int = 200000
+    report_max_output_size_mb: int = 25
     mailjet_api_key: str = ""
     mailjet_api_secret: str = ""
     mailjet_from_email: str = "noreply@findings.local"

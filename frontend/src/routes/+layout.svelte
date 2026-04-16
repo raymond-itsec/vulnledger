@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import '../app.css';
   import { auth, bootstrapAuth, logout } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
@@ -33,12 +34,21 @@
 
   onMount(async () => {
     await bootstrapAuth();
+    if (auth.isAuthenticated) {
+      await taxonomy.load();
+    }
     authReady = true;
   });
 
   $effect(() => {
     if (authReady && !auth.isAuthenticated && page.url.pathname !== '/') {
       goto('/', { replaceState: true });
+    }
+  });
+
+  $effect(() => {
+    if (authReady && auth.isAuthenticated && !taxonomy.current && !taxonomy.loading) {
+      void taxonomy.load();
     }
   });
 

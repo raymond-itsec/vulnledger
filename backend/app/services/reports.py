@@ -8,30 +8,21 @@ from datetime import datetime
 import mistune
 from weasyprint import HTML
 
+from app.config import settings
 from app.models.finding import Finding
 from app.models.review_session import ReviewSession
+from app.services.taxonomy import TaxonomyBundle
 
-RISK_ORDER = {"critical": 0, "high": 1, "medium": 2, "low": 3, "informational": 4}
-
-RISK_COLORS = {
-    "critical": "#dc2626",
-    "high": "#ea580c",
-    "medium": "#d97706",
-    "low": "#2563eb",
-    "informational": "#6b7280",
-}
-
-STATUS_LABELS = {
-    "open": "Open",
-    "in_progress": "In Progress",
-    "resolved": "Resolved",
-    "accepted_risk": "Accepted Risk",
-    "false_positive": "False Positive",
-}
+MAX_REPORT_OUTPUT_SIZE = settings.report_max_output_size_mb * 1024 * 1024
 
 
-def _sort_findings(findings: list[Finding]) -> list[Finding]:
-    return sorted(findings, key=lambda f: RISK_ORDER.get(f.risk_level, 99))
+class ReportLimitError(ValueError):
+    pass
+
+
+def _sort_findings(findings: list[Finding], taxonomy: TaxonomyBundle) -> list[Finding]:
+    risk_order = taxonomy.order_map("risk_level")
+    return sorted(findings, key=lambda finding: risk_order.get(finding.risk_level, 99))
 
 
 def _render_md(text: str | None) -> str:
@@ -40,20 +31,57 @@ def _render_md(text: str | None) -> str:
     return mistune.html(text)
 
 
+def _estimate_report_input_size(session: ReviewSession, findings: list[Finding]) -> int:
+    total_chars = len(session.review_name) + len(session.notes or "")
+    for finding in findings:
+        total_chars += len(finding.title)
+        total_chars += len(finding.description)
+        total_chars += len(finding.impact or "")
+        total_chars += len(finding.recommendation or "")
+        if finding.references:
+            total_chars += sum(len(reference) for reference in finding.references)
+    return total_chars
+
+
+def validate_report_limits(session: ReviewSession, findings: list[Finding]) -> None:
+    if len(findings) > settings.report_max_findings:
+        raise ReportLimitError(
+            f"Report export exceeds the maximum of {settings.report_max_findings} findings."
+        )
+
+    total_chars = _estimate_report_input_size(session, findings)
+    if total_chars > settings.report_max_input_chars:
+        raise ReportLimitError(
+            "Report export exceeds the maximum allowed rendered input size."
+        )
+
+
+def validate_report_output_size(data: bytes) -> None:
+    if len(data) > MAX_REPORT_OUTPUT_SIZE:
+        raise ReportLimitError(
+            f"Report export exceeds the maximum output size of {settings.report_max_output_size_mb} MB."
+        )
+
+
 # ---------------------------------------------------------------------------
 # JSON
 # ---------------------------------------------------------------------------
 
-def generate_json(session: ReviewSession, findings: list[Finding]) -> bytes:
-    findings = _sort_findings(findings)
+def generate_json(
+    session: ReviewSession, findings: list[Finding], taxonomy: TaxonomyBundle
+) -> bytes:
+    validate_report_limits(session, findings)
+    findings = _sort_findings(findings, taxonomy)
     data = {
         "report_generated_at": datetime.utcnow().isoformat(),
+        "taxonomy_version": taxonomy.version.version_number,
         "session": {
             "session_id": str(session.session_id),
             "review_name": session.review_name,
             "review_date": str(session.review_date),
             "reviewer": session.reviewer.full_name if session.reviewer else None,
             "status": session.status,
+            "status_label": taxonomy.label("session_status", session.status),
             "notes": session.notes,
         },
         "asset": {
@@ -80,7 +108,11 @@ def generate_json(session: ReviewSession, findings: list[Finding]) -> bytes:
             "finding_id": str(f.finding_id),
             "title": f.title,
             "risk_level": f.risk_level,
+            "risk_level_label": taxonomy.label("risk_level", f.risk_level),
             "remediation_status": f.remediation_status,
+            "remediation_status_label": taxonomy.label(
+                "remediation_status", f.remediation_status
+            ),
             "description": f.description,
             "impact": f.impact,
             "recommendation": f.recommendation,
@@ -88,19 +120,24 @@ def generate_json(session: ReviewSession, findings: list[Finding]) -> bytes:
             "created_at": f.created_at.isoformat() if f.created_at else None,
         })
 
-    return json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+    encoded = json.dumps(data, indent=2, ensure_ascii=False).encode("utf-8")
+    validate_report_output_size(encoded)
+    return encoded
 
 
 # ---------------------------------------------------------------------------
 # CSV
 # ---------------------------------------------------------------------------
 
-def generate_csv(session: ReviewSession, findings: list[Finding]) -> bytes:
-    findings = _sort_findings(findings)
+def generate_csv(
+    session: ReviewSession, findings: list[Finding], taxonomy: TaxonomyBundle
+) -> bytes:
+    validate_report_limits(session, findings)
+    findings = _sort_findings(findings, taxonomy)
     buf = io.StringIO()
     writer = csv.writer(buf)
     writer.writerow([
-        "Finding ID", "Title", "Risk Level", "Remediation Status",
+        "Finding ID", "Title", "Risk Level", "Risk Label", "Remediation Status", "Remediation Label",
         "Description", "Impact", "Recommendation", "References", "Created At",
     ])
     for f in findings:
@@ -108,14 +145,18 @@ def generate_csv(session: ReviewSession, findings: list[Finding]) -> bytes:
             str(f.finding_id),
             f.title,
             f.risk_level,
+            taxonomy.label("risk_level", f.risk_level),
             f.remediation_status,
+            taxonomy.label("remediation_status", f.remediation_status),
             f.description,
             f.impact or "",
             f.recommendation or "",
             "; ".join(f.references) if f.references else "",
             f.created_at.isoformat() if f.created_at else "",
         ])
-    return buf.getvalue().encode("utf-8")
+    encoded = buf.getvalue().encode("utf-8")
+    validate_report_output_size(encoded)
+    return encoded
 
 
 # ---------------------------------------------------------------------------
@@ -149,8 +190,11 @@ h3 { font-size: 13px; margin-top: 16px; margin-bottom: 4px; }
 """
 
 
-def generate_pdf(session: ReviewSession, findings: list[Finding]) -> bytes:
-    findings = _sort_findings(findings)
+def generate_pdf(
+    session: ReviewSession, findings: list[Finding], taxonomy: TaxonomyBundle
+) -> bytes:
+    validate_report_limits(session, findings)
+    findings = _sort_findings(findings, taxonomy)
 
     # Build summary counts
     risk_counts: dict[str, int] = {}
@@ -164,23 +208,27 @@ def generate_pdf(session: ReviewSession, findings: list[Finding]) -> bytes:
 
     # Summary table rows
     summary_rows = ""
-    for level in ["critical", "high", "medium", "low", "informational"]:
-        count = risk_counts.get(level, 0)
+    for entry in taxonomy.active_entries("risk_level"):
+        count = risk_counts.get(entry.value, 0)
         if count > 0:
-            color = RISK_COLORS[level]
-            summary_rows += f'<tr><td><span class="badge" style="background:{color};">{level.upper()}</span></td><td>{count}</td></tr>'
+            color = entry.color or "#6b7280"
+            summary_rows += (
+                f'<tr><td><span class="badge" style="background:{color};">'
+                f"{entry.label}</span></td><td>{count}</td></tr>"
+            )
 
     status_rows = ""
-    for st, label in STATUS_LABELS.items():
-        count = status_counts.get(st, 0)
+    for entry in taxonomy.active_entries("remediation_status"):
+        count = status_counts.get(entry.value, 0)
         if count > 0:
-            status_rows += f"<tr><td>{label}</td><td>{count}</td></tr>"
+            status_rows += f"<tr><td>{entry.label}</td><td>{count}</td></tr>"
 
     # Finding cards
     finding_cards = ""
     for i, f in enumerate(findings, 1):
-        color = RISK_COLORS.get(f.risk_level, "#6b7280")
-        status_label = STATUS_LABELS.get(f.remediation_status, f.remediation_status)
+        color = taxonomy.color("risk_level", f.risk_level, "#6b7280")
+        risk_label = taxonomy.label("risk_level", f.risk_level)
+        status_label = taxonomy.label("remediation_status", f.remediation_status)
 
         desc_html = _render_md(f.description)
         impact_html = _render_md(f.impact)
@@ -200,7 +248,7 @@ def generate_pdf(session: ReviewSession, findings: list[Finding]) -> bytes:
         <div class="finding">
             <div class="finding-header">
                 <p class="finding-title">{i}. {f.title}</p>
-                <span class="badge" style="background:{color};">{f.risk_level.upper()}</span>
+                <span class="badge" style="background:{color};">{risk_label}</span>
             </div>
             <div style="font-size:10px;color:#6b7280;margin-bottom:8px;">
                 Status: {status_label}
@@ -230,7 +278,8 @@ def generate_pdf(session: ReviewSession, findings: list[Finding]) -> bytes:
         <dt>Review Date</dt><dd>{session.review_date}</dd>
         <dt>Reviewer</dt><dd>{reviewer_name}</dd>
         <dt>Asset</dt><dd>{asset_name}</dd>
-        <dt>Status</dt><dd>{session.status.replace('_', ' ').title()}</dd>
+        <dt>Status</dt><dd>{taxonomy.label("session_status", session.status)}</dd>
+        <dt>Taxonomy Version</dt><dd>v{taxonomy.version.version_number}</dd>
     </dl>
 
     <h2>Executive Summary</h2>
@@ -253,4 +302,6 @@ def generate_pdf(session: ReviewSession, findings: list[Finding]) -> bytes:
 </body>
 </html>"""
 
-    return HTML(string=html_content).write_pdf()
+    pdf = HTML(string=html_content).write_pdf()
+    validate_report_output_size(pdf)
+    return pdf

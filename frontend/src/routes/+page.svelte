@@ -3,7 +3,8 @@
   import { auth, login as doLogin } from '$lib/stores/auth.svelte';
   import { clientsApi } from '$lib/api/clients';
   import { sessionsApi, type Session } from '$lib/api/sessions';
-  import { findingsApi, type Finding, RISK_LEVELS, REMEDIATION_STATUSES } from '$lib/api/findings';
+  import { findingsApi, type Finding } from '$lib/api/findings';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
 
@@ -23,6 +24,8 @@
   let loading = $state(true);
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
+  const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
 
   async function handleLogin() {
     loggingIn = true;
@@ -37,6 +40,7 @@
 
   async function loadDashboard() {
     try {
+      await taxonomy.load();
       const [clients, sessions, findings, openFindings, recentF] = await Promise.all([
         clientsApi.list(1, 1),
         sessionsApi.list(undefined, 1, 5),
@@ -54,13 +58,13 @@
       // Load risk and status breakdowns
       const risk: Record<string, number> = {};
       const status: Record<string, number> = {};
-      for (const level of RISK_LEVELS) {
-        const r = await findingsApi.list({ risk_level: level, page: 1, per_page: 1 });
-        if (r.total > 0) risk[level] = r.total;
+      for (const level of riskLevels) {
+        const r = await findingsApi.list({ risk_level: level.value, page: 1, per_page: 1 });
+        if (r.total > 0) risk[level.value] = r.total;
       }
-      for (const s of REMEDIATION_STATUSES) {
-        const r = await findingsApi.list({ remediation_status: s, page: 1, per_page: 1 });
-        if (r.total > 0) status[s] = r.total;
+      for (const s of remediationStatuses) {
+        const r = await findingsApi.list({ remediation_status: s.value, page: 1, per_page: 1 });
+        if (r.total > 0) status[s.value] = r.total;
       }
       riskBreakdown = risk;
       statusBreakdown = status;
@@ -87,13 +91,6 @@
     }
   });
 
-  const riskColors: Record<string, string> = {
-    critical: 'var(--critical)',
-    high: 'var(--high)',
-    medium: 'var(--medium)',
-    low: 'var(--low)',
-    informational: 'var(--informational)',
-  };
 </script>
 
 {#if !auth.isAuthenticated}
@@ -165,14 +162,14 @@
         <div class="card breakdown-card">
           <h2>Findings by Risk Level</h2>
           <div class="bar-chart">
-            {#each RISK_LEVELS as level}
-              {#if riskBreakdown[level]}
-                {@const count = riskBreakdown[level]}
+            {#each riskLevels as level}
+              {#if riskBreakdown[level.value]}
+                {@const count = riskBreakdown[level.value]}
                 {@const pct = Math.max(8, (count / findingCount) * 100)}
                 <div class="bar-row">
-                  <span class="bar-label">{level}</span>
+                  <span class="bar-label">{level.label}</span>
                   <div class="bar-track">
-                    <div class="bar-fill" style="width:{pct}%;background:{riskColors[level]}"></div>
+                    <div class="bar-fill" style="width:{pct}%;background:{level.color || '#6b7280'}"></div>
                   </div>
                   <span class="bar-value">{count}</span>
                 </div>
@@ -187,12 +184,12 @@
         <div class="card breakdown-card">
           <h2>Findings by Status</h2>
           <div class="bar-chart">
-            {#each REMEDIATION_STATUSES as s}
-              {#if statusBreakdown[s]}
-                {@const count = statusBreakdown[s]}
+            {#each remediationStatuses as s}
+              {#if statusBreakdown[s.value]}
+                {@const count = statusBreakdown[s.value]}
                 {@const pct = Math.max(8, (count / findingCount) * 100)}
                 <div class="bar-row">
-                  <span class="bar-label">{s.replace('_', ' ')}</span>
+                  <span class="bar-label">{s.label}</span>
                   <div class="bar-track">
                     <div class="bar-fill" style="width:{pct}%;background:var(--accent)"></div>
                   </div>

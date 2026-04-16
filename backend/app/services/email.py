@@ -57,8 +57,8 @@ def notify_finding_status_changed(
     to_email: str,
     to_name: str,
     finding_title: str,
-    old_status: str,
-    new_status: str,
+    old_status_label: str,
+    new_status_label: str,
     session_name: str,
     finding_id: str,
 ) -> bool:
@@ -71,8 +71,8 @@ def notify_finding_status_changed(
         <table style="border-collapse:collapse;width:100%;margin:16px 0;">
             <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Finding</td><td style="padding:8px;">{finding_title}</td></tr>
             <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Session</td><td style="padding:8px;">{session_name}</td></tr>
-            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Previous Status</td><td style="padding:8px;">{old_status.replace('_', ' ').title()}</td></tr>
-            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">New Status</td><td style="padding:8px;font-weight:600;color:#2563eb;">{new_status.replace('_', ' ').title()}</td></tr>
+            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Previous Status</td><td style="padding:8px;">{old_status_label}</td></tr>
+            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">New Status</td><td style="padding:8px;font-weight:600;color:#2563eb;">{new_status_label}</td></tr>
         </table>
         <p><a href="{base}/findings/{finding_id}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:6px;">View Finding</a></p>
         <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Security Findings Manager</p>
@@ -85,24 +85,20 @@ def notify_new_finding(
     to_email: str,
     to_name: str,
     finding_title: str,
-    risk_level: str,
+    risk_level_label: str,
+    risk_color: str,
     session_name: str,
     finding_id: str,
 ) -> bool:
     base = settings.app_base_url
-    risk_colors = {
-        "critical": "#dc2626", "high": "#ea580c", "medium": "#d97706",
-        "low": "#2563eb", "informational": "#6b7280",
-    }
-    color = risk_colors.get(risk_level, "#6b7280")
-    subject = f"New {risk_level} finding: {finding_title}"
+    subject = f"New {risk_level_label} finding: {finding_title}"
     html = f"""
     <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
         <h2 style="color:#1a1a2e;">New Finding Created</h2>
         <p>A new finding has been added to review session <strong>{session_name}</strong>:</p>
         <table style="border-collapse:collapse;width:100%;margin:16px 0;">
             <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Title</td><td style="padding:8px;">{finding_title}</td></tr>
-            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Risk Level</td><td style="padding:8px;"><span style="background:{color};color:white;padding:2px 8px;border-radius:4px;font-size:12px;">{risk_level.upper()}</span></td></tr>
+            <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Risk Level</td><td style="padding:8px;"><span style="background:{risk_color};color:white;padding:2px 8px;border-radius:4px;font-size:12px;">{risk_level_label}</span></td></tr>
             <tr><td style="padding:8px;font-weight:600;color:#6b7280;">Session</td><td style="padding:8px;">{session_name}</td></tr>
         </table>
         <p><a href="{base}/findings/{finding_id}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:6px;">View Finding</a></p>

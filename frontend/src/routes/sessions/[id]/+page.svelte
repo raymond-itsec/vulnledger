@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
-  import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
-  import { findingsApi, type Finding, RISK_LEVELS } from '$lib/api/findings';
+  import { sessionsApi, type Session } from '$lib/api/sessions';
+  import { findingsApi, type Finding } from '$lib/api/findings';
+  import { reportsApi, type ReportExport } from '$lib/api/reports';
   import { authorizedFetch } from '$lib/api/client';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
@@ -15,9 +17,12 @@
   let editing = $state(false);
   let saving = $state(false);
   let exporting = $state('');
+  let storedExports = $state<ReportExport[]>([]);
   let form = $state({ review_name: '', status: 'planned', notes: '' });
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
+  const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
 
   let riskCounts = $derived.by(() => {
     const counts: Record<string, number> = {};
@@ -37,6 +42,7 @@
       session = s;
       findings = fRes.items;
       form = { review_name: s.review_name, status: s.status, notes: s.notes || '' };
+      storedExports = await reportsApi.list(id);
     } catch {
       toast.error('Could not load this review session.');
     } finally {
@@ -59,11 +65,36 @@
       a.download = match?.[1] || `report.${format}`;
       a.click();
       URL.revokeObjectURL(url);
+      storedExports = await reportsApi.list(session.session_id);
     } catch {
       toast.error('Could not export this report.');
     } finally {
       exporting = '';
     }
+  }
+
+  async function downloadStoredExport(exportId: string) {
+    try {
+      const res = await reportsApi.downloadStored(exportId);
+      if (!res.ok) throw new Error('Download failed');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('content-disposition') || '';
+      const match = disposition.match(/filename="?([^"]+)"?/);
+      a.download = match?.[1] || 'report-export';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not download this stored export.');
+    }
+  }
+
+  function formatFileSize(sizeBytes: number) {
+    if (sizeBytes < 1024) return `${sizeBytes} B`;
+    if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
+    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
   async function handleSave() {
@@ -107,8 +138,8 @@
         <div class="form-group">
           <label>Status</label>
           <select bind:value={form.status}>
-            {#each SESSION_STATUSES as s}
-              <option value={s}>{s.replace('_', ' ')}</option>
+            {#each sessionStatuses as s}
+              <option value={s.value}>{s.label}</option>
             {/each}
           </select>
         </div>
@@ -138,12 +169,12 @@
   </div>
 
   <div class="stat-cards">
-    {#each RISK_LEVELS as level}
-      {@const count = riskCounts[level] || 0}
+    {#each riskLevels as level}
+      {@const count = riskCounts[level.value] || 0}
       {#if count > 0}
         <div class="stat-card">
-          <div class="label">{level}</div>
-          <div class="value" style="color: var(--{level})">{count}</div>
+          <div class="label">{level.label}</div>
+          <div class="value" style="color: {level.color || '#6b7280'}">{count}</div>
         </div>
       {/if}
     {/each}
@@ -163,6 +194,36 @@
       <button class="btn btn-secondary btn-sm" onclick={() => downloadReport('json')} disabled={!!exporting}>
         {exporting === 'json' ? 'Generating...' : 'JSON Export'}
       </button>
+    </div>
+    <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
+      <h3 style="font-size:0.95rem;margin:0 0 0.75rem 0;">Stored Exports</h3>
+      {#if storedExports.length === 0}
+        <p class="empty-state">No exports have been generated for this session yet.</p>
+      {:else}
+        <table>
+          <thead>
+            <tr><th>Date</th><th>Name</th><th>Created By</th><th>Size</th><th></th></tr>
+          </thead>
+          <tbody>
+            {#each storedExports as exportItem}
+              <tr>
+                <td>{new Date(exportItem.exported_at).toLocaleString()}</td>
+                <td>{exportItem.file_name}</td>
+                <td>{exportItem.created_by_name || exportItem.created_by}</td>
+                <td>{formatFileSize(exportItem.size_bytes)}</td>
+                <td>
+                  <button
+                    class="btn btn-secondary btn-sm"
+                    onclick={() => downloadStoredExport(exportItem.export_id)}
+                  >
+                    Download
+                  </button>
+                </td>
+              </tr>
+            {/each}
+          </tbody>
+        </table>
+      {/if}
     </div>
   </div>
 

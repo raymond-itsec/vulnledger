@@ -1,10 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { page } from '$app/state';
-  import { assetsApi, type Asset, ASSET_TYPES } from '$lib/api/assets';
-  import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
+  import { assetsApi, type Asset } from '$lib/api/assets';
+  import { sessionsApi, type Session } from '$lib/api/sessions';
   import { usersApi, type User } from '$lib/api/users';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Modal from '$lib/components/Modal.svelte';
 
@@ -26,6 +27,8 @@
   });
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
+  const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
 
   onMount(async () => {
     const id = page.params.id!;
@@ -88,7 +91,7 @@
         <div class="form-group">
           <label>Type</label>
           <select bind:value={form.asset_type}>
-            {#each ASSET_TYPES as t}
+            {#each assetTypes as t}
               <option value={t.value}>{t.label}</option>
             {/each}
           </select>
@@ -105,7 +108,7 @@
     {:else}
       <dl class="detail-grid">
         <dt>Type</dt>
-        <dd>{ASSET_TYPES.find((t) => t.value === asset!.asset_type)?.label || asset!.asset_type}</dd>
+        <dd>{taxonomy.label('asset_type', asset!.asset_type)}</dd>
         <dt>Description</dt>
         <dd>{asset.description || '—'}</dd>
         <dt>Client</dt>
@@ -167,8 +170,8 @@
       <div class="form-group">
         <label>Status</label>
         <select bind:value={sessionForm.status}>
-          {#each SESSION_STATUSES as s}
-            <option value={s}>{s.replace('_', ' ')}</option>
+          {#each sessionStatuses as s}
+            <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>

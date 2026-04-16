@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { templatesApi, type Template } from '$lib/api/templates';
   import { auth } from '$lib/stores/auth.svelte';
-  import { findingsApi, RISK_LEVELS } from '$lib/api/findings';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
@@ -18,6 +18,7 @@
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const isAdmin = $derived(auth.user?.role === 'admin');
+  const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
 
   let form = $state({
     stable_id: '',
@@ -265,8 +266,8 @@
     <div class="form-group">
       <label>Risk Level</label>
       <select bind:value={form.risk_level}>
-        {#each RISK_LEVELS as r}
-          <option value={r}>{r}</option>
+        {#each riskLevels as r}
+          <option value={r.value}>{r.label}</option>
         {/each}
       </select>
     </div>

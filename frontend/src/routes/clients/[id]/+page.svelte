@@ -2,8 +2,9 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { clientsApi, type Client } from '$lib/api/clients';
-  import { assetsApi, type Asset, ASSET_TYPES } from '$lib/api/assets';
+  import { assetsApi, type Asset } from '$lib/api/assets';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Modal from '$lib/components/Modal.svelte';
 
   let client = $state<Client | null>(null);
@@ -17,6 +18,7 @@
   let assetForm = $state({ asset_name: '', asset_type: 'web_application', description: '' });
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
 
   onMount(async () => {
     const id = page.params.id!;
@@ -120,7 +122,7 @@
           {#each assets as asset}
             <tr>
               <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
-              <td>{ASSET_TYPES.find((t) => t.value === asset.asset_type)?.label || asset.asset_type}</td>
+              <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
               <td>{asset.description || '—'}</td>
             </tr>
           {/each}
@@ -138,7 +140,7 @@
       <div class="form-group">
         <label>Type</label>
         <select bind:value={assetForm.asset_type}>
-          {#each ASSET_TYPES as t}
+          {#each assetTypes as t}
             <option value={t.value}>{t.label}</option>
           {/each}
         </select>

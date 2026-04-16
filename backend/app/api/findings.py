@@ -13,15 +13,9 @@ from app.models.review_session import ReviewSession
 from app.models.reviewed_asset import ReviewedAsset
 from app.models.user import User
 from app.services.email import notify_finding_status_changed, notify_new_finding
-from app.schemas.finding import (
-    VALID_REMEDIATION_STATUSES,
-    VALID_RISK_LEVELS,
-    FindingCreate,
-    FindingHistoryResponse,
-    FindingResponse,
-    FindingUpdate,
-)
+from app.schemas.finding import FindingCreate, FindingHistoryResponse, FindingResponse, FindingUpdate
 from app.schemas.pagination import PaginatedResponse
+from app.services.taxonomy import TaxonomyError, get_current_taxonomy, require_taxonomy_value
 
 router = APIRouter(prefix="/findings", tags=["findings"])
 
@@ -91,13 +85,11 @@ async def create_finding(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(admin_or_reviewer),
 ):
-    if body.risk_level not in VALID_RISK_LEVELS:
-        raise HTTPException(status_code=422, detail=f"risk_level must be one of: {VALID_RISK_LEVELS}")
-    if body.remediation_status not in VALID_REMEDIATION_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"remediation_status must be one of: {VALID_REMEDIATION_STATUSES}",
-        )
+    try:
+        risk_entry = await require_taxonomy_value(db, "risk_level", body.risk_level)
+        await require_taxonomy_value(db, "remediation_status", body.remediation_status)
+    except TaxonomyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     finding = Finding(
         session_id=body.session_id,
         title=body.title,
@@ -127,7 +119,8 @@ async def create_finding(
                     to_email=reviewer.email,
                     to_name=reviewer.full_name or reviewer.username,
                     finding_title=finding.title,
-                    risk_level=finding.risk_level,
+                    risk_level_label=risk_entry.label if risk_entry else finding.risk_level,
+                    risk_color=(risk_entry.color or "#6b7280") if risk_entry else "#6b7280",
                     session_name=session.review_name,
                     finding_id=str(finding.finding_id),
                 )
@@ -165,13 +158,15 @@ async def update_finding(
 
     old_status = finding.remediation_status
     update_data = body.model_dump(exclude_unset=True)
-    if "risk_level" in update_data and update_data["risk_level"] not in VALID_RISK_LEVELS:
-        raise HTTPException(status_code=422, detail=f"risk_level must be one of: {VALID_RISK_LEVELS}")
-    if "remediation_status" in update_data and update_data["remediation_status"] not in VALID_REMEDIATION_STATUSES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"remediation_status must be one of: {VALID_REMEDIATION_STATUSES}",
-        )
+    try:
+        if "risk_level" in update_data:
+            await require_taxonomy_value(db, "risk_level", update_data["risk_level"])
+        if "remediation_status" in update_data:
+            await require_taxonomy_value(
+                db, "remediation_status", update_data["remediation_status"]
+            )
+    except TaxonomyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     # Track changes
     for field in TRACKED_FIELDS:
@@ -207,12 +202,15 @@ async def update_finding(
             if session and session.reviewer and session.reviewer.user_id != current_user.user_id:
                 reviewer = session.reviewer
                 if reviewer.email:
+                    taxonomy = await get_current_taxonomy(db)
                     notify_finding_status_changed(
                         to_email=reviewer.email,
                         to_name=reviewer.full_name or reviewer.username,
                         finding_title=finding.title,
-                        old_status=old_status,
-                        new_status=finding.remediation_status,
+                        old_status_label=taxonomy.label("remediation_status", old_status),
+                        new_status_label=taxonomy.label(
+                            "remediation_status", finding.remediation_status
+                        ),
                         session_name=session.review_name,
                         finding_id=str(finding.finding_id),
                     )

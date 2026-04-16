@@ -2,10 +2,11 @@
   import { onMount } from 'svelte';
   import { goto } from '$app/navigation';
   import { page as pageState } from '$app/state';
-  import { findingsApi, type Finding, RISK_LEVELS, REMEDIATION_STATUSES } from '$lib/api/findings';
+  import { findingsApi, type Finding } from '$lib/api/findings';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { templatesApi, type Template } from '$lib/api/templates';
   import { auth } from '$lib/stores/auth.svelte';
+  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
@@ -40,6 +41,8 @@
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasSessions = $derived(sessions.length > 0);
+  const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
+  const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
 
   async function loadFindings(p = 1) {
     const params: Record<string, any> = { page: p, per_page: 25 };
@@ -166,14 +169,14 @@
   />
   <select bind:value={filterRisk} onchange={onFilterChange}>
     <option value="">All Risk Levels</option>
-    {#each RISK_LEVELS as r}
-      <option value={r}>{r}</option>
+    {#each riskLevels as r}
+      <option value={r.value}>{r.label}</option>
     {/each}
   </select>
   <select bind:value={filterStatus} onchange={onFilterChange}>
     <option value="">All Statuses</option>
-    {#each REMEDIATION_STATUSES as s}
-      <option value={s}>{s.replace('_', ' ')}</option>
+    {#each remediationStatuses as s}
+      <option value={s.value}>{s.label}</option>
     {/each}
   </select>
 </div>
@@ -242,8 +245,8 @@
       <div class="form-group">
         <label>Risk Level *</label>
         <select bind:value={form.risk_level}>
-          {#each RISK_LEVELS as r}
-            <option value={r}>{r}</option>
+          {#each riskLevels as r}
+            <option value={r.value}>{r.label}</option>
           {/each}
         </select>
       </div>
@@ -253,8 +256,8 @@
       <div class="form-group">
         <label>Remediation Status</label>
         <select bind:value={form.remediation_status}>
-          {#each REMEDIATION_STATUSES as s}
-            <option value={s}>{s.replace('_', ' ')}</option>
+          {#each remediationStatuses as s}
+            <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>

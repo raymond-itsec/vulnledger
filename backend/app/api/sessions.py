@@ -11,7 +11,8 @@ from app.models.review_session import ReviewSession
 from app.models.reviewed_asset import ReviewedAsset
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
-from app.schemas.session import VALID_STATUSES, SessionCreate, SessionResponse, SessionUpdate
+from app.schemas.session import SessionCreate, SessionResponse, SessionUpdate
+from app.services.taxonomy import TaxonomyError, require_taxonomy_value
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -83,8 +84,10 @@ async def create_session(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(admin_or_reviewer),
 ):
-    if body.status not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail=f"status must be one of: {VALID_STATUSES}")
+    try:
+        await require_taxonomy_value(db, "session_status", body.status)
+    except TaxonomyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     await _validate_session_relations(db, body.asset_id, body.reviewer_id)
     session = ReviewSession(
         asset_id=body.asset_id,
@@ -141,8 +144,11 @@ async def update_session(
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     update_data = body.model_dump(exclude_unset=True)
-    if "status" in update_data and update_data["status"] not in VALID_STATUSES:
-        raise HTTPException(status_code=422, detail=f"status must be one of: {VALID_STATUSES}")
+    if "status" in update_data:
+        try:
+            await require_taxonomy_value(db, "session_status", update_data["status"])
+        except TaxonomyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     reviewer_id = update_data.get("reviewer_id", session.reviewer_id)
     asset_id = update_data.get("asset_id", session.asset_id)
     if "reviewer_id" in update_data:

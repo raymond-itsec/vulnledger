@@ -8,8 +8,9 @@ from app.api.deps import get_client_scope, get_current_user, paginate, require_r
 from app.database import get_db
 from app.models.reviewed_asset import ReviewedAsset
 from app.models.user import User
-from app.schemas.asset import VALID_ASSET_TYPES, AssetCreate, AssetResponse, AssetUpdate
+from app.schemas.asset import AssetCreate, AssetResponse, AssetUpdate
 from app.schemas.pagination import PaginatedResponse
+from app.services.taxonomy import TaxonomyError, require_taxonomy_value
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -39,11 +40,10 @@ async def create_asset(
     db: AsyncSession = Depends(get_db),
     _: User = Depends(admin_or_reviewer),
 ):
-    if body.asset_type not in VALID_ASSET_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"asset_type must be one of: {VALID_ASSET_TYPES}",
-        )
+    try:
+        await require_taxonomy_value(db, "asset_type", body.asset_type)
+    except TaxonomyError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     asset = ReviewedAsset(
         client_id=body.client_id,
         asset_name=body.asset_name,
@@ -89,11 +89,11 @@ async def update_asset(
     if not asset:
         raise HTTPException(status_code=404, detail="Asset not found")
     update_data = body.model_dump(exclude_unset=True)
-    if "asset_type" in update_data and update_data["asset_type"] not in VALID_ASSET_TYPES:
-        raise HTTPException(
-            status_code=422,
-            detail=f"asset_type must be one of: {VALID_ASSET_TYPES}",
-        )
+    if "asset_type" in update_data:
+        try:
+            await require_taxonomy_value(db, "asset_type", update_data["asset_type"])
+        except TaxonomyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     for field, value in update_data.items():
         setattr(asset, field, value)
     await db.commit()

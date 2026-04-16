@@ -10,6 +10,7 @@ from app.models.finding_template import FindingTemplate
 from app.models.user import User
 from app.schemas.pagination import PaginatedResponse
 from app.schemas.template import TemplateCreate, TemplateResponse, TemplateUpdate
+from app.services.taxonomy import TaxonomyError, require_taxonomy_value
 
 router = APIRouter(prefix="/templates", tags=["templates"])
 
@@ -38,6 +39,11 @@ async def create_template(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(admin_or_reviewer),
 ):
+    if body.risk_level:
+        try:
+            await require_taxonomy_value(db, "risk_level", body.risk_level)
+        except TaxonomyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
     template = FindingTemplate(
         stable_id=body.stable_id,
         name=body.name,
@@ -87,7 +93,13 @@ async def update_template(
         raise HTTPException(status_code=404, detail="Template not found")
     if template.is_builtin and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can edit built-in templates")
-    for field, value in body.model_dump(exclude_unset=True).items():
+    update_data = body.model_dump(exclude_unset=True)
+    if "risk_level" in update_data and update_data["risk_level"] is not None:
+        try:
+            await require_taxonomy_value(db, "risk_level", update_data["risk_level"])
+        except TaxonomyError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+    for field, value in update_data.items():
         setattr(template, field, value)
     await db.commit()
     await db.refresh(template)

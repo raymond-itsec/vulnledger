@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.10] - 2026-04-16
+
+### Changed
+- Split MinIO storage so evidence attachments and generated report artifacts use separate buckets, with new environment settings for bucket names and storage security.
+- Added explicit report export guardrails for maximum finding count, maximum input size, and maximum generated output size.
+- Added explicit attachment body-size controls in both the backend configuration and the Caddy reverse proxy configuration.
+
+### Fixed
+- Switched attachment downloads to stream from MinIO instead of buffering the entire object in backend memory.
+- Stored generated PDF, CSV, and JSON report artifacts in the dedicated reports bucket during export.
+- Added schema-level length and count limits for large finding and session fields so oversized content is rejected before it can amplify report rendering cost.
+
 ## [v0.1.9] - 2026-04-16
 
 ### Changed

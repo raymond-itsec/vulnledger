@@ -9,14 +9,15 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api import attachments, auth, assets, clients, findings, reports, sessions, templates, users
+from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
 from app.api.deps import get_current_user
 from app.config import settings
 from app.database import engine
 from app.models import Base
 from app.models.user import User
 from app.services.seed import seed_admin_user, sync_builtin_templates
-from app.services.storage import ensure_bucket
+from app.services.storage import ensure_buckets
+from app.services.taxonomy import ensure_default_taxonomy_version
 
 logger = logging.getLogger(__name__)
 
@@ -32,12 +33,13 @@ async def lifespan(app: FastAPI):
     # Create tables (for dev; production uses Alembic)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+    await ensure_default_taxonomy_version()
     await seed_admin_user()
     await sync_builtin_templates()
     try:
-        ensure_bucket()
+        ensure_buckets()
     except Exception:
-        logger.warning("MinIO not available — file attachments disabled")
+        logger.warning("MinIO not available — file attachments and report storage disabled")
     yield
 
 
@@ -98,6 +100,7 @@ app.include_router(assets.router, prefix="/api")
 app.include_router(sessions.router, prefix="/api")
 app.include_router(findings.router, prefix="/api")
 app.include_router(templates.router, prefix="/api")
+app.include_router(taxonomy.router, prefix="/api")
 app.include_router(attachments.router, prefix="/api")
 app.include_router(reports.router, prefix="/api")
 
