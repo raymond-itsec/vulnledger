@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Switched password hashing to `bcrypt_sha256` with bcrypt fallback so long initial admin passwords no longer fail during startup.
+- Pinned `bcrypt` to `4.0.1` so `passlib==1.7.4` remains compatible during backend startup and admin seeding.
 
 ## [v0.1.0] - 2026-04-15
 
