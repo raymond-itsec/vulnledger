@@ -54,7 +54,7 @@ info "Creating temporary virtualenv: $VENV_DIR"
 
 PYTHONPYCACHEPREFIX="$VENV_DIR/pycache" "$VENV_DIR/bin/python" -m compileall backend/app
 
-"$VENV_DIR/bin/python" - <<'PY'
+PYTHONPATH="$ROOT_DIR/backend" "$VENV_DIR/bin/python" - <<'PY'
 from app.main import app
 from app.services.auth import hash_password, verify_password
 from app.services.reports import generate_pdf
