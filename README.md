@@ -483,6 +483,14 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
+| `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
+| `MINIO_PORT` | `9000` | Host port published for MinIO |
+| `MINIO_CONSOLE_PORT` | `9001` | Host port published for the MinIO console |
+| `BACKEND_PORT` | `8000` | Host port published for the FastAPI backend |
+| `FRONTEND_PORT` | `5173` | Host port published for the Svelte frontend |
+| `CLAMAV_PORT` | `3310` | Host port published for ClamAV |
+| `CADDY_HTTP_PORT` | `80` | Host port published for Caddy HTTP |
+| `CADDY_HTTPS_PORT` | `443` | Host port published for Caddy HTTPS and HTTP/3 |
 
 ### Backup Configuration
 

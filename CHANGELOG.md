@@ -23,3 +23,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Escaped markdown-rendered finding, session, and template content to prevent stored XSS in the frontend preview and detail views.
 - Enforced client-scope authorization checks on attachment listing and downloads.
 - Updated the backend Docker image dependencies to use Debian's current `libgdk-pixbuf-2.0-0` package name so builds succeed on newer slim base images.
+- Made the Caddy host ports configurable via environment variables so local port conflicts on `80/443` can be resolved without editing Compose files.
