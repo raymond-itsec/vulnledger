@@ -23,6 +23,13 @@
   let statusBreakdown = $state<Record<string, number>>({});
   let loading = $state(true);
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const usernameFieldId = fieldId('login-username');
+  const passwordFieldId = fieldId('login-password');
+
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
@@ -100,12 +107,12 @@
       <p class="subtitle">Sign in to continue</p>
       <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
         <div class="form-group">
-          <label for="username">Username</label>
-          <input id="username" type="text" bind:value={username} required autocomplete="username" />
+          <label for={usernameFieldId}>Username</label>
+          <input id={usernameFieldId} type="text" bind:value={username} required autocomplete="username" />
         </div>
         <div class="form-group">
-          <label for="password">Password</label>
-          <input id="password" type="password" bind:value={password} required autocomplete="current-password" />
+          <label for={passwordFieldId}>Password</label>
+          <input id={passwordFieldId} type="password" bind:value={password} required autocomplete="current-password" />
         </div>
         <button class="btn btn-primary login-btn" type="submit" disabled={loggingIn}>
           {loggingIn ? 'Signing in...' : 'Sign In'}

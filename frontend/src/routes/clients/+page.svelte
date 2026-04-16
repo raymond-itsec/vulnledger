@@ -16,6 +16,14 @@
   let form = $state({ company_name: '', primary_contact_name: '', primary_contact_email: '' });
   let saving = $state(false);
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const companyNameFieldId = fieldId('client-company-name');
+  const contactNameFieldId = fieldId('client-contact-name');
+  const contactEmailFieldId = fieldId('client-contact-email');
+
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
 
   async function load(p = 1) {
@@ -91,16 +99,16 @@
 <Modal title="New Client" show={showModal} onclose={() => (showModal = false)}>
   <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
     <div class="form-group">
-      <label for="company_name">Company Name *</label>
-      <input id="company_name" bind:value={form.company_name} required />
+      <label for={companyNameFieldId}>Company Name *</label>
+      <input id={companyNameFieldId} bind:value={form.company_name} required />
     </div>
     <div class="form-group">
-      <label for="contact_name">Primary Contact Name</label>
-      <input id="contact_name" bind:value={form.primary_contact_name} />
+      <label for={contactNameFieldId}>Primary Contact Name</label>
+      <input id={contactNameFieldId} bind:value={form.primary_contact_name} />
     </div>
     <div class="form-group">
-      <label for="contact_email">Primary Contact Email</label>
-      <input id="contact_email" type="email" bind:value={form.primary_contact_email} />
+      <label for={contactEmailFieldId}>Primary Contact Email</label>
+      <input id={contactEmailFieldId} type="email" bind:value={form.primary_contact_email} />
     </div>
     <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
       <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>

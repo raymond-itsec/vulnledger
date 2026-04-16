@@ -44,6 +44,17 @@
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const templateFieldId = fieldId('finding-template');
+  const sessionFieldId = fieldId('finding-session');
+  const titleFieldId = fieldId('finding-title');
+  const riskLevelFieldId = fieldId('finding-risk-level');
+  const remediationStatusFieldId = fieldId('finding-remediation-status');
+  const referencesFieldId = fieldId('finding-references');
+
   async function loadFindings(p = 1) {
     const params: Record<string, any> = { page: p, per_page: 25 };
     if (filterRisk) params.risk_level = filterRisk;
@@ -220,8 +231,8 @@
     <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
       {#if templates.length > 0}
         <div class="form-group">
-          <label>From Template (optional)</label>
-          <select onchange={(e) => applyTemplate(e.currentTarget.value)}>
+          <label for={templateFieldId}>From Template (optional)</label>
+          <select id={templateFieldId} onchange={(e) => applyTemplate(e.currentTarget.value)}>
             <option value="">— Select a template —</option>
             {#each templates as t}
               <option value={t.template_id}>[{t.category}] {t.name}</option>
@@ -230,8 +241,8 @@
         </div>
       {/if}
       <div class="form-group">
-        <label>Session *</label>
-        <select bind:value={form.session_id} required>
+        <label for={sessionFieldId}>Session *</label>
+        <select id={sessionFieldId} bind:value={form.session_id} required>
           <option value="" disabled>Select session</option>
           {#each sessions as s}
             <option value={s.session_id}>{s.review_name}</option>
@@ -239,12 +250,12 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Title *</label>
-        <input bind:value={form.title} required />
+        <label for={titleFieldId}>Title *</label>
+        <input id={titleFieldId} bind:value={form.title} required />
       </div>
       <div class="form-group">
-        <label>Risk Level *</label>
-        <select bind:value={form.risk_level}>
+        <label for={riskLevelFieldId}>Risk Level *</label>
+        <select id={riskLevelFieldId} bind:value={form.risk_level}>
           {#each riskLevels as r}
             <option value={r.value}>{r.label}</option>
           {/each}
@@ -254,16 +265,16 @@
       <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
       <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
       <div class="form-group">
-        <label>Remediation Status</label>
-        <select bind:value={form.remediation_status}>
+        <label for={remediationStatusFieldId}>Remediation Status</label>
+        <select id={remediationStatusFieldId} bind:value={form.remediation_status}>
           {#each remediationStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>
       <div class="form-group">
-        <label>References (one per line)</label>
-        <textarea bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
+        <label for={referencesFieldId}>References (one per line)</label>
+        <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
         <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>

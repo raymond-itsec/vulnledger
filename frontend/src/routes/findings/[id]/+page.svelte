@@ -33,6 +33,15 @@
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const titleFieldId = fieldId('finding-title');
+  const riskLevelFieldId = fieldId('finding-risk-level');
+  const remediationStatusFieldId = fieldId('finding-remediation-status');
+  const referencesFieldId = fieldId('finding-references');
+
   onMount(async () => {
     const id = page.params.id!;
     try {
@@ -140,12 +149,12 @@
     <div class="card">
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
-          <label>Title *</label>
-          <input bind:value={form.title} required />
+          <label for={titleFieldId}>Title *</label>
+          <input id={titleFieldId} bind:value={form.title} required />
         </div>
         <div class="form-group">
-          <label>Risk Level *</label>
-          <select bind:value={form.risk_level}>
+          <label for={riskLevelFieldId}>Risk Level *</label>
+          <select id={riskLevelFieldId} bind:value={form.risk_level}>
             {#each riskLevels as r}
               <option value={r.value}>{r.label}</option>
             {/each}
@@ -155,16 +164,16 @@
         <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
         <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
         <div class="form-group">
-          <label>Remediation Status</label>
-          <select bind:value={form.remediation_status}>
+          <label for={remediationStatusFieldId}>Remediation Status</label>
+          <select id={remediationStatusFieldId} bind:value={form.remediation_status}>
             {#each remediationStatuses as s}
               <option value={s.value}>{s.label}</option>
             {/each}
           </select>
         </div>
         <div class="form-group">
-          <label>References (one per line)</label>
-          <textarea bind:value={form.references}></textarea>
+          <label for={referencesFieldId}>References (one per line)</label>
+          <textarea id={referencesFieldId} bind:value={form.references}></textarea>
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>

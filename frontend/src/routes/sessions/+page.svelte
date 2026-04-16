@@ -35,6 +35,17 @@
   const hasAssets = $derived(assets.length > 0);
   const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const assetFieldId = fieldId('session-asset');
+  const reviewNameFieldId = fieldId('session-review-name');
+  const reviewDateFieldId = fieldId('session-review-date');
+  const reviewerFieldId = fieldId('session-reviewer');
+  const statusFieldId = fieldId('session-status');
+  const notesFieldId = fieldId('session-notes');
+
   async function load(p = 1) {
     const res = await sessionsApi.list(undefined, p);
     // Client-side status filter (backend doesn't have status filter param yet)
@@ -177,8 +188,8 @@
   {:else}
     <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
       <div class="form-group">
-        <label>Asset *</label>
-        <select bind:value={form.asset_id} required>
+        <label for={assetFieldId}>Asset *</label>
+        <select id={assetFieldId} bind:value={form.asset_id} required>
           <option value="" disabled>Select asset</option>
           {#each assets as asset}
             <option value={asset.asset_id}>{asset.asset_name}</option>
@@ -186,16 +197,16 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Review Name *</label>
-        <input bind:value={form.review_name} required />
+        <label for={reviewNameFieldId}>Review Name *</label>
+        <input id={reviewNameFieldId} bind:value={form.review_name} required />
       </div>
       <div class="form-group">
-        <label>Date *</label>
-        <input type="date" bind:value={form.review_date} required />
+        <label for={reviewDateFieldId}>Date *</label>
+        <input id={reviewDateFieldId} type="date" bind:value={form.review_date} required />
       </div>
       <div class="form-group">
-        <label>Reviewer *</label>
-        <select bind:value={form.reviewer_id} required>
+        <label for={reviewerFieldId}>Reviewer *</label>
+        <select id={reviewerFieldId} bind:value={form.reviewer_id} required>
           <option value="" disabled>Select reviewer</option>
           {#each reviewers as reviewer}
             <option value={reviewer.user_id}>{reviewer.full_name || reviewer.username}</option>
@@ -203,16 +214,16 @@
         </select>
       </div>
       <div class="form-group">
-        <label>Status</label>
-        <select bind:value={form.status}>
+        <label for={statusFieldId}>Status</label>
+        <select id={statusFieldId} bind:value={form.status}>
           {#each sessionStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>
       <div class="form-group">
-        <label>Notes</label>
-        <textarea bind:value={form.notes}></textarea>
+        <label for={notesFieldId}>Notes</label>
+        <textarea id={notesFieldId} bind:value={form.notes}></textarea>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
         <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>

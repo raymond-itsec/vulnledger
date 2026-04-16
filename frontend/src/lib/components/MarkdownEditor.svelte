@@ -14,12 +14,13 @@
   } = $props();
 
   let showPreview = $state(false);
+  const textareaId = `markdown-editor-${crypto.randomUUID()}`;
 </script>
 
 <div class="md-editor">
   {#if label}
     <div class="md-header">
-      <label>{label}</label>
+      <label for={textareaId}>{label}</label>
       <div class="md-tabs">
         <button
           type="button"
@@ -51,6 +52,7 @@
     </div>
   {:else}
     <textarea
+      id={textareaId}
       bind:value
       {required}
       style="min-height: {minHeight};"

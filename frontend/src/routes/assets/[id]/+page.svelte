@@ -9,6 +9,10 @@
   import Badge from '$lib/components/Badge.svelte';
   import Modal from '$lib/components/Modal.svelte';
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
   let asset = $state<Asset | null>(null);
   let sessions = $state<Session[]>([]);
   let reviewers = $state<User[]>([]);
@@ -25,6 +29,15 @@
     status: 'planned',
     notes: '',
   });
+
+  const assetNameFieldId = fieldId('asset-name');
+  const assetTypeFieldId = fieldId('asset-type');
+  const assetDescriptionFieldId = fieldId('asset-description');
+  const sessionReviewNameFieldId = fieldId('session-review-name');
+  const sessionReviewDateFieldId = fieldId('session-review-date');
+  const sessionReviewerFieldId = fieldId('session-reviewer');
+  const sessionStatusFieldId = fieldId('session-status');
+  const sessionNotesFieldId = fieldId('session-notes');
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
@@ -85,20 +98,20 @@
     {#if editing}
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
-          <label>Asset Name</label>
-          <input bind:value={form.asset_name} required />
+          <label for={assetNameFieldId}>Asset Name</label>
+          <input id={assetNameFieldId} bind:value={form.asset_name} required />
         </div>
         <div class="form-group">
-          <label>Type</label>
-          <select bind:value={form.asset_type}>
+          <label for={assetTypeFieldId}>Type</label>
+          <select id={assetTypeFieldId} bind:value={form.asset_type}>
             {#each assetTypes as t}
               <option value={t.value}>{t.label}</option>
             {/each}
           </select>
         </div>
         <div class="form-group">
-          <label>Description</label>
-          <textarea bind:value={form.description}></textarea>
+          <label for={assetDescriptionFieldId}>Description</label>
+          <textarea id={assetDescriptionFieldId} bind:value={form.description}></textarea>
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
@@ -147,37 +160,37 @@
   <Modal title="New Review Session" show={showSessionModal} onclose={() => (showSessionModal = false)}>
     <form onsubmit={(e) => { e.preventDefault(); handleCreateSession(); }}>
       <div class="form-group">
-        <label>Review Name *</label>
-        <input bind:value={sessionForm.review_name} required />
+        <label for={sessionReviewNameFieldId}>Review Name *</label>
+        <input id={sessionReviewNameFieldId} bind:value={sessionForm.review_name} required />
       </div>
       <div class="form-group">
-        <label>Date *</label>
-        <input type="date" bind:value={sessionForm.review_date} required />
+        <label for={sessionReviewDateFieldId}>Date *</label>
+        <input id={sessionReviewDateFieldId} type="date" bind:value={sessionForm.review_date} required />
       </div>
       <div class="form-group">
-        <label>Reviewer *</label>
+        <label for={sessionReviewerFieldId}>Reviewer *</label>
         {#if reviewers.length > 0}
-          <select bind:value={sessionForm.reviewer_id} required>
+          <select id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} required>
             <option value="" disabled>Select reviewer</option>
             {#each reviewers.filter((u) => u.role !== 'client_user') as u}
               <option value={u.user_id}>{u.full_name || u.username}</option>
             {/each}
           </select>
         {:else}
-          <input bind:value={sessionForm.reviewer_id} placeholder="Reviewer user ID" required />
+          <input id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} placeholder="Reviewer user ID" required />
         {/if}
       </div>
       <div class="form-group">
-        <label>Status</label>
-        <select bind:value={sessionForm.status}>
+        <label for={sessionStatusFieldId}>Status</label>
+        <select id={sessionStatusFieldId} bind:value={sessionForm.status}>
           {#each sessionStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
       </div>
       <div class="form-group">
-        <label>Notes</label>
-        <textarea bind:value={sessionForm.notes}></textarea>
+        <label for={sessionNotesFieldId}>Notes</label>
+        <textarea id={sessionNotesFieldId} bind:value={sessionForm.notes}></textarea>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
         <button class="btn btn-secondary" type="button" onclick={() => (showSessionModal = false)}>Cancel</button>

@@ -20,6 +20,17 @@
   const isAdmin = $derived(auth.user?.role === 'admin');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const stableIdFieldId = fieldId('template-stable-id');
+  const nameFieldId = fieldId('template-name');
+  const categoryFieldId = fieldId('template-category');
+  const titleFieldId = fieldId('template-title');
+  const riskLevelFieldId = fieldId('template-risk-level');
+  const referencesFieldId = fieldId('template-references');
+
   let form = $state({
     stable_id: '',
     name: '',
@@ -247,25 +258,25 @@
   <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
     {#if !editingTemplate}
       <div class="form-group">
-        <label>Stable ID *</label>
-        <input bind:value={form.stable_id} required placeholder="e.g. custom/my-finding-type" />
+        <label for={stableIdFieldId}>Stable ID *</label>
+        <input id={stableIdFieldId} bind:value={form.stable_id} required placeholder="e.g. custom/my-finding-type" />
       </div>
     {/if}
     <div class="form-group">
-      <label>Name *</label>
-      <input bind:value={form.name} required placeholder="e.g. My Custom Finding" />
+      <label for={nameFieldId}>Name *</label>
+      <input id={nameFieldId} bind:value={form.name} required placeholder="e.g. My Custom Finding" />
     </div>
     <div class="form-group">
-      <label>Category</label>
-      <input bind:value={form.category} placeholder="e.g. custom, injection, authentication" />
+      <label for={categoryFieldId}>Category</label>
+      <input id={categoryFieldId} bind:value={form.category} placeholder="e.g. custom, injection, authentication" />
     </div>
     <div class="form-group">
-      <label>Finding Title</label>
-      <input bind:value={form.title} placeholder="Default title when applied" />
+      <label for={titleFieldId}>Finding Title</label>
+      <input id={titleFieldId} bind:value={form.title} placeholder="Default title when applied" />
     </div>
     <div class="form-group">
-      <label>Risk Level</label>
-      <select bind:value={form.risk_level}>
+      <label for={riskLevelFieldId}>Risk Level</label>
+      <select id={riskLevelFieldId} bind:value={form.risk_level}>
         {#each riskLevels as r}
           <option value={r.value}>{r.label}</option>
         {/each}
@@ -275,8 +286,8 @@
     <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
     <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
     <div class="form-group">
-      <label>References (one per line)</label>
-      <textarea bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
+      <label for={referencesFieldId}>References (one per line)</label>
+      <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
     </div>
     <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
       <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>

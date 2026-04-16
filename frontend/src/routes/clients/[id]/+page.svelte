@@ -17,6 +17,17 @@
   let showAssetModal = $state(false);
   let assetForm = $state({ asset_name: '', asset_type: 'web_application', description: '' });
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const companyNameFieldId = fieldId('client-company-name');
+  const primaryContactFieldId = fieldId('client-primary-contact');
+  const emailFieldId = fieldId('client-email');
+  const assetNameFieldId = fieldId('client-asset-name');
+  const assetTypeFieldId = fieldId('client-asset-type');
+  const assetDescriptionFieldId = fieldId('client-asset-description');
+
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
 
@@ -77,16 +88,16 @@
     {#if editing}
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
-          <label>Company Name</label>
-          <input bind:value={form.company_name} required />
+          <label for={companyNameFieldId}>Company Name</label>
+          <input id={companyNameFieldId} bind:value={form.company_name} required />
         </div>
         <div class="form-group">
-          <label>Primary Contact</label>
-          <input bind:value={form.primary_contact_name} />
+          <label for={primaryContactFieldId}>Primary Contact</label>
+          <input id={primaryContactFieldId} bind:value={form.primary_contact_name} />
         </div>
         <div class="form-group">
-          <label>Email</label>
-          <input type="email" bind:value={form.primary_contact_email} />
+          <label for={emailFieldId}>Email</label>
+          <input id={emailFieldId} type="email" bind:value={form.primary_contact_email} />
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
@@ -134,20 +145,20 @@
   <Modal title="New Asset" show={showAssetModal} onclose={() => (showAssetModal = false)}>
     <form onsubmit={(e) => { e.preventDefault(); handleCreateAsset(); }}>
       <div class="form-group">
-        <label>Asset Name *</label>
-        <input bind:value={assetForm.asset_name} required />
+        <label for={assetNameFieldId}>Asset Name *</label>
+        <input id={assetNameFieldId} bind:value={assetForm.asset_name} required />
       </div>
       <div class="form-group">
-        <label>Type</label>
-        <select bind:value={assetForm.asset_type}>
+        <label for={assetTypeFieldId}>Type</label>
+        <select id={assetTypeFieldId} bind:value={assetForm.asset_type}>
           {#each assetTypes as t}
             <option value={t.value}>{t.label}</option>
           {/each}
         </select>
       </div>
       <div class="form-group">
-        <label>Description</label>
-        <textarea bind:value={assetForm.description}></textarea>
+        <label for={assetDescriptionFieldId}>Description</label>
+        <textarea id={assetDescriptionFieldId} bind:value={assetForm.description}></textarea>
       </div>
       <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
         <button class="btn btn-secondary" type="button" onclick={() => (showAssetModal = false)}>Cancel</button>

@@ -22,6 +22,15 @@
   let saving = $state(false);
   const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const clientFieldId = fieldId('asset-client');
+  const assetNameFieldId = fieldId('asset-name');
+  const assetTypeFieldId = fieldId('asset-type');
+  const assetDescriptionFieldId = fieldId('asset-description');
+
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasClients = $derived(clients.length > 0);
 
@@ -125,8 +134,8 @@
 <Modal title="New Asset" show={showModal} onclose={() => (showModal = false)}>
   <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
     <div class="form-group">
-      <label>Client *</label>
-      <select bind:value={form.client_id} required>
+      <label for={clientFieldId}>Client *</label>
+      <select id={clientFieldId} bind:value={form.client_id} required>
         <option value="" disabled>Select client</option>
         {#each clients as c}
           <option value={c.client_id}>{c.company_name}</option>
@@ -134,20 +143,20 @@
       </select>
     </div>
     <div class="form-group">
-      <label>Asset Name *</label>
-      <input bind:value={form.asset_name} required />
+      <label for={assetNameFieldId}>Asset Name *</label>
+      <input id={assetNameFieldId} bind:value={form.asset_name} required />
     </div>
     <div class="form-group">
-      <label>Type</label>
-      <select bind:value={form.asset_type}>
+      <label for={assetTypeFieldId}>Type</label>
+      <select id={assetTypeFieldId} bind:value={form.asset_type}>
         {#each assetTypes as t}
           <option value={t.value}>{t.label}</option>
         {/each}
       </select>
     </div>
     <div class="form-group">
-      <label>Description</label>
-      <textarea bind:value={form.description}></textarea>
+      <label for={assetDescriptionFieldId}>Description</label>
+      <textarea id={assetDescriptionFieldId} bind:value={form.description}></textarea>
     </div>
     <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
       <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>

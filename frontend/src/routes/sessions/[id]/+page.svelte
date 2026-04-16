@@ -20,6 +20,14 @@
   let storedExports = $state<ReportExport[]>([]);
   let form = $state({ review_name: '', status: 'planned', notes: '' });
 
+  function fieldId(name: string): string {
+    return `${name}-${crypto.randomUUID()}`;
+  }
+
+  const reviewNameFieldId = fieldId('session-review-name');
+  const sessionStatusFieldId = fieldId('session-status');
+  const sessionNotesFieldId = fieldId('session-notes');
+
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
@@ -132,20 +140,20 @@
     {#if editing}
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
-          <label>Review Name</label>
-          <input bind:value={form.review_name} required />
+          <label for={reviewNameFieldId}>Review Name</label>
+          <input id={reviewNameFieldId} bind:value={form.review_name} required />
         </div>
         <div class="form-group">
-          <label>Status</label>
-          <select bind:value={form.status}>
+          <label for={sessionStatusFieldId}>Status</label>
+          <select id={sessionStatusFieldId} bind:value={form.status}>
             {#each sessionStatuses as s}
               <option value={s.value}>{s.label}</option>
             {/each}
           </select>
         </div>
         <div class="form-group">
-          <label>Notes (Markdown)</label>
-          <textarea bind:value={form.notes}></textarea>
+          <label for={sessionNotesFieldId}>Notes (Markdown)</label>
+          <textarea id={sessionNotesFieldId} bind:value={form.notes}></textarea>
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
