@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import '../app.css';
   import { auth, bootstrapAuth, logout } from '$lib/stores/auth.svelte';
   import { page } from '$app/state';
@@ -33,6 +34,17 @@
     await bootstrapAuth();
     authReady = true;
   });
+
+  $effect(() => {
+    if (authReady && !auth.isAuthenticated && page.url.pathname !== '/') {
+      goto('/', { replaceState: true });
+    }
+  });
+
+  async function handleLogout() {
+    await logout();
+    await goto('/', { replaceState: true });
+  }
 </script>
 
 {#if !authReady}
@@ -40,13 +52,19 @@
     <p>Loading...</p>
   </main>
 {:else if !auth.isAuthenticated}
-  {@render children()}
+  {#if page.url.pathname === '/'}
+    {@render children()}
+  {:else}
+    <main class="content loading-shell">
+      <p>Redirecting to login...</p>
+    </main>
+  {/if}
 {:else}
   <div class="app-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>Findings</h1>
-        <span class="version">v0.1.2</span>
+        <span class="version">v0.1.5</span>
       </div>
       <nav>
         {#each visibleNav as item}
@@ -65,7 +83,7 @@
           <div class="user-name">{auth.user?.full_name || auth.user?.username}</div>
           <div class="user-role">{auth.user?.role?.replace('_', ' ')}</div>
         </div>
-        <button class="logout-btn" onclick={logout}>Logout</button>
+        <button class="logout-btn" onclick={handleLogout}>Logout</button>
       </div>
     </aside>
     <main class="content">

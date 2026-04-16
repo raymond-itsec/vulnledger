@@ -70,8 +70,11 @@ export async function bootstrapAuth(): Promise<void> {
   }
 }
 
-export function logout(): void {
-  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-  token = null;
-  user = null;
+export async function logout(): Promise<void> {
+  try {
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+  } finally {
+    token = null;
+    user = null;
+  }
 }

@@ -125,7 +125,10 @@ VulnLedger is a self-hosted web application for managing security code review fi
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
 3. Frontend stores access token in memory (not localStorage — XSS safe)
 4. On page load or after a 401, the frontend calls `POST /api/auth/refresh` using the cookie
-5. Refresh rotates both tokens transparently and restores the in-memory access token
+5. Refresh rotates both tokens transparently and restores the in-memory access token while the backend instance that issued the session is still running
+6. All non-login frontend pages require authentication and redirect back to `/` when the user is signed out
+7. Logout clears the refresh cookie, drops the in-memory access token, and returns the browser to the login page
+8. A backend/container restart invalidates all existing sessions, so users must sign in again after a redeploy
 
 ### OIDC SSO Flow (Optional)
 1. User clicks "Sign in with SSO" → `GET /api/auth/oidc/login`
@@ -183,6 +186,9 @@ cd vulnledger
 ./scripts/first-run.sh init
 
 # 3. Review the secrets and initial admin values in .env
+# Optional: configure Mailjet if you want email notifications
+# Register: https://www.mailjet.com/pricing/
+# Quick start: https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet
 
 # 4. Run the preflight checks
 ./scripts/first-run.sh doctor
@@ -293,9 +299,12 @@ FINDINGS_MINIO_ACCESS_KEY=findings-storage
 FINDINGS_MINIO_SECRET_KEY=change-this-minio-secret
 
 # Optional: Email notifications
+# Register: https://www.mailjet.com/pricing/
+# Quick start: https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet
 FINDINGS_MAILJET_API_KEY=your-mailjet-key
 FINDINGS_MAILJET_API_SECRET=your-mailjet-secret
 FINDINGS_MAILJET_FROM_EMAIL=security@yourcompany.com
+FINDINGS_MAILJET_FROM_NAME=VulnLedger
 FINDINGS_APP_BASE_URL=http://localhost
 
 # Optional: OIDC SSO
@@ -362,10 +371,13 @@ FINDINGS_DATABASE_URL=postgresql+asyncpg://findings:<strong-db-password>@db:5432
 # Your public URL (used in emails and OIDC redirects)
 FINDINGS_APP_BASE_URL=https://yourdomain.com
 
-# Email (Mailjet — sign up at mailjet.com)
+# Email (Mailjet)
+# Register: https://www.mailjet.com/pricing/
+# Quick start: https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet
 FINDINGS_MAILJET_API_KEY=<your-key>
 FINDINGS_MAILJET_API_SECRET=<your-secret>
 FINDINGS_MAILJET_FROM_EMAIL=security@yourdomain.com
+FINDINGS_MAILJET_FROM_NAME=VulnLedger
 ```
 
 ### Multi-Server / Distributed Deployment
@@ -564,7 +576,7 @@ Create custom templates through the UI (Templates → New Template) or add YAML 
 
 ## 🌐 API Overview
 
-All endpoints are prefixed with `/api`. Authentication is via Bearer token in the `Authorization` header.
+All endpoints are prefixed with `/api`. Authentication is via Bearer token in the `Authorization` header. The only public routes are the login/logout/refresh endpoints and the optional OIDC entry/callback endpoints. All other API routes require an authenticated session.
 
 | Method | Endpoint | Description | Auth |
 |--------|----------|-------------|------|
@@ -575,46 +587,47 @@ All endpoints are prefixed with `/api`. Authentication is via Bearer token in th
 | `GET` | `/api/auth/oidc/callback` | OIDC callback | Public |
 | | | | |
 | `GET` | `/api/users` | List users | Admin |
-| `GET` | `/api/users/me` | Current user profile | Any |
+| `GET` | `/api/users/reviewers` | List active reviewers | Admin/Reviewer |
+| `GET` | `/api/users/me` | Current user profile | Authenticated |
 | `POST` | `/api/users` | Create user | Admin |
 | | | | |
-| `GET` | `/api/clients` | List clients | Any |
+| `GET` | `/api/clients` | List clients | Authenticated |
 | `POST` | `/api/clients` | Create client | Admin/Reviewer |
-| `GET` | `/api/clients/:id` | Get client | Any |
+| `GET` | `/api/clients/:id` | Get client | Authenticated |
 | `PATCH` | `/api/clients/:id` | Update client | Admin/Reviewer |
 | | | | |
-| `GET` | `/api/assets` | List assets | Any |
+| `GET` | `/api/assets` | List assets | Authenticated |
 | `POST` | `/api/assets` | Create asset | Admin/Reviewer |
-| `GET` | `/api/assets/:id` | Get asset | Any |
+| `GET` | `/api/assets/:id` | Get asset | Authenticated |
 | `PATCH` | `/api/assets/:id` | Update asset | Admin/Reviewer |
 | | | | |
-| `GET` | `/api/sessions` | List sessions | Any |
+| `GET` | `/api/sessions` | List sessions | Authenticated |
 | `POST` | `/api/sessions` | Create session | Admin/Reviewer |
-| `GET` | `/api/sessions/:id` | Get session | Any |
+| `GET` | `/api/sessions/:id` | Get session | Authenticated |
 | `PATCH` | `/api/sessions/:id` | Update session | Admin/Reviewer |
 | | | | |
-| `GET` | `/api/findings` | List findings (filterable) | Any |
+| `GET` | `/api/findings` | List findings (filterable) | Authenticated |
 | `POST` | `/api/findings` | Create finding | Admin/Reviewer |
-| `GET` | `/api/findings/:id` | Get finding | Any |
+| `GET` | `/api/findings/:id` | Get finding | Authenticated |
 | `PATCH` | `/api/findings/:id` | Update finding | Admin/Reviewer |
-| `GET` | `/api/findings/:id/history` | Get change history | Any |
+| `GET` | `/api/findings/:id/history` | Get change history | Authenticated |
 | | | | |
-| `GET` | `/api/findings/:id/attachments` | List attachments | Any |
+| `GET` | `/api/findings/:id/attachments` | List attachments | Authenticated |
 | `POST` | `/api/findings/:id/attachments` | Upload file | Admin/Reviewer |
-| `GET` | `/api/attachments/:id/download` | Download file | Any |
+| `GET` | `/api/attachments/:id/download` | Download file | Authenticated |
 | `DELETE` | `/api/attachments/:id` | Delete file | Admin/Reviewer |
 | | | | |
-| `GET` | `/api/templates` | List templates | Any |
+| `GET` | `/api/templates` | List templates | Authenticated |
 | `POST` | `/api/templates` | Create template | Admin/Reviewer |
-| `GET` | `/api/templates/:id` | Get template | Any |
+| `GET` | `/api/templates/:id` | Get template | Authenticated |
 | `PATCH` | `/api/templates/:id` | Update template | Admin/Reviewer |
 | `DELETE` | `/api/templates/:id` | Delete template | Admin/Reviewer |
 | | | | |
-| `GET` | `/api/reports/sessions/:id/pdf` | Download PDF report | Any |
-| `GET` | `/api/reports/sessions/:id/csv` | Download CSV export | Any |
-| `GET` | `/api/reports/sessions/:id/json` | Download JSON export | Any |
+| `GET` | `/api/reports/sessions/:id/pdf` | Download PDF report | Authenticated |
+| `GET` | `/api/reports/sessions/:id/csv` | Download CSV export | Authenticated |
+| `GET` | `/api/reports/sessions/:id/json` | Download JSON export | Authenticated |
 | | | | |
-| `GET` | `/api/health` | Health check | Public |
+| `GET` | `/api/health` | Health check | Authenticated |
 
 All list endpoints support pagination (`?page=1&per_page=25`) and return:
 ```json
@@ -634,6 +647,8 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 ### Authentication & Authorization
 - **JWT Tokens** — Short-lived access tokens (15 min) with refresh rotation
 - **HttpOnly Cookies** — Refresh tokens stored in secure, HttpOnly, SameSite=Strict cookies
+- **Authenticated Pages Only** — Every frontend page except the login screen requires an authenticated session
+- **Restart-Bound Sessions** — Backend redeploys/restarts invalidate existing browser sessions
 - **bcrypt Hashing** — Passwords hashed with bcrypt via passlib
 - **RBAC** — Three roles with server-enforced permissions
 - **Client Scoping** — `client_user` role sees only data belonging to their linked client (row-level filtering at ORM level)

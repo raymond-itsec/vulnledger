@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.5] - 2026-04-16
+
+### Changed
+- Bound access and refresh tokens to the current backend process so a backend redeploy invalidates all existing browser sessions.
+- Enforced authenticated routing on every non-login page in the frontend and redirected signed-out users back to the login screen.
+- Made logout await the server-side cookie deletion before clearing client auth state and redirecting to the login page.
+- Protected the health endpoint behind the normal API authentication flow to keep non-auth API routes private.
+
+## [v0.1.4] - 2026-04-16
+
+### Changed
+- Added the optional Mailjet settings to `.env.example` and documented the official Mailjet signup and quick-start links in the README.
+
 ## [v0.1.3] - 2026-04-16
 
 ### Changed

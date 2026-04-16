@@ -1,7 +1,7 @@
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -10,9 +10,11 @@ from slowapi.util import get_remote_address
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, templates, users
+from app.api.deps import get_current_user
 from app.config import settings
 from app.database import engine
 from app.models import Base
+from app.models.user import User
 from app.services.seed import seed_admin_user, sync_builtin_templates
 from app.services.storage import ensure_bucket
 
@@ -106,5 +108,5 @@ if settings.oidc_enabled:
 
 
 @app.get("/api/health")
-async def health():
+async def health(_: User = Depends(get_current_user)):
     return {"status": "ok"}

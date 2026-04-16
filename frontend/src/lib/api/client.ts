@@ -16,7 +16,7 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
       headers['Authorization'] = `Bearer ${auth.token}`;
       res = await fetch(path, { ...options, headers });
     } else {
-      logout();
+      await logout();
       throw new Error('Session expired');
     }
   }

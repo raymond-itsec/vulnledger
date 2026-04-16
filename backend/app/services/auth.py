@@ -1,3 +1,4 @@
+import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -14,6 +15,7 @@ pwd_context = CryptContext(
 )
 
 ALGORITHM = "HS256"
+TOKEN_INSTANCE_ID = secrets.token_urlsafe(16)
 
 
 def hash_password(password: str) -> str:
@@ -36,6 +38,7 @@ def create_access_token(
         "client_id": str(client_id) if client_id else None,
         "exp": expire,
         "type": "access",
+        "sid": TOKEN_INSTANCE_ID,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
@@ -48,12 +51,16 @@ def create_refresh_token(user_id: UUID) -> str:
         "sub": str(user_id),
         "exp": expire,
         "type": "refresh",
+        "sid": TOKEN_INSTANCE_ID,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
     try:
-        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
+        if payload.get("sid") != TOKEN_INSTANCE_ID:
+            return {}
+        return payload
     except JWTError:
         return {}
