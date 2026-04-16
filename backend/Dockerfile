@@ -4,7 +4,7 @@ WORKDIR /app
 
 # WeasyPrint system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 \
+    libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
     libffi-dev libcairo2 libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 

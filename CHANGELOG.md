@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [v0.1.0] - 2026-04-15
+## [v0.1.1] - 2026-04-16
 
 ### Added
 - Added a project changelog in Keep a Changelog format.
@@ -22,3 +22,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Escaped markdown-rendered finding, session, and template content to prevent stored XSS in the frontend preview and detail views.
 - Enforced client-scope authorization checks on attachment listing and downloads.
+- Updated the backend Docker image dependencies to use Debian's current `libgdk-pixbuf-2.0-0` package name so builds succeed on newer slim base images.
