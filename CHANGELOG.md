@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - Fixed the session detail page so it no longer gets stuck on loading when opening an individual review session, and added graceful toast fallbacks for session-detail load, save, and export failures.
+- Pinned the PDF generator dependency `pydyf` to `0.10.0` so WeasyPrint-based session PDF exports work reliably again instead of failing with the `transform` compatibility error during report generation.
 
 ## [v0.1.7] - 2026-04-16
 
