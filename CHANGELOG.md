@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.8] - 2026-04-16
+
+### Changed
+- Added prerequisite-aware creation flows so asset, session, and finding creation now redirect users to the next required step instead of silently dead-ending when upstream data does not exist yet.
+- Added a top-level review session creation flow on the sessions page and wired the dashboard's New Client shortcut to open the create-client modal directly.
+- Standardized non-critical frontend errors onto a shared toast notification system and positioned those notifications in the bottom-right corner of the app.
+
+## [v0.1.7] - 2026-04-16
+
+### Fixed
+- Stopped exposing backend and infrastructure error details directly in website messages by replacing 5xx and technical failures with generic user-facing errors in the frontend.
+
+## [v0.1.6] - 2026-04-16
+
+### Fixed
+- Made frontend auth error handling tolerate non-JSON backend failures so login and refresh issues show a clean message instead of a JSON parse error.
+
 ## [v0.1.5] - 2026-04-16
 
 ### Changed

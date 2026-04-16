@@ -3,6 +3,7 @@
   import { goto } from '$app/navigation';
   import '../app.css';
   import { auth, bootstrapAuth, logout } from '$lib/stores/auth.svelte';
+  import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
 
@@ -64,7 +65,7 @@
     <aside class="sidebar">
       <div class="sidebar-header">
         <h1>Findings</h1>
-        <span class="version">v0.1.5</span>
+        <span class="version">v0.1.7</span>
       </div>
       <nav>
         {#each visibleNav as item}
@@ -91,6 +92,8 @@
     </main>
   </div>
 {/if}
+
+<ToastViewport />
 
 <style>
   .app-layout {

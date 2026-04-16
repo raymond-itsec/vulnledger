@@ -4,11 +4,11 @@
   import { clientsApi } from '$lib/api/clients';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { findingsApi, type Finding, RISK_LEVELS, REMEDIATION_STATUSES } from '$lib/api/findings';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
 
   let username = $state('');
   let password = $state('');
-  let loginError = $state('');
   let loggingIn = $state(false);
   let oidcAvailable = $state(false);
 
@@ -25,12 +25,11 @@
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
 
   async function handleLogin() {
-    loginError = '';
     loggingIn = true;
     try {
       await doLogin(username, password);
     } catch (e: any) {
-      loginError = e.message;
+      toast.error(e.message || 'Login failed. Please try again later.');
     } finally {
       loggingIn = false;
     }
@@ -102,9 +101,6 @@
     <div class="login-card">
       <h1>Security Findings Manager</h1>
       <p class="subtitle">Sign in to continue</p>
-      {#if loginError}
-        <div class="error">{loginError}</div>
-      {/if}
       <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
         <div class="form-group">
           <label for="username">Username</label>
@@ -133,7 +129,7 @@
     <h1>Dashboard</h1>
     {#if canEdit}
       <div style="display:flex;gap:0.5rem;">
-        <a href="/clients" class="btn btn-secondary btn-sm">New Client</a>
+        <a href="/clients?new=1" class="btn btn-secondary btn-sm">New Client</a>
         <a href="/findings?new=1" class="btn btn-primary btn-sm">New Finding</a>
       </div>
     {/if}
@@ -276,15 +272,6 @@
   }
   .login-card h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
-  .error {
-    background: #fef2f2;
-    border: 1px solid #fecaca;
-    color: var(--critical);
-    padding: 0.5rem 0.75rem;
-    border-radius: 0.375rem;
-    margin-bottom: 1rem;
-    font-size: 0.875rem;
-  }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }
   .sso-divider {
     text-align: center;

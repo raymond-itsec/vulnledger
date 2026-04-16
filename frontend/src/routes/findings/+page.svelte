@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { page as pageState } from '$app/state';
   import { findingsApi, type Finding, RISK_LEVELS, REMEDIATION_STATUSES } from '$lib/api/findings';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { templatesApi, type Template } from '$lib/api/templates';
   import { auth } from '$lib/stores/auth.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -37,6 +39,7 @@
   });
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const hasSessions = $derived(sessions.length > 0);
 
   async function loadFindings(p = 1) {
     const params: Record<string, any> = { page: p, per_page: 25 };
@@ -54,7 +57,6 @@
     const params = pageState.url.searchParams;
     const sessionId = params.get('session_id');
     if (sessionId) form.session_id = sessionId;
-    if (params.get('new') === '1') showModal = true;
     const urlRisk = params.get('risk_level');
     if (urlRisk) filterRisk = urlRisk;
     const urlStatus = params.get('remediation_status');
@@ -71,6 +73,33 @@
     } finally {
       loading = false;
     }
+  });
+
+  async function openCreateFinding() {
+    if (!hasSessions) {
+      toast.error('Create a review session before adding a finding.');
+      await goto('/sessions?new=1', { replaceState: true });
+      return;
+    }
+    showModal = true;
+  }
+
+  let handledNewParam = $state(false);
+
+  $effect(() => {
+    const params = pageState.url.searchParams;
+    const sessionId = params.get('session_id');
+    if (sessionId && form.session_id !== sessionId) {
+      form.session_id = sessionId;
+    }
+    const wantsNew = params.get('new') === '1';
+    if (!wantsNew) {
+      handledNewParam = false;
+      return;
+    }
+    if (handledNewParam || loading) return;
+    handledNewParam = true;
+    void openCreateFinding();
   });
 
   function onSearchInput() {
@@ -94,6 +123,7 @@
   }
 
   async function handleCreate() {
+    if (!hasSessions) return;
     saving = true;
     try {
       const refs = form.references.split('\n').map((r) => r.trim()).filter(Boolean);
@@ -122,7 +152,7 @@
 <div class="page-header">
   <h1>Findings</h1>
   {#if canEdit}
-    <button class="btn btn-primary" onclick={() => (showModal = true)}>New Finding</button>
+    <button class="btn btn-primary" onclick={() => void openCreateFinding()}>New Finding</button>
   {/if}
 </div>
 
@@ -175,59 +205,69 @@
 </div>
 
 <Modal title="New Finding" show={showModal} onclose={() => (showModal = false)}>
-  <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
-    {#if templates.length > 0}
+  {#if !hasSessions}
+    <p class="empty-state" style="margin-bottom:1rem;">
+      Findings must belong to a review session. Create a session first, then come back to add findings.
+    </p>
+    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+      <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Close</button>
+      <a href="/sessions?new=1" class="btn btn-primary" onclick={() => (showModal = false)}>Create Session</a>
+    </div>
+  {:else}
+    <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
+      {#if templates.length > 0}
+        <div class="form-group">
+          <label>From Template (optional)</label>
+          <select onchange={(e) => applyTemplate(e.currentTarget.value)}>
+            <option value="">— Select a template —</option>
+            {#each templates as t}
+              <option value={t.template_id}>[{t.category}] {t.name}</option>
+            {/each}
+          </select>
+        </div>
+      {/if}
       <div class="form-group">
-        <label>From Template (optional)</label>
-        <select onchange={(e) => applyTemplate(e.currentTarget.value)}>
-          <option value="">— Select a template —</option>
-          {#each templates as t}
-            <option value={t.template_id}>[{t.category}] {t.name}</option>
+        <label>Session *</label>
+        <select bind:value={form.session_id} required>
+          <option value="" disabled>Select session</option>
+          {#each sessions as s}
+            <option value={s.session_id}>{s.review_name}</option>
           {/each}
         </select>
       </div>
-    {/if}
-    <div class="form-group">
-      <label>Session *</label>
-      <select bind:value={form.session_id} required>
-        <option value="" disabled>Select session</option>
-        {#each sessions as s}
-          <option value={s.session_id}>{s.review_name}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="form-group">
-      <label>Title *</label>
-      <input bind:value={form.title} required />
-    </div>
-    <div class="form-group">
-      <label>Risk Level *</label>
-      <select bind:value={form.risk_level}>
-        {#each RISK_LEVELS as r}
-          <option value={r}>{r}</option>
-        {/each}
-      </select>
-    </div>
-    <MarkdownEditor label="Description * (Markdown)" bind:value={form.description} required />
-    <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
-    <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
-    <div class="form-group">
-      <label>Remediation Status</label>
-      <select bind:value={form.remediation_status}>
-        {#each REMEDIATION_STATUSES as s}
-          <option value={s}>{s.replace('_', ' ')}</option>
-        {/each}
-      </select>
-    </div>
-    <div class="form-group">
-      <label>References (one per line)</label>
-      <textarea bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
-    </div>
-    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-      <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-      <button class="btn btn-primary" type="submit" disabled={saving}>
-        {saving ? 'Creating...' : 'Create Finding'}
-      </button>
-    </div>
-  </form>
+      <div class="form-group">
+        <label>Title *</label>
+        <input bind:value={form.title} required />
+      </div>
+      <div class="form-group">
+        <label>Risk Level *</label>
+        <select bind:value={form.risk_level}>
+          {#each RISK_LEVELS as r}
+            <option value={r}>{r}</option>
+          {/each}
+        </select>
+      </div>
+      <MarkdownEditor label="Description * (Markdown)" bind:value={form.description} required />
+      <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
+      <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
+      <div class="form-group">
+        <label>Remediation Status</label>
+        <select bind:value={form.remediation_status}>
+          {#each REMEDIATION_STATUSES as s}
+            <option value={s}>{s.replace('_', ' ')}</option>
+          {/each}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>References (one per line)</label>
+        <textarea bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
+      </div>
+      <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
+        <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
+        <button class="btn btn-primary" type="submit" disabled={saving}>
+          {saving ? 'Creating...' : 'Create Finding'}
+        </button>
+      </div>
+    </form>
+  {/if}
 </Modal>

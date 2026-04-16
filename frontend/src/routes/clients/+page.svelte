@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { page as pageState } from '$app/state';
   import { clientsApi, type Client } from '$lib/api/clients';
   import { auth } from '$lib/stores/auth.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
@@ -13,7 +15,6 @@
   let showModal = $state(false);
   let form = $state({ company_name: '', primary_contact_name: '', primary_contact_email: '' });
   let saving = $state(false);
-  let error = $state('');
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
 
@@ -30,18 +31,22 @@
     }
   }
 
-  onMount(() => load());
+  onMount(() => {
+    if (pageState.url.searchParams.get('new') === '1') {
+      showModal = true;
+    }
+    load();
+  });
 
   async function handleCreate() {
     saving = true;
-    error = '';
     try {
       await clientsApi.create(form);
       showModal = false;
       form = { company_name: '', primary_contact_name: '', primary_contact_email: '' };
       await load(page);
     } catch (e: any) {
-      error = e.message;
+      toast.error(e.message || 'Could not create client.');
     } finally {
       saving = false;
     }
@@ -84,7 +89,6 @@
 </div>
 
 <Modal title="New Client" show={showModal} onclose={() => (showModal = false)}>
-  {#if error}<div class="error" style="margin-bottom:1rem;color:var(--critical);">{error}</div>{/if}
   <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
     <div class="form-group">
       <label for="company_name">Company Name *</label>

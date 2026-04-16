@@ -1,8 +1,11 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
+  import { page as pageState } from '$app/state';
   import { assetsApi, type Asset, ASSET_TYPES } from '$lib/api/assets';
   import { clientsApi, type Client } from '$lib/api/clients';
   import { auth } from '$lib/stores/auth.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
 
@@ -18,6 +21,7 @@
   let saving = $state(false);
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  const hasClients = $derived(clients.length > 0);
 
   async function load(p = 1) {
     const res = await assetsApi.list(filterClient || undefined, p);
@@ -34,6 +38,28 @@
     } finally {
       loading = false;
     }
+  });
+
+  async function openCreateAsset() {
+    if (!hasClients) {
+      toast.error('Create a client before adding an asset.');
+      await goto('/clients?new=1', { replaceState: true });
+      return;
+    }
+    showModal = true;
+  }
+
+  let handledNewParam = $state(false);
+
+  $effect(() => {
+    const wantsNew = pageState.url.searchParams.get('new') === '1';
+    if (!wantsNew) {
+      handledNewParam = false;
+      return;
+    }
+    if (handledNewParam || loading) return;
+    handledNewParam = true;
+    void openCreateAsset();
   });
 
   function clientName(id: string): string {
@@ -56,7 +82,7 @@
 <div class="page-header">
   <h1>Reviewed Assets</h1>
   {#if canEdit}
-    <button class="btn btn-primary" onclick={() => (showModal = true)}>New Asset</button>
+    <button class="btn btn-primary" onclick={() => void openCreateAsset()}>New Asset</button>
   {/if}
 </div>
 
