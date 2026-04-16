@@ -1,6 +1,6 @@
-# 🔒 Security Findings Manager
+# 🔒 VulnLedger
 
-A self-hosted web application for managing security code review findings. Built for security consultants and teams who need to track clients, reviewed assets, code review sessions, and individual findings — with full edit history, report generation, and email notifications.
+VulnLedger is a self-hosted web application for managing security code review findings. Built for security consultants and teams who need to track clients, reviewed assets, code review sessions, and individual findings — with full edit history, report generation, and email notifications.
 
 **Fully self-hostable. No US Cloud Act dependencies. Your data stays yours.**
 
@@ -176,8 +176,8 @@ FindingTemplates (25 built-in + custom)
 
 ```bash
 # 1. Clone the repository
-git clone <your-repo-url> findings
-cd findings
+git clone https://github.com/raymond-itsec/vulnledger.git vulnledger
+cd vulnledger
 
 # 2. Create your local environment file
 ./scripts/first-run.sh init
@@ -201,7 +201,7 @@ That's it. The app will be available at `http://localhost` with:
 
 ### First-Run Helper
 
-The repository includes a helper script for smoother installs:
+The VulnLedger repository includes a helper script for smoother installs:
 
 ```bash
 ./scripts/first-run.sh init    # create .env from .env.example
@@ -320,8 +320,8 @@ This is the recommended approach for most teams.
 
 ```bash
 # 1. Clone to your server
-git clone <your-repo-url> /opt/findings
-cd /opt/findings
+git clone https://github.com/raymond-itsec/vulnledger.git /opt/vulnledger
+cd /opt/vulnledger
 
 # 2. Configure environment
 cp .env.example .env
@@ -489,7 +489,7 @@ All settings use the `FINDINGS_` prefix and can be set via environment variables
 | `FINDINGS_MAILJET_API_KEY` | _(empty)_ | Mailjet API key (empty = emails disabled) |
 | `FINDINGS_MAILJET_API_SECRET` | _(empty)_ | Mailjet API secret |
 | `FINDINGS_MAILJET_FROM_EMAIL` | `noreply@findings.local` | Sender email address |
-| `FINDINGS_MAILJET_FROM_NAME` | `Security Findings Manager` | Sender display name |
+| `FINDINGS_MAILJET_FROM_NAME` | `VulnLedger` | Sender display name |
 | `FINDINGS_APP_BASE_URL` | `http://localhost` | Public URL (used in emails and redirects) |
 | `FINDINGS_RATE_LIMIT_LOGIN` | `5/minute` | Login endpoint rate limit |
 | `FINDINGS_RATE_LIMIT_API` | `60/minute` | Default API rate limit |
