@@ -5,16 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.9] - 2026-04-16
+
+### Changed
+- Upgraded the backend dependency set to current compatible releases, including FastAPI, Uvicorn, SQLAlchemy, Pydantic settings, Authlib, WeasyPrint `68.1`, and the matching `pydyf` line.
+- Upgraded the frontend toolchain to the current compatible SvelteKit stack with Vite `8`, `@sveltejs/vite-plugin-svelte` `7`, and TypeScript `6`.
+- Tightened several runtime image pins by moving Python, Node, Postgres, and MinIO to exact image tags instead of broader floating tags.
+
+### Fixed
+- Updated the backend settings loader to ignore unrelated Docker and host environment keys so newer `pydantic-settings` versions work cleanly with the shared project `.env` file.
+
 ## [v0.1.8] - 2026-04-16
 
 ### Changed
 - Added prerequisite-aware creation flows so asset, session, and finding creation now redirect users to the next required step instead of silently dead-ending when upstream data does not exist yet.
 - Added a top-level review session creation flow on the sessions page and wired the dashboard's New Client shortcut to open the create-client modal directly.
 - Standardized non-critical frontend errors onto a shared toast notification system and positioned those notifications in the bottom-right corner of the app.
+- Added local Python `3.12` verification scaffolding via `.python-version`, `scripts/verify-backend.sh`, and a `verify-backend` command in `scripts/first-run.sh`.
 
 ### Fixed
 - Fixed the session detail page so it no longer gets stuck on loading when opening an individual review session, and added graceful toast fallbacks for session-detail load, save, and export failures.
-- Pinned the PDF generator dependency `pydyf` to `0.10.0` so WeasyPrint-based session PDF exports work reliably again instead of failing with the `transform` compatibility error during report generation.
 
 ## [v0.1.7] - 2026-04-16
 

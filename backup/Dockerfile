@@ -1,4 +1,4 @@
-FROM postgres:16-alpine
+FROM postgres:16.13-alpine3.23
 
 RUN apk add --no-cache dcron
 
