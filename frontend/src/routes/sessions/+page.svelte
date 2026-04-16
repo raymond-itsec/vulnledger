@@ -42,25 +42,38 @@
     total = res.total;
   }
 
-  onMount(async () => {
+  async function loadPage() {
+    loading = true;
     try {
-      const tasks = [load()];
+      await load();
+
       if (canEdit) {
-        tasks.push(
-          assetsApi.list(undefined, 1, 100).then((res) => {
-            assets = res.items;
-          })
-        );
-        tasks.push(
-          usersApi.listReviewers().then((items) => {
-            reviewers = items.filter((u) => u.role !== 'client_user');
-          })
-        );
+        const [assetsResult, reviewersResult] = await Promise.allSettled([
+          assetsApi.list(undefined, 1, 100),
+          usersApi.listReviewers(),
+        ]);
+
+        if (assetsResult.status === 'fulfilled') {
+          assets = assetsResult.value.items;
+        } else {
+          toast.error('Could not load assets for new session creation.');
+        }
+
+        if (reviewersResult.status === 'fulfilled') {
+          reviewers = reviewersResult.value.filter((u) => u.role !== 'client_user');
+        } else {
+          toast.error('Could not load reviewers for new session creation.');
+        }
       }
-      await Promise.all(tasks);
+    } catch {
+      toast.error('Could not load review sessions.');
     } finally {
       loading = false;
     }
+  }
+
+  onMount(() => {
+    void loadPage();
   });
 
   async function openCreateSession() {
