@@ -12,6 +12,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added a top-level review session creation flow on the sessions page and wired the dashboard's New Client shortcut to open the create-client modal directly.
 - Standardized non-critical frontend errors onto a shared toast notification system and positioned those notifications in the bottom-right corner of the app.
 
+### Fixed
+- Fixed the session detail page so it no longer gets stuck on loading when opening an individual review session, and added graceful toast fallbacks for session-detail load, save, and export failures.
+
 ## [v0.1.7] - 2026-04-16
 
 ### Fixed

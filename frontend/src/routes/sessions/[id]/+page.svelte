@@ -4,6 +4,8 @@
   import { sessionsApi, type Session, SESSION_STATUSES } from '$lib/api/sessions';
   import { findingsApi, type Finding, RISK_LEVELS } from '$lib/api/findings';
   import { authorizedFetch } from '$lib/api/client';
+  import { auth } from '$lib/stores/auth.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
 
@@ -17,7 +19,7 @@
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
 
-  let riskCounts = $derived(() => {
+  let riskCounts = $derived.by(() => {
     const counts: Record<string, number> = {};
     for (const f of findings) {
       counts[f.risk_level] = (counts[f.risk_level] || 0) + 1;
@@ -35,6 +37,8 @@
       session = s;
       findings = fRes.items;
       form = { review_name: s.review_name, status: s.status, notes: s.notes || '' };
+    } catch {
+      toast.error('Could not load this review session.');
     } finally {
       loading = false;
     }
@@ -55,6 +59,8 @@
       a.download = match?.[1] || `report.${format}`;
       a.click();
       URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Could not export this report.');
     } finally {
       exporting = '';
     }
@@ -66,6 +72,8 @@
     try {
       session = await sessionsApi.update(session.session_id, form);
       editing = false;
+    } catch (e: any) {
+      toast.error(e.message || 'Could not save session changes.');
     } finally {
       saving = false;
     }
@@ -131,7 +139,7 @@
 
   <div class="stat-cards">
     {#each RISK_LEVELS as level}
-      {@const count = riskCounts()[level] || 0}
+      {@const count = riskCounts[level] || 0}
       {#if count > 0}
         <div class="stat-card">
           <div class="label">{level}</div>
