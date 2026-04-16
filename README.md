@@ -180,14 +180,17 @@ git clone <your-repo-url> findings
 cd findings
 
 # 2. Create your local environment file
-cp .env.example .env
+./scripts/first-run.sh init
 
 # 3. Review the secrets and initial admin values in .env
 
-# 4. Start all services
-docker compose up -d
+# 4. Run the preflight checks
+./scripts/first-run.sh doctor
 
-# 5. Open in browser
+# 5. Start all services
+./scripts/first-run.sh up
+
+# 6. Open in browser
 open http://localhost
 ```
 
@@ -195,6 +198,25 @@ That's it. The app will be available at `http://localhost` with:
 - 📌 Your configured initial admin account from `.env`
 - 📌 25 finding templates auto-synced on startup
 - 📌 PostgreSQL, MinIO, and all services running
+
+### First-Run Helper
+
+The repository includes a helper script for smoother installs:
+
+```bash
+./scripts/first-run.sh init    # create .env from .env.example
+./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
+./scripts/first-run.sh up      # build and start the stack
+./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
+./scripts/first-run.sh down    # stop the stack
+./scripts/first-run.sh reset   # stop the stack and remove named volumes
+```
+
+`doctor` catches two common setup problems before Docker starts:
+- Host ports that are already in use
+- Placeholder secrets that were never updated in `.env`
+
+`reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 
 ### Development Mode (hot reload)
 
@@ -224,7 +246,7 @@ uvicorn app.main:app --reload --port 8000
 
 > ⚠️ **WeasyPrint system dependencies** (required for PDF generation):
 > - **macOS:** `brew install pango libffi cairo glib`
-> - **Ubuntu/Debian:** `apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf2.0-0 libffi-dev libcairo2`
+> - **Ubuntu/Debian:** `apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev libcairo2`
 > - **Docker:** Already handled in the Dockerfile
 
 #### Frontend

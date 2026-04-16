@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 - Added a project changelog in Keep a Changelog format.
 - Added a `.env.example` template for secure first-run configuration.
+- Added `scripts/first-run.sh` to streamline first-time setup, preflight checks, log access, and reset flows.
 
 ### Changed
 - Updated the Caddy deployment to use a hostname-based site address so Automatic HTTPS can activate when `CADDY_HOST` is set to a public domain.
@@ -24,3 +25,4 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Enforced client-scope authorization checks on attachment listing and downloads.
 - Updated the backend Docker image dependencies to use Debian's current `libgdk-pixbuf-2.0-0` package name so builds succeed on newer slim base images.
 - Made the Caddy host ports configurable via environment variables so local port conflicts on `80/443` can be resolved without editing Compose files.
+- Documented the recommended first-run and reset flow so partial installs are easier to recover from.
