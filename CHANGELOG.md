@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.
 - Split login-page startup checks. Whole-app availability no longer depends on the OIDC redirect endpoint. Only non-sensitive one-time probe results are cached.
+- Added a frontend `crypto.randomUUID()` fallback for non-secure origins (for example HTTP LAN IP access).
 
 ## [v0.1.10] - 2026-04-16
 
