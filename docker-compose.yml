@@ -26,7 +26,8 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
+      dockerfile: backend/Dockerfile
       args:
         FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
     restart: unless-stopped

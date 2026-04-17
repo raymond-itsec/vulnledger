@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added cleanup scripts for mode switches.
 - Moved backend bind mounts to `docker-compose.dev.yml` only.
 - Disabled Python bytecode file generation in the backend container.
+- Switched backend Docker build to repo-root context with explicit `backend/Dockerfile`.
 
 ### Fixed
 - Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.
