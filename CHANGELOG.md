@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Docker runtime mode selection with `FINDINGS_RUNTIME_MODE`.
 - Added `./scripts/first-run.sh mode <dev|prod>`.
 - Added cleanup scripts for mode switches.
+- Moved backend bind mounts to `docker-compose.dev.yml` only.
+- Disabled Python bytecode file generation in the backend container.
 
 ### Fixed
 - Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.

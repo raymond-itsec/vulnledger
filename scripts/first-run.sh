@@ -21,11 +21,34 @@ die() {
   exit 1
 }
 
+runtime_mode() {
+  ensure_env_file
+  mode=$(awk -F= '/^FINDINGS_RUNTIME_MODE=/{ print $2; found = 1 } END { if (!found) print "prod" }' .env | tail -n 1 | tr -d '[:space:]\r')
+  case "$mode" in
+    dev|prod)
+      printf '%s\n' "$mode"
+      ;;
+    *)
+      warn "Unknown FINDINGS_RUNTIME_MODE '$mode' in .env, defaulting to prod"
+      printf '%s\n' "prod"
+      ;;
+  esac
+}
+
 compose() {
+  mode=$(runtime_mode)
   if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+    if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
+      docker compose -f docker-compose.yml -f docker-compose.dev.yml "$@"
+    else
+      docker compose -f docker-compose.yml "$@"
+    fi
   elif command -v docker-compose >/dev/null 2>&1; then
-    docker-compose "$@"
+    if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
+      docker-compose -f docker-compose.yml -f docker-compose.dev.yml "$@"
+    else
+      docker-compose -f docker-compose.yml "$@"
+    fi
   else
     die "Neither 'docker compose' nor 'docker-compose' is installed."
   fi

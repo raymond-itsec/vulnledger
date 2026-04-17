@@ -2,6 +2,9 @@ FROM python:3.12.13-slim-bookworm
 
 WORKDIR /app
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 # WeasyPrint system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 \
@@ -16,9 +19,14 @@ COPY templates/ templates/
 COPY alembic/ alembic/
 COPY alembic.ini .
 
+RUN useradd --create-home --shell /usr/sbin/nologin appuser && \
+    chown -R appuser:appuser /app
+
 EXPOSE 8000
 
 ARG FINDINGS_RUNTIME_MODE=prod
 ENV FINDINGS_RUNTIME_MODE=${FINDINGS_RUNTIME_MODE}
+
+USER appuser
 
 CMD ["/bin/sh", "-c", "alembic upgrade head && if [ \"$FINDINGS_RUNTIME_MODE\" = \"dev\" ]; then exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload; else exec uvicorn app.main:app --host 0.0.0.0 --port 8000; fi"]

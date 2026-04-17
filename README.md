@@ -251,6 +251,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 - Placeholder secrets that were never updated in `.env`
 
 `mode` updates `FINDINGS_RUNTIME_MODE` in `.env` and runs cleanup before the next startup. Use `mode prod` on servers and `mode dev` only when you explicitly want hot reload behavior.
+In `prod`, `scripts/first-run.sh` uses `docker-compose.yml` only (no source bind mounts).
+In `dev`, it also applies `docker-compose.dev.yml` (backend source bind mount for reload).
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 

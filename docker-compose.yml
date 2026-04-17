@@ -59,9 +59,6 @@ services:
       FINDINGS_CLAMAV_HOST: clamav
       FINDINGS_CLAMAV_PORT: "3310"
       FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
-    volumes:
-      - ./backend:/app
-
   frontend:
     build:
       context: ./frontend
