@@ -12,11 +12,19 @@ export interface User {
   is_active: boolean;
 }
 
+export interface UserSelfUpdate {
+  full_name?: string | null;
+  company_name?: string | null;
+  email?: string | null;
+}
+
 export const usersApi = {
   list: (page = 1, perPage = 25) =>
     api.get<PaginatedResponse<User>>(`/api/users?page=${page}&per_page=${perPage}`),
   listReviewers: () => api.get<User[]>('/api/users/reviewers'),
+  getMe: () => api.get<User>('/api/users/me'),
   get: (id: string) => api.get<User>(`/api/users/${id}`),
   create: (data: Record<string, unknown>) => api.post<User>('/api/users', data),
+  updateMe: (data: UserSelfUpdate) => api.patch<User>('/api/users/me', data),
   update: (id: string, data: Partial<User>) => api.patch<User>(`/api/users/${id}`, data),
 };

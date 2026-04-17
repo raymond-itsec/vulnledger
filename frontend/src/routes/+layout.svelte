@@ -13,6 +13,8 @@
 
   let { children }: { children: Snippet } = $props();
   let authReady = $state(false);
+  let userMenuOpen = $state(false);
+  let userMenuRoot = $state<HTMLDivElement | null>(null);
   const AUTH_BOOTSTRAP_TIMEOUT_MS = 10000;
 
   const navItems = [
@@ -21,6 +23,7 @@
     { href: '/assets', label: 'Assets', icon: '⊠' },
     { href: '/sessions', label: 'Sessions', icon: '⊡' },
     { href: '/findings', label: 'Findings', icon: '⊘' },
+    { href: '/admin', label: 'Admin', icon: '⚙', roles: ['admin'] },
     { href: '/templates', label: 'Templates', icon: '⊙', roles: ['admin', 'reviewer'] },
   ];
 
@@ -75,10 +78,43 @@
   });
 
   async function handleLogout() {
+    userMenuOpen = false;
     await logout();
     await goto('/', { replaceState: true });
   }
+
+  function toggleUserMenu(event: MouseEvent) {
+    event.stopPropagation();
+    userMenuOpen = !userMenuOpen;
+  }
+
+  function closeUserMenu() {
+    userMenuOpen = false;
+  }
+
+  function handleDocumentClick(event: MouseEvent) {
+    if (!userMenuOpen || !userMenuRoot) return;
+    const target = event.target as Node | null;
+    if (target && !userMenuRoot.contains(target)) {
+      userMenuOpen = false;
+    }
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      userMenuOpen = false;
+    }
+  }
+
+  onMount(() => {
+    document.addEventListener('click', handleDocumentClick);
+    return () => {
+      document.removeEventListener('click', handleDocumentClick);
+    };
+  });
 </script>
+
+<svelte:window onkeydown={handleWindowKeydown} />
 
 <AvailabilityBanner />
 
@@ -113,12 +149,23 @@
           </a>
         {/each}
       </nav>
-      <div class="sidebar-footer">
-        <div class="user-info">
-          <div class="user-name">{auth.user?.full_name || auth.user?.username}</div>
-          <div class="user-role">{auth.user?.role?.replace('_', ' ')}</div>
-        </div>
-        <button class="logout-btn" onclick={handleLogout}>Logout</button>
+      <div class="sidebar-footer" bind:this={userMenuRoot}>
+        <button class="user-trigger" onclick={toggleUserMenu}>
+          <div class="user-info">
+            <div class="user-name">{auth.user?.full_name || auth.user?.username}</div>
+            <div class="user-role">{auth.user?.role?.replace('_', ' ')}</div>
+          </div>
+          <span class="user-trigger-caret">{userMenuOpen ? '▴' : '▾'}</span>
+        </button>
+        {#if userMenuOpen}
+          <div class="user-menu">
+            <a class="user-menu-item" href="/profile" onclick={closeUserMenu}>Profile settings</a>
+            {#if auth.user?.role === 'admin'}
+              <a class="user-menu-item" href="/admin" onclick={closeUserMenu}>Admin</a>
+            {/if}
+            <button class="user-menu-item danger" onclick={handleLogout}>Log out</button>
+          </div>
+        {/if}
       </div>
     </aside>
     <main class="content">
@@ -191,23 +238,60 @@
   }
   .nav-icon { font-size: 1rem; width: 1.25rem; text-align: center; }
   .sidebar-footer {
+    position: relative;
     padding: 1rem 1.5rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
   }
-  .user-info { margin-bottom: 0.75rem; }
-  .user-name { font-size: 0.875rem; font-weight: 600; }
-  .user-role { font-size: 0.75rem; opacity: 0.6; text-transform: capitalize; }
-  .logout-btn {
+  .user-trigger {
     width: 100%;
-    padding: 0.5rem;
+    padding: 0.625rem 0.75rem;
     background: rgba(255, 255, 255, 0.1);
     border: none;
     border-radius: 0.375rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
     color: rgba(255, 255, 255, 0.8);
-    font-size: 0.8rem;
+    cursor: pointer;
+    text-align: left;
+  }
+  .user-trigger:hover { background: rgba(255, 255, 255, 0.2); }
+  .user-info { margin: 0; }
+  .user-name { font-size: 0.875rem; font-weight: 600; }
+  .user-role { font-size: 0.75rem; opacity: 0.6; text-transform: capitalize; }
+  .user-trigger-caret {
+    font-size: 0.75rem;
+    opacity: 0.75;
+  }
+  .user-menu {
+    position: absolute;
+    left: 1.5rem;
+    right: 1.5rem;
+    bottom: calc(100% + 0.5rem);
+    background: rgba(23, 30, 20, 0.98);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+  }
+  .user-menu-item {
+    display: block;
+    width: 100%;
+    padding: 0.625rem 0.75rem;
+    background: transparent;
+    border: none;
+    text-align: left;
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.82rem;
+    text-decoration: none;
     cursor: pointer;
   }
-  .logout-btn:hover { background: rgba(255, 255, 255, 0.2); }
+  .user-menu-item:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .user-menu-item.danger {
+    color: #fecaca;
+  }
   .content {
     flex: 1;
     margin-left: 240px;

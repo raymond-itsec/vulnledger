@@ -8,8 +8,11 @@ interface User {
   user_id: string;
   username: string;
   full_name: string | null;
+  company_name: string | null;
+  email: string;
   role: string;
   linked_client_id: string | null;
+  is_active: boolean;
 }
 
 async function parseJsonSafely<T>(res: Response): Promise<T | null> {

@@ -22,6 +22,12 @@ class UserUpdate(BaseModel):
     is_active: bool | None = None
 
 
+class UserSelfUpdate(BaseModel):
+    full_name: str | None = None
+    company_name: str | None = None
+    email: EmailStr | None = None
+
+
 class UserResponse(BaseModel):
     user_id: UUID
     username: str
