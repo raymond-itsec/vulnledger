@@ -11,13 +11,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libffi-dev libcairo2 libglib2.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
-COPY backend/requirements.txt .
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY backend/app/ app/
-COPY backend/templates/ templates/
-COPY backend/alembic/ alembic/
-COPY backend/alembic.ini .
+COPY app/ app/
+COPY templates/ templates/
+COPY alembic/ alembic/
+COPY alembic.ini .
 
 RUN useradd --create-home --shell /usr/sbin/nologin appuser && \
     chown -R appuser:appuser /app
