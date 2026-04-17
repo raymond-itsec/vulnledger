@@ -12,6 +12,7 @@
 
   let { children }: { children: Snippet } = $props();
   let authReady = $state(false);
+  const AUTH_BOOTSTRAP_TIMEOUT_MS = 10000;
 
   const navItems = [
     { href: '/', label: 'Dashboard', icon: '⊞' },
@@ -36,11 +37,21 @@
 
   onMount(async () => {
     appAvailability.start();
-    await bootstrapAuth();
-    if (auth.isAuthenticated && !appAvailability.unavailable) {
-      await taxonomy.load();
+    try {
+      await Promise.race([
+        bootstrapAuth(),
+        new Promise<void>((resolve) => {
+          setTimeout(resolve, AUTH_BOOTSTRAP_TIMEOUT_MS);
+        }),
+      ]);
+      if (auth.isAuthenticated && !appAvailability.unavailable) {
+        await taxonomy.load();
+      }
+    } catch (error) {
+      console.error('[auth-bootstrap] startup failed', error);
+    } finally {
+      authReady = true;
     }
-    authReady = true;
     return () => {
       appAvailability.stop();
     };
