@@ -39,15 +39,21 @@ compose() {
   mode=$(runtime_mode)
   if docker compose version >/dev/null 2>&1; then
     if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
-      docker compose -f docker-compose.yml -f docker-compose.dev.yml "$@"
+      docker compose --project-directory "$ROOT_DIR" \
+        -f "$ROOT_DIR/docker-compose.yml" \
+        -f "$ROOT_DIR/docker-compose.dev.yml" \
+        "$@"
     else
-      docker compose -f docker-compose.yml "$@"
+      docker compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
     fi
   elif command -v docker-compose >/dev/null 2>&1; then
     if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
-      docker-compose -f docker-compose.yml -f docker-compose.dev.yml "$@"
+      docker-compose --project-directory "$ROOT_DIR" \
+        -f "$ROOT_DIR/docker-compose.yml" \
+        -f "$ROOT_DIR/docker-compose.dev.yml" \
+        "$@"
     else
-      docker-compose -f docker-compose.yml "$@"
+      docker-compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
     fi
   else
     die "Neither 'docker compose' nor 'docker-compose' is installed."
@@ -116,6 +122,19 @@ check_port() {
   fi
 }
 
+check_backend_build_context() {
+  for path in backend/requirements.txt backend/alembic.ini backend/app backend/templates backend/alembic; do
+    if [ ! -e "$path" ]; then
+      die "Missing required backend build input: $path"
+    fi
+  done
+
+  if [ -f backend/.dockerignore ] && grep -Eq '^\*$|^\*\*/\*$' backend/.dockerignore; then
+    warn "backend/.dockerignore may be excluding all backend files."
+    warn "If builds fail with missing COPY inputs, review backend/.dockerignore."
+  fi
+}
+
 warn_existing_pgdata() {
   if ! command -v docker >/dev/null 2>&1; then
     return
@@ -148,6 +167,7 @@ doctor() {
   check_port "${CLAMAV_PORT:-3310}" "CLAMAV_PORT"
   check_port "${CADDY_HTTP_PORT:-80}" "CADDY_HTTP_PORT"
   check_port "${CADDY_HTTPS_PORT:-443}" "CADDY_HTTPS_PORT"
+  check_backend_build_context
 
   warn_existing_pgdata
   info "Preflight checks passed."
@@ -162,7 +182,7 @@ Commands:
   doctor  Validate common first-run prerequisites
   mode    Switch runtime mode (dev or prod) and run cleanup
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
-  up      Run preflight checks, then start the stack with --build
+  up      Start the stack with --build
   down    Stop the stack
   reset   Stop the stack and remove named volumes
   logs    Follow caddy, frontend, and backend logs
@@ -185,7 +205,6 @@ case "$command_name" in
     exec ./scripts/verify-backend.sh
     ;;
   up)
-    doctor
     compose up -d --build
     ;;
   down)

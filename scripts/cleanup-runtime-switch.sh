@@ -15,9 +15,23 @@ warn() {
 
 compose() {
   if docker compose version >/dev/null 2>&1; then
-    docker compose "$@"
+    if [ -f "$ROOT_DIR/docker-compose.dev.yml" ]; then
+      docker compose --project-directory "$ROOT_DIR" \
+        -f "$ROOT_DIR/docker-compose.yml" \
+        -f "$ROOT_DIR/docker-compose.dev.yml" \
+        "$@"
+    else
+      docker compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
+    fi
   elif command -v docker-compose >/dev/null 2>&1; then
-    docker-compose "$@"
+    if [ -f "$ROOT_DIR/docker-compose.dev.yml" ]; then
+      docker-compose --project-directory "$ROOT_DIR" \
+        -f "$ROOT_DIR/docker-compose.yml" \
+        -f "$ROOT_DIR/docker-compose.dev.yml" \
+        "$@"
+    else
+      docker-compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
+    fi
   else
     return 0
   fi
