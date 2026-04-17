@@ -43,12 +43,41 @@ async function readErrorMessage(res: Response, fallback: string): Promise<string
 
 let token = $state<string | null>(null);
 let user = $state<User | null>(null);
+let refreshPromise: Promise<boolean> | null = null;
+let bootstrapPromise: Promise<void> | null = null;
+let bootstrapAttempted = false;
+let staleSessionCleanupPromise: Promise<void> | null = null;
+let lastRefreshFailurePermanent = false;
 
 export const auth = {
   get token() { return token; },
   get user() { return user; },
   get isAuthenticated() { return !!token; },
 };
+
+async function clearStaleSession(): Promise<void> {
+  if (staleSessionCleanupPromise) {
+    await staleSessionCleanupPromise;
+    return;
+  }
+
+  staleSessionCleanupPromise = (async () => {
+    try {
+      await fetchWithAvailability('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      }, true);
+    } catch {
+      // Best-effort cleanup only; local auth state is still cleared below.
+    } finally {
+      token = null;
+      user = null;
+      staleSessionCleanupPromise = null;
+    }
+  })();
+
+  await staleSessionCleanupPromise;
+}
 
 export async function login(username: string, password: string): Promise<void> {
   const res = await fetchWithAvailability('/api/auth/login', {
@@ -67,6 +96,7 @@ export async function login(username: string, password: string): Promise<void> {
   if (!data?.access_token) {
     throw new Error('Login failed');
   }
+  bootstrapAttempted = true;
   token = data.access_token;
   await fetchMe();
 }
@@ -82,23 +112,47 @@ export async function fetchMe(): Promise<void> {
 }
 
 export async function refreshToken(): Promise<boolean> {
-  try {
-    const res = await fetchWithAvailability('/api/auth/refresh', {
-      method: 'POST',
-      credentials: 'include',
-    }, true);
-    if (!res.ok) return false;
-    const data = await parseJsonSafely<{ access_token?: string }>(res);
-    if (!data?.access_token) return false;
-    token = data.access_token;
-    await fetchMe();
-    return true;
-  } catch {
-    return false;
+  if (refreshPromise) {
+    return await refreshPromise;
   }
+
+  refreshPromise = (async () => {
+    let permanentFailure = false;
+    try {
+      const res = await fetchWithAvailability('/api/auth/refresh', {
+        method: 'POST',
+        credentials: 'include',
+      }, true);
+      if (!res.ok) {
+        if (res.status === 401) {
+          permanentFailure = true;
+          await clearStaleSession();
+        }
+        return false;
+      }
+      const data = await parseJsonSafely<{ access_token?: string }>(res);
+      if (!data?.access_token) return false;
+      bootstrapAttempted = true;
+      token = data.access_token;
+      await fetchMe();
+      return true;
+    } catch {
+      return false;
+    } finally {
+      lastRefreshFailurePermanent = permanentFailure;
+      refreshPromise = null;
+    }
+  })();
+
+  return await refreshPromise;
 }
 
 export async function bootstrapAuth(): Promise<void> {
+  if (bootstrapPromise) {
+    await bootstrapPromise;
+    return;
+  }
+
   if (token) {
     try {
       await fetchMe();
@@ -109,10 +163,28 @@ export async function bootstrapAuth(): Promise<void> {
     return;
   }
 
-  const refreshed = await refreshToken();
-  if (!refreshed) {
+  if (bootstrapAttempted) {
     token = null;
     user = null;
+    return;
+  }
+
+  bootstrapPromise = (async () => {
+    const refreshed = await refreshToken();
+    if (refreshed) {
+      bootstrapAttempted = true;
+      return;
+    }
+
+    token = null;
+    user = null;
+    bootstrapAttempted = lastRefreshFailurePermanent;
+  })();
+
+  try {
+    await bootstrapPromise;
+  } finally {
+    bootstrapPromise = null;
   }
 }
 
@@ -122,6 +194,7 @@ export async function logout(): Promise<void> {
   } catch {
     // Logging out should always clear local auth state, even if the backend is unavailable.
   } finally {
+    bootstrapAttempted = true;
     token = null;
     user = null;
   }

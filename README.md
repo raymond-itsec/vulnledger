@@ -51,7 +51,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 - 🕐 **Recent Activity** — Latest sessions and findings
 
 ### Security & Operations
-- 🔐 **JWT Authentication** — Access tokens (15 min) + HttpOnly refresh token cookies (7 days)
+- 🔐 **JWT Authentication** — Access tokens (5 min) + HttpOnly refresh token cookies (7 days)
 - 👤 **Role-Based Access Control** — Admin, Reviewer, Client User roles with data isolation
 - 🧭 **Versioned Taxonomies** — DB-managed risk, remediation, session-status, and asset-type taxonomies with explicit active versions
 - 🚨 **Availability Banner** — Shared top-of-page outage notice for backend, proxy, database-startup, or local network failures that should not be treated as normal per-request UI errors
@@ -133,10 +133,10 @@ VulnLedger is a self-hosted web application for managing security code review fi
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
 3. Frontend stores access token in memory (not localStorage — XSS safe)
 4. On page load or after a 401, the frontend calls `POST /api/auth/refresh` using the cookie
-5. Refresh rotates both tokens transparently and restores the in-memory access token while the backend instance that issued the session is still running
+5. Refresh rotates both tokens transparently and restores the in-memory access token from DB-backed refresh session state
 6. All non-login frontend pages require authentication and redirect back to `/` when the user is signed out
 7. Logout clears the refresh cookie, drops the in-memory access token, and returns the browser to the login page
-8. A backend/container restart invalidates all existing sessions, so users must sign in again after a redeploy
+8. Backend/container restarts do not invalidate active refresh-session families; users sign in again only after logout, expiry, or detected token reuse
 9. Signed-in sessions poll the authenticated health endpoint to drive the shared availability banner, while the login page performs only a one-time startup availability probe per browser tab session
 
 ### OIDC SSO Flow (Optional)
@@ -554,8 +554,9 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 |----------|---------|-------------|
 | `FINDINGS_DATABASE_URL` | `postgresql+asyncpg://findings:findings@db:5432/findings` | PostgreSQL connection string |
 | `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required) |
-| `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `15` | Access token lifetime |
+| `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
+| `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | `30` | Retention window for expired/revoked refresh-session rows before cleanup |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
 | `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
@@ -722,10 +723,11 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 ## 🔐 Security
 
 ### Authentication & Authorization
-- **JWT Tokens** — Short-lived access tokens (15 min) with refresh rotation
+- **JWT Tokens** — Short-lived access tokens (5 min) with refresh rotation
 - **HttpOnly Cookies** — Refresh tokens stored in secure, HttpOnly, SameSite=Strict cookies
 - **Authenticated Pages Only** — Every frontend page except the login screen requires an authenticated session
-- **Restart-Bound Sessions** — Backend redeploys/restarts invalidate existing browser sessions
+- **DB-Backed Refresh Sessions** — Active refresh-session families survive backend restarts
+- **Token-Version Kill Switch** — Logout or refresh-family revocation immediately invalidates outstanding access tokens for that user
 - **bcrypt Hashing** — Passwords hashed with bcrypt via passlib
 - **RBAC** — Three roles with server-enforced permissions
 - **Client Scoping** — `client_user` role sees only data belonging to their linked client (row-level filtering at ORM level)

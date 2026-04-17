@@ -1,4 +1,3 @@
-import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
@@ -15,7 +14,6 @@ pwd_context = CryptContext(
 )
 
 ALGORITHM = "HS256"
-TOKEN_INSTANCE_ID = secrets.token_urlsafe(16)
 
 
 def hash_password(password: str) -> str:
@@ -27,7 +25,10 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def create_access_token(
-    user_id: UUID, role: str, client_id: UUID | None = None
+    user_id: UUID,
+    role: str,
+    client_id: UUID | None = None,
+    token_version: int = 0,
 ) -> str:
     expire = datetime.now(timezone.utc) + timedelta(
         minutes=settings.access_token_expire_minutes
@@ -36,31 +37,15 @@ def create_access_token(
         "sub": str(user_id),
         "role": role,
         "client_id": str(client_id) if client_id else None,
+        "ver": token_version,
         "exp": expire,
         "type": "access",
-        "sid": TOKEN_INSTANCE_ID,
-    }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
-
-
-def create_refresh_token(user_id: UUID) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
-        days=settings.refresh_token_expire_days
-    )
-    payload = {
-        "sub": str(user_id),
-        "exp": expire,
-        "type": "refresh",
-        "sid": TOKEN_INSTANCE_ID,
     }
     return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict:
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-        if payload.get("sid") != TOKEN_INSTANCE_ID:
-            return {}
-        return payload
+        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
     except JWTError:
         return {}

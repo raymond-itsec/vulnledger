@@ -7,6 +7,7 @@ from app.models.finding import Finding
 from app.models.finding_history import FindingHistory
 from app.models.finding_attachment import FindingAttachment
 from app.models.finding_template import FindingTemplate
+from app.models.refresh_session import RefreshSession
 from app.models.report_export import ReportExport
 from app.models.taxonomy import TaxonomyEntry, TaxonomyVersion
 
@@ -20,6 +21,7 @@ __all__ = [
     "FindingHistory",
     "FindingAttachment",
     "FindingTemplate",
+    "RefreshSession",
     "ReportExport",
     "TaxonomyVersion",
     "TaxonomyEntry",

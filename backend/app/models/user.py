@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -33,5 +33,12 @@ class User(Base, TimestampMixin):
         UUID(as_uuid=True), ForeignKey("clients.client_id"), nullable=True
     )
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, server_default="true")
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=0,
+        server_default="0",
+    )
 
     client = relationship("Client", back_populates="users")
+    refresh_sessions = relationship("RefreshSession", back_populates="user")

@@ -4,8 +4,9 @@ from pydantic_settings import BaseSettings
 class Settings(BaseSettings):
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
     secret_key: str = ""
-    access_token_expire_minutes: int = 15
+    access_token_expire_minutes: int = 5
     refresh_token_expire_days: int = 7
+    refresh_session_retention_days: int = 30
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = ""

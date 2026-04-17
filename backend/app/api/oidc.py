@@ -17,7 +17,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.services.auth import create_refresh_token, hash_password
+from app.services.auth import hash_password
+from app.services.refresh_sessions import (
+    issue_refresh_session,
+    refresh_cookie_max_age_seconds,
+)
 
 logger = logging.getLogger(__name__)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
@@ -90,17 +94,22 @@ async def oidc_callback(
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     # Issue tokens
-    refresh = create_refresh_token(user.user_id)
+    refresh_token = await issue_refresh_session(
+        db,
+        user_id=user.user_id,
+        created_ip=request.client.host if request.client else None,
+        created_user_agent=request.headers.get("user-agent"),
+    )
     # Redirect to frontend and let the SPA bootstrap from the refresh cookie.
     base = settings.app_base_url.rstrip("/")
     redirect = RedirectResponse(url=f"{base}/", status_code=302)
     redirect.set_cookie(
         key="refresh_token",
-        value=refresh,
+        value=refresh_token,
         httponly=True,
         secure=COOKIE_SECURE,
         samesite="strict",
-        max_age=7 * 24 * 3600,
+        max_age=refresh_cookie_max_age_seconds(),
         path="/api/auth",
     )
     return redirect
