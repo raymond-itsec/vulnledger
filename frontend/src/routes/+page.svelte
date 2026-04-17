@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { auth, login as doLogin } from '$lib/stores/auth.svelte';
+  import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { clientsApi } from '$lib/api/clients';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { findingsApi, type Finding } from '$lib/api/findings';
@@ -39,7 +40,9 @@
     try {
       await doLogin(username, password);
     } catch (e: any) {
-      toast.error(e.message || 'Login failed. Please try again later.');
+      if (!appAvailability.unavailable) {
+        toast.error(e.message || 'Login failed. Please try again later.');
+      }
     } finally {
       loggingIn = false;
     }
@@ -83,17 +86,12 @@
   }
 
   onMount(async () => {
-    // Check if OIDC is available
-    try {
-      const oidcRes = await fetch('/api/auth/oidc/login', { method: 'HEAD', redirect: 'manual' });
-      oidcAvailable = oidcRes.status !== 404;
-    } catch {
-      oidcAvailable = false;
-    }
+    await appAvailability.checkLoginPageAppAvailabilityOnce();
+    oidcAvailable = await appAvailability.checkLoginPageOidcAvailabilityOnce();
   });
 
   $effect(() => {
-    if (auth.isAuthenticated) {
+    if (auth.isAuthenticated && !appAvailability.unavailable) {
       loadDashboard();
     }
   });

@@ -52,38 +52,65 @@ DEFAULT_TAXONOMY = {
 }
 
 
+def _has_index(inspector, table_name: str, index_name: str) -> bool:
+    return any(index["name"] == index_name for index in inspector.get_indexes(table_name))
+
+
+def _has_fk(inspector, table_name: str, fk_name: str) -> bool:
+    return any(fk["name"] == fk_name for fk in inspector.get_foreign_keys(table_name))
+
+
 def upgrade() -> None:
-    op.create_table(
-        "taxonomy_versions",
-        sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("version_number", sa.Integer(), nullable=False),
-        sa.Column("description", sa.Text(), nullable=True),
-        sa.Column("is_current", sa.Boolean(), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.PrimaryKeyConstraint("taxonomy_version_id"),
-        sa.UniqueConstraint("version_number"),
-    )
-    op.create_table(
-        "taxonomy_entries",
-        sa.Column("taxonomy_entry_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("domain", sa.String(length=50), nullable=False),
-        sa.Column("value", sa.String(length=100), nullable=False),
-        sa.Column("label", sa.String(length=255), nullable=False),
-        sa.Column("sort_order", sa.Integer(), nullable=False),
-        sa.Column("color", sa.String(length=32), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False),
-        sa.ForeignKeyConstraint(
-            ["taxonomy_version_id"],
-            ["taxonomy_versions.taxonomy_version_id"],
-            ondelete="CASCADE",
-        ),
-        sa.PrimaryKeyConstraint("taxonomy_entry_id"),
-        sa.UniqueConstraint(
-            "taxonomy_version_id", "domain", "value", name="uq_taxonomy_entry_value"
-        ),
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    table_names = set(inspector.get_table_names())
+
+    if "taxonomy_versions" not in table_names:
+        op.create_table(
+            "taxonomy_versions",
+            sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("version_number", sa.Integer(), nullable=False),
+            sa.Column("description", sa.Text(), nullable=True),
+            sa.Column("is_current", sa.Boolean(), nullable=False),
+            sa.Column(
+                "created_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.Column(
+                "updated_at",
+                sa.DateTime(timezone=True),
+                server_default=sa.text("now()"),
+                nullable=False,
+            ),
+            sa.PrimaryKeyConstraint("taxonomy_version_id"),
+            sa.UniqueConstraint("version_number"),
+        )
+        table_names.add("taxonomy_versions")
+
+    if "taxonomy_entries" not in table_names:
+        op.create_table(
+            "taxonomy_entries",
+            sa.Column("taxonomy_entry_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("domain", sa.String(length=50), nullable=False),
+            sa.Column("value", sa.String(length=100), nullable=False),
+            sa.Column("label", sa.String(length=255), nullable=False),
+            sa.Column("sort_order", sa.Integer(), nullable=False),
+            sa.Column("color", sa.String(length=32), nullable=True),
+            sa.Column("is_active", sa.Boolean(), nullable=False),
+            sa.ForeignKeyConstraint(
+                ["taxonomy_version_id"],
+                ["taxonomy_versions.taxonomy_version_id"],
+                ondelete="CASCADE",
+            ),
+            sa.PrimaryKeyConstraint("taxonomy_entry_id"),
+            sa.UniqueConstraint(
+                "taxonomy_version_id", "domain", "value", name="uq_taxonomy_entry_value"
+            ),
+        )
+        table_names.add("taxonomy_entries")
 
     default_version_id = uuid.uuid4()
     taxonomy_entry_rows = []
@@ -121,43 +148,75 @@ def upgrade() -> None:
         sa.column("is_active", sa.Boolean()),
     )
 
-    op.bulk_insert(
-        taxonomy_versions,
-        [
-            {
-                "taxonomy_version_id": default_version_id,
-                "version_number": 1,
-                "description": "System default taxonomy",
-                "is_current": True,
-            }
-        ],
-    )
-    op.bulk_insert(taxonomy_entries, taxonomy_entry_rows)
+    existing_version = bind.execute(
+        sa.text(
+            "SELECT taxonomy_version_id FROM taxonomy_versions WHERE version_number = 1 LIMIT 1"
+        )
+    ).scalar()
 
-    op.add_column(
-        "report_exports",
-        sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=True),
-    )
+    if existing_version is None:
+        op.bulk_insert(
+            taxonomy_versions,
+            [
+                {
+                    "taxonomy_version_id": default_version_id,
+                    "version_number": 1,
+                    "description": "System default taxonomy",
+                    "is_current": True,
+                }
+            ],
+        )
+        op.bulk_insert(taxonomy_entries, taxonomy_entry_rows)
+        default_version_id_to_use = default_version_id
+    else:
+        default_version_id_to_use = existing_version
+
+    inspector = sa.inspect(bind)
+    report_export_columns = {column["name"] for column in inspector.get_columns("report_exports")}
+    if "taxonomy_version_id" not in report_export_columns:
+        op.add_column(
+            "report_exports",
+            sa.Column("taxonomy_version_id", postgresql.UUID(as_uuid=True), nullable=True),
+        )
+
     op.execute(
         sa.text(
             "UPDATE report_exports SET taxonomy_version_id = :taxonomy_version_id "
             "WHERE taxonomy_version_id IS NULL"
-        ).bindparams(taxonomy_version_id=default_version_id)
+        ).bindparams(taxonomy_version_id=default_version_id_to_use)
     )
-    op.alter_column("report_exports", "taxonomy_version_id", nullable=False)
-    op.create_foreign_key(
-        "fk_report_exports_taxonomy_version_id",
-        "report_exports",
-        "taxonomy_versions",
-        ["taxonomy_version_id"],
-        ["taxonomy_version_id"],
-    )
+
+    inspector = sa.inspect(bind)
+    report_export_columns = {column["name"]: column for column in inspector.get_columns("report_exports")}
+    if report_export_columns["taxonomy_version_id"]["nullable"]:
+        op.alter_column("report_exports", "taxonomy_version_id", nullable=False)
+
+    inspector = sa.inspect(bind)
+    if not _has_fk(inspector, "report_exports", "fk_report_exports_taxonomy_version_id"):
+        op.create_foreign_key(
+            "fk_report_exports_taxonomy_version_id",
+            "report_exports",
+            "taxonomy_versions",
+            ["taxonomy_version_id"],
+            ["taxonomy_version_id"],
+        )
 
 
 def downgrade() -> None:
-    op.drop_constraint(
-        "fk_report_exports_taxonomy_version_id", "report_exports", type_="foreignkey"
-    )
-    op.drop_column("report_exports", "taxonomy_version_id")
-    op.drop_table("taxonomy_entries")
-    op.drop_table("taxonomy_versions")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    table_names = set(inspector.get_table_names())
+
+    if "report_exports" in table_names:
+        columns = {column["name"] for column in inspector.get_columns("report_exports")}
+        if "taxonomy_version_id" in columns:
+            if _has_fk(inspector, "report_exports", "fk_report_exports_taxonomy_version_id"):
+                op.drop_constraint(
+                    "fk_report_exports_taxonomy_version_id", "report_exports", type_="foreignkey"
+                )
+            op.drop_column("report_exports", "taxonomy_version_id")
+
+    if "taxonomy_entries" in table_names:
+        op.drop_table("taxonomy_entries")
+    if "taxonomy_versions" in table_names:
+        op.drop_table("taxonomy_versions")

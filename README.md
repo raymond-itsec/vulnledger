@@ -54,6 +54,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 - 🔐 **JWT Authentication** — Access tokens (15 min) + HttpOnly refresh token cookies (7 days)
 - 👤 **Role-Based Access Control** — Admin, Reviewer, Client User roles with data isolation
 - 🧭 **Versioned Taxonomies** — DB-managed risk, remediation, session-status, and asset-type taxonomies with explicit active versions
+- 🚨 **Availability Banner** — Shared top-of-page outage notice for backend, proxy, database-startup, or local network failures that should not be treated as normal per-request UI errors
 - 🚦 **Rate Limiting** — Brute-force protection on login, configurable API limits
 - 🛡️ **Security Headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
 - 🔑 **Optional OIDC SSO** — Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
@@ -136,6 +137,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 6. All non-login frontend pages require authentication and redirect back to `/` when the user is signed out
 7. Logout clears the refresh cookie, drops the in-memory access token, and returns the browser to the login page
 8. A backend/container restart invalidates all existing sessions, so users must sign in again after a redeploy
+9. Signed-in sessions poll the authenticated health endpoint to drive the shared availability banner, while the login page performs only a one-time startup availability probe per browser tab session
 
 ### OIDC SSO Flow (Optional)
 1. User clicks "Sign in with SSO" → `GET /api/auth/oidc/login`
@@ -274,6 +276,8 @@ alembic upgrade head
 uvicorn app.main:app --reload --port 8000
 ```
 
+The backend no longer auto-creates tables on startup. Alembic is the canonical schema manager for both local development and deployed environments.
+
 > ⚠️ **WeasyPrint system dependencies** (required for PDF generation):
 > - **macOS:** `brew install pango libffi cairo glib`
 > - **Ubuntu/Debian:** `apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev libcairo2`
@@ -388,6 +392,27 @@ docker compose up -d
 docker compose ps
 docker compose logs -f backend  # Watch for startup messages
 ```
+
+The backend container runs `alembic upgrade head` before starting Uvicorn, so normal Docker Compose starts apply pending schema migrations automatically.
+
+### Upgrading Existing Installations
+
+For existing deployments, use the normal pull-and-restart flow:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+The backend now relies on Alembic only and no longer calls `create_all()` on startup. That avoids future collisions where tables created outside Alembic later conflict with versioned migrations.
+
+If you want to run the migration step manually before restarting the full stack, use:
+
+```bash
+docker compose run --rm backend alembic upgrade head
+```
+
+If you are upgrading from an older install that previously relied on startup-time table creation, take a database backup first. The current report-export and taxonomy migrations are tolerant of that older bootstrap path, but Alembic should be treated as the source of truth going forward.
 
 ### Production Environment Variables
 

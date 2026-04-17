@@ -12,8 +12,6 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
 from app.api.deps import get_current_user
 from app.config import settings
-from app.database import engine
-from app.models import Base
 from app.models.user import User
 from app.services.seed import seed_admin_user, sync_builtin_templates
 from app.services.storage import ensure_buckets
@@ -30,9 +28,6 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_lim
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Create tables (for dev; production uses Alembic)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
     await ensure_default_taxonomy_version()
     await seed_admin_user()
     await sync_builtin_templates()

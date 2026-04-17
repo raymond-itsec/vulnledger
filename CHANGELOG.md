@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.11] - 2026-04-17
+
+### Changed
+- Made Alembic the complete first-run schema path by expanding the baseline migration to create the core application tables needed for clean installs before later report-export and taxonomy revisions run.
+- Added a shared application-availability banner in the frontend that surfaces real backend/proxy/network outages separately from normal toast-level request failures.
+
+### Fixed
+- Stopped the outage banner flow from replacing protected pages with a dead-end shell, so authenticated users keep their current page state while the availability notice is shown.
+- Split login-page startup checks so whole-app availability no longer depends on the OIDC redirect endpoint, and cached only the non-sensitive one-time login-page probe results to avoid stale outage state after recovery.
+
 ## [v0.1.10] - 2026-04-16
 
 ### Changed

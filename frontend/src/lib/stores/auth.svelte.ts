@@ -1,3 +1,9 @@
+import {
+  APPLICATION_UNAVAILABLE_MESSAGE,
+  appAvailability,
+  fetchWithAvailability,
+} from '$lib/stores/app-availability.svelte';
+
 interface User {
   user_id: string;
   username: string;
@@ -45,13 +51,16 @@ export const auth = {
 };
 
 export async function login(username: string, password: string): Promise<void> {
-  const res = await fetch('/api/auth/login', {
+  const res = await fetchWithAvailability('/api/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
     body: JSON.stringify({ username, password }),
-  });
+  }, true);
   if (!res.ok) {
+    if (appAvailability.unavailable) {
+      throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
+    }
     throw new Error(await readErrorMessage(res, 'Login failed. Please try again later.'));
   }
   const data = await parseJsonSafely<{ access_token?: string }>(res);
@@ -64,9 +73,9 @@ export async function login(username: string, password: string): Promise<void> {
 
 export async function fetchMe(): Promise<void> {
   if (!token) return;
-  const res = await fetch('/api/users/me', {
+  const res = await fetchWithAvailability('/api/users/me', {
     headers: { Authorization: `Bearer ${token}` },
-  });
+  }, true);
   if (res.ok) {
     user = await res.json();
   }
@@ -74,10 +83,10 @@ export async function fetchMe(): Promise<void> {
 
 export async function refreshToken(): Promise<boolean> {
   try {
-    const res = await fetch('/api/auth/refresh', {
+    const res = await fetchWithAvailability('/api/auth/refresh', {
       method: 'POST',
       credentials: 'include',
-    });
+    }, true);
     if (!res.ok) return false;
     const data = await parseJsonSafely<{ access_token?: string }>(res);
     if (!data?.access_token) return false;
@@ -91,7 +100,12 @@ export async function refreshToken(): Promise<boolean> {
 
 export async function bootstrapAuth(): Promise<void> {
   if (token) {
-    await fetchMe();
+    try {
+      await fetchMe();
+    } catch {
+      // Keep the in-memory token state unchanged; layout-level availability handling
+      // will route users to the login screen until the backend recovers.
+    }
     return;
   }
 
@@ -104,7 +118,9 @@ export async function bootstrapAuth(): Promise<void> {
 
 export async function logout(): Promise<void> {
   try {
-    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    await fetchWithAvailability('/api/auth/logout', { method: 'POST', credentials: 'include' }, true);
+  } catch {
+    // Logging out should always clear local auth state, even if the backend is unavailable.
   } finally {
     token = null;
     user = null;

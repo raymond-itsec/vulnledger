@@ -1,4 +1,9 @@
 import { auth, refreshToken, logout } from '$lib/stores/auth.svelte';
+import {
+  APPLICATION_UNAVAILABLE_MESSAGE,
+  appAvailability,
+  fetchWithAvailability,
+} from '$lib/stores/app-availability.svelte';
 
 async function parseJsonSafely<T>(res: Response): Promise<T | null> {
   try {
@@ -43,13 +48,13 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
     headers['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  let res = await fetch(path, { ...options, headers });
+  let res = await fetchWithAvailability(path, { ...options, headers }, true);
 
   if (res.status === 401) {
     const refreshed = await refreshToken();
     if (refreshed) {
       headers['Authorization'] = `Bearer ${auth.token}`;
-      res = await fetch(path, { ...options, headers });
+      res = await fetchWithAvailability(path, { ...options, headers }, true);
     } else {
       await logout();
       throw new Error('Session expired');
@@ -70,6 +75,9 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await authorizedFetch(path, { ...options, headers });
 
   if (!res.ok) {
+    if (appAvailability.unavailable) {
+      throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
+    }
     throw new Error(await readPublicErrorMessage(res));
   }
 
