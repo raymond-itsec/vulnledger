@@ -19,11 +19,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Moved backend bind mounts to `docker-compose.dev.yml` only.
 - Disabled Python bytecode file generation in the backend container.
 - Kept backend Docker build context scoped to `./backend`.
+- Updated the frontend app label to `VulnLedger`.
+- Made the sidebar version label derive from `frontend/package.json`.
 
 ### Fixed
 - Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.
 - Split login-page startup checks. Whole-app availability no longer depends on the OIDC redirect endpoint. Only non-sensitive one-time probe results are cached.
 - Added a frontend `crypto.randomUUID()` fallback for non-secure origins (for example HTTP LAN IP access).
+- Updated availability polling to probe health even without an auth token so recovery clears stale outage banners.
 
 ## [v0.1.10] - 2026-04-16
 

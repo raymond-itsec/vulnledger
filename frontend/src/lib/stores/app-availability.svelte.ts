@@ -177,9 +177,6 @@ export const appAvailability = {
       setUnavailable(true);
       return;
     }
-    if (!authToken) {
-      return;
-    }
     if (pollPromise) {
       await pollPromise;
       return;
@@ -187,14 +184,18 @@ export const appAvailability = {
 
     pollPromise = (async () => {
       try {
+        const requestInit: RequestInit = {
+          cache: 'no-store',
+        };
+        if (authToken) {
+          requestInit.headers = {
+            Authorization: `Bearer ${authToken}`,
+          };
+        }
+
         await fetchWithAvailability(
           `/api/health?ts=${Date.now()}`,
-          {
-            cache: 'no-store',
-            headers: {
-              Authorization: `Bearer ${authToken}`,
-            },
-          },
+          requestInit,
           clearOnSuccess,
         );
       } catch {

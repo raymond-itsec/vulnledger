@@ -7,6 +7,7 @@
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
+  import { APP_NAME } from '$lib/config/app-meta';
   import Badge from '$lib/components/Badge.svelte';
 
   let username = $state('');
@@ -101,7 +102,10 @@
 {#if !auth.isAuthenticated}
   <div class="login-page">
     <div class="login-card">
-      <h1>Security Findings Manager</h1>
+      <div class="login-brand">
+        <img class="login-logo" src="/branding/vl-logo-small.png" alt={`${APP_NAME} logo`} />
+        <h1>{APP_NAME}</h1>
+      </div>
       <p class="subtitle">Sign in to continue</p>
       <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
         <div class="form-group">
@@ -269,10 +273,27 @@
     padding: 2.5rem;
     border-radius: 0.75rem;
     width: 100%;
-    max-width: 400px;
+    max-width: 420px;
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   }
-  .login-card h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .login-brand {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+  .login-logo {
+    width: 12rem;
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+  .login-card h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0;
+    text-align: center;
+  }
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }
   .sso-divider {

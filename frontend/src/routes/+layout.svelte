@@ -7,6 +7,7 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import AvailabilityBanner from '$lib/components/AvailabilityBanner.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
+  import { APP_NAME, APP_VERSION } from '$lib/config/app-meta';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
 
@@ -97,8 +98,11 @@
   <div class="app-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h1>Findings</h1>
-        <span class="version">v0.1.7</span>
+        <img class="sidebar-logo" src="/branding/vl-logo-small.png" alt={`${APP_NAME} logo`} />
+        <div class="sidebar-brand">
+          <h1>{APP_NAME}</h1>
+          <span class="version">{APP_VERSION}</span>
+        </div>
       </div>
       <nav>
         {#each visibleNav as item}
@@ -149,11 +153,30 @@
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
+    align-items: center;
+    gap: 0.75rem;
   }
-  .sidebar-header h1 { font-size: 1.25rem; font-weight: 700; }
-  .version { font-size: 0.7rem; opacity: 0.5; }
+  .sidebar-logo {
+    width: 5.5rem;
+    height: auto;
+    flex-shrink: 0;
+    object-fit: contain;
+  }
+  .sidebar-brand {
+    min-width: 0;
+  }
+  .sidebar-header h1 {
+    font-size: 1.1rem;
+    line-height: 1.1;
+    font-weight: 700;
+    margin: 0;
+  }
+  .version {
+    display: inline-block;
+    margin-top: 0.15rem;
+    font-size: 0.7rem;
+    opacity: 0.55;
+  }
   nav {
     flex: 1;
     padding: 0.75rem 0;
