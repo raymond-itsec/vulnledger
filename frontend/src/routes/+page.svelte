@@ -7,7 +7,6 @@
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
-  import { APP_NAME } from '$lib/config/app-meta';
   import Badge from '$lib/components/Badge.svelte';
 
   let username = $state('');
@@ -103,8 +102,7 @@
   <div class="login-page">
     <div class="login-card">
       <div class="login-brand">
-        <img class="login-logo" src="/branding/vl-logo-small.png" alt={`${APP_NAME} logo`} />
-        <h1>{APP_NAME}</h1>
+        <img class="login-logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
       </div>
       <p class="subtitle">Sign in to continue</p>
       <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
@@ -284,15 +282,10 @@
     margin-bottom: 0.25rem;
   }
   .login-logo {
-    width: 12rem;
+    width: 24rem;
     max-width: 100%;
     height: auto;
     object-fit: contain;
-  }
-  .login-card h1 {
-    font-size: 1.5rem;
-    margin-bottom: 0;
-    text-align: center;
   }
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }

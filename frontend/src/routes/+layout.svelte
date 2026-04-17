@@ -7,7 +7,7 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import AvailabilityBanner from '$lib/components/AvailabilityBanner.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
-  import { APP_NAME, APP_VERSION } from '$lib/config/app-meta';
+  import { APP_VERSION } from '$lib/config/app-meta';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
 
@@ -98,11 +98,8 @@
   <div class="app-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <img class="sidebar-logo" src="/branding/vl-logo-small.png" alt={`${APP_NAME} logo`} />
-        <div class="sidebar-brand">
-          <h1>{APP_NAME}</h1>
-          <span class="version">{APP_VERSION}</span>
-        </div>
+        <img class="sidebar-logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
+        <span class="version">{APP_VERSION}</span>
       </div>
       <nav>
         {#each visibleNav as item}
@@ -162,18 +159,8 @@
     flex-shrink: 0;
     object-fit: contain;
   }
-  .sidebar-brand {
-    min-width: 0;
-  }
-  .sidebar-header h1 {
-    font-size: 1.1rem;
-    line-height: 1.1;
-    font-weight: 700;
-    margin: 0;
-  }
   .version {
-    display: inline-block;
-    margin-top: 0.15rem;
+    display: block;
     font-size: 0.7rem;
     opacity: 0.55;
   }
