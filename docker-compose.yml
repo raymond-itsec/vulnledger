@@ -65,6 +65,8 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+    environment:
+      VITE_API_PROXY_TARGET: http://backend:8000
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
 
