@@ -13,6 +13,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added Docker runtime mode selection with `FINDINGS_RUNTIME_MODE`.
 - Added `./scripts/first-run.sh mode <dev|prod>`.
 - Added cleanup scripts for mode switches.
+- Added `./scripts/first-run.sh retest`.
+- Added `scripts/retest-sync.sh`.
+- Added cache-only cleanup before pull for retest runs.
 - Moved backend bind mounts to `docker-compose.dev.yml` only.
 - Disabled Python bytecode file generation in the backend container.
 - Kept backend Docker build context scoped to `./backend`.

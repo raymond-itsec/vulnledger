@@ -240,6 +240,7 @@ The VulnLedger repository includes a helper script for smoother installs:
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
 ./scripts/first-run.sh mode prod  # switch Docker runtime mode to prod
 ./scripts/first-run.sh mode dev   # switch Docker runtime mode to dev
+./scripts/first-run.sh retest  # clean caches and pull latest code
 ./scripts/first-run.sh up      # build and start the stack
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
@@ -254,6 +255,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 In `prod`, `scripts/first-run.sh` uses `docker-compose.yml` only (no source bind mounts).
 In `dev`, it also applies `docker-compose.dev.yml` (backend source bind mount for reload).
 The backend image build context is `./backend`.
+
+`retest` removes frontend build caches and backend Python cache artifacts, then runs `git pull --ff-only`. It does not delete source files. It exits if tracked git changes are present.
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 

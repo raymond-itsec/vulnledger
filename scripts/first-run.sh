@@ -181,6 +181,7 @@ Commands:
   init    Create .env from .env.example if it does not exist
   doctor  Validate common first-run prerequisites
   mode    Switch runtime mode (dev or prod) and run cleanup
+  retest  Clean cache artifacts and fast-forward pull latest code
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
   up      Start the stack with --build
   down    Stop the stack
@@ -200,6 +201,9 @@ case "$command_name" in
     ;;
   mode)
     ./scripts/switch-runtime-mode.sh "${2:-}"
+    ;;
+  retest)
+    ./scripts/retest-sync.sh
     ;;
   verify-backend)
     exec ./scripts/verify-backend.sh
