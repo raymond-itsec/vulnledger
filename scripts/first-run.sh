@@ -137,6 +137,7 @@ Usage: ./scripts/first-run.sh <command>
 Commands:
   init    Create .env from .env.example if it does not exist
   doctor  Validate common first-run prerequisites
+  mode    Switch runtime mode (dev or prod) and run cleanup
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
   up      Run preflight checks, then start the stack with --build
   down    Stop the stack
@@ -153,6 +154,9 @@ case "$command_name" in
     ;;
   doctor)
     doctor
+    ;;
+  mode)
+    ./scripts/switch-runtime-mode.sh "${2:-}"
     ;;
   verify-backend)
     exec ./scripts/verify-backend.sh

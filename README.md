@@ -238,6 +238,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 ./scripts/first-run.sh init    # create .env from .env.example
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
+./scripts/first-run.sh mode prod  # switch Docker runtime mode to prod
+./scripts/first-run.sh mode dev   # switch Docker runtime mode to dev
 ./scripts/first-run.sh up      # build and start the stack
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
@@ -247,6 +249,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 `doctor` catches two common setup problems before Docker starts:
 - Host ports that are already in use
 - Placeholder secrets that were never updated in `.env`
+
+`mode` updates `FINDINGS_RUNTIME_MODE` in `.env` and runs cleanup before the next startup. Use `mode prod` on servers and `mode dev` only when you explicitly want hot reload behavior.
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 
@@ -337,6 +341,10 @@ FINDINGS_REPORT_MAX_FINDINGS=250
 FINDINGS_REPORT_MAX_INPUT_CHARS=200000
 FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB=25
 
+# Optional: Docker runtime mode
+# Use prod on servers. Use dev only for local hot reload workflows.
+FINDINGS_RUNTIME_MODE=prod
+
 # Optional: Email notifications
 # Register: https://www.mailjet.com/pricing/
 # Quick start: https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet
@@ -380,15 +388,18 @@ nano .env  # Set production values (see below)
 
 # 3. Set your public host in .env
 # CADDY_HOST=yourdomain.com
+
+# 4. Force production runtime mode
+./scripts/first-run.sh mode prod
 ```
 
 >  Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
 
 ```bash
-# 4. Start all services
+# 5. Start all services
 docker compose up -d
 
-# 5. Verify everything is running
+# 6. Verify everything is running
 docker compose ps
 docker compose logs -f backend  # Watch for startup messages
 ```

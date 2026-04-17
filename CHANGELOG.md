@@ -10,6 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Expanded the baseline Alembic migration. Clean installs now create core application tables before later report-export and taxonomy revisions run.
 - Added a shared frontend availability banner. It distinguishes backend/proxy/network outages from normal toast-level request failures.
+- Added Docker runtime mode selection with `FINDINGS_RUNTIME_MODE`.
+- Added `./scripts/first-run.sh mode <dev|prod>`.
+- Added cleanup scripts for mode switches.
 
 ### Fixed
 - Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.

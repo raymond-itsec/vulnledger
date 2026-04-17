@@ -25,7 +25,10 @@ services:
       - minio_data:/data
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
     restart: unless-stopped
     depends_on:
       - db
@@ -55,18 +58,21 @@ services:
       FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:-Administrator}
       FINDINGS_CLAMAV_HOST: clamav
       FINDINGS_CLAMAV_PORT: "3310"
-    command: >
-      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
     volumes:
       - ./backend:/app
 
   frontend:
-    build: ./frontend
+    build:
+      context: ./frontend
+      args:
+        FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
     restart: unless-stopped
     depends_on:
       - backend
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-prod}
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
 
