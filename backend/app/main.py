@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
     try:
         ensure_buckets()
     except Exception:
-        logger.warning("MinIO not available — file attachments and report storage disabled")
+        logger.warning("MinIO not available -- file attachments and report storage disabled")
     yield
 
 

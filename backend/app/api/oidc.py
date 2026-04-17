@@ -1,8 +1,8 @@
 """Optional OIDC/SSO authentication flow.
 
 Only loaded when FINDINGS_OIDC_ENABLED=true. Provides:
-  GET  /api/auth/oidc/login    — redirects to the IdP
-  GET  /api/auth/oidc/callback — handles the IdP callback, creates/logs in user
+  GET  /api/auth/oidc/login    -- redirects to the IdP
+  GET  /api/auth/oidc/callback -- handles the IdP callback, creates/logs in user
 """
 
 import logging

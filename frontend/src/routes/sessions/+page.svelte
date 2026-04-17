@@ -166,7 +166,7 @@
           <tr>
             <td><a href="/sessions/{session.session_id}">{session.review_name}</a></td>
             <td>{session.review_date}</td>
-            <td>{session.reviewer_name || '—'}</td>
+            <td>{session.reviewer_name || '--'}</td>
             <td><Badge text={session.status} variant={session.status} /></td>
           </tr>
         {/each}

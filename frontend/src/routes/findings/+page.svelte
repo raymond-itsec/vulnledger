@@ -159,7 +159,7 @@
   }
 
   function sessionName(id: string): string {
-    return sessions.find((s) => s.session_id === id)?.review_name || '—';
+    return sessions.find((s) => s.session_id === id)?.review_name || '--';
   }
 </script>
 
@@ -233,7 +233,7 @@
         <div class="form-group">
           <label for={templateFieldId}>From Template (optional)</label>
           <select id={templateFieldId} onchange={(e) => applyTemplate(e.currentTarget.value)}>
-            <option value="">— Select a template —</option>
+            <option value="">-- Select a template --</option>
             {#each templates as t}
               <option value={t.template_id}>[{t.category}] {t.name}</option>
             {/each}

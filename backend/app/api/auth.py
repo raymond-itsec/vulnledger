@@ -27,6 +27,7 @@ COOKIE_SECURE = settings.app_base_url.startswith("https://")
 
 
 def _request_ip(request: Request) -> str | None:
+    # TODO: Honor trusted proxy headers (for example X-Forwarded-For) behind Caddy/load balancers.
     return request.client.host if request.client else None
 
 

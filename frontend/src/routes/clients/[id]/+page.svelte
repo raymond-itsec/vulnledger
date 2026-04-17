@@ -107,9 +107,9 @@
     {:else}
       <dl class="detail-grid">
         <dt>Primary Contact</dt>
-        <dd>{client.primary_contact_name || '—'}</dd>
+        <dd>{client.primary_contact_name || '--'}</dd>
         <dt>Email</dt>
-        <dd>{client.primary_contact_email || '—'}</dd>
+        <dd>{client.primary_contact_email || '--'}</dd>
         <dt>Created</dt>
         <dd>{new Date(client.created_at).toLocaleDateString()}</dd>
       </dl>
@@ -134,7 +134,7 @@
             <tr>
               <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
               <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
-              <td>{asset.description || '—'}</td>
+              <td>{asset.description || '--'}</td>
             </tr>
           {/each}
         </tbody>

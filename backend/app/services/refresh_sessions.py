@@ -111,6 +111,7 @@ async def _create_refresh_session(
         parent_session_id=parent_session_id,
         token_hash=_hash_refresh_token(raw_token),
         issued_at=issued_at,
+        # FIXME: Add an absolute family lifetime cap. Current policy extends lifetime on each rotation.
         expires_at=issued_at + timedelta(days=settings.refresh_token_expire_days),
         created_ip=_normalize_ip(created_ip),
         created_user_agent=_normalize_user_agent(created_user_agent),
@@ -261,11 +262,13 @@ async def revoke_refresh_session_family(
     parsed = _parse_refresh_token(raw_token)
     if not parsed:
         if raw_token:
+            # TODO: Persist structured security audit events for malformed refresh-token revoke attempts.
             logger.warning("Malformed refresh token supplied for revoke operation")
         return
 
     session = await _load_refresh_session(db, raw_token, for_update=True)
     if not session:
+        # TODO: Persist structured security audit events for unknown session-id revoke attempts.
         logger.warning(
             "Refresh session revoke requested for unknown session_id=%s",
             parsed[0],

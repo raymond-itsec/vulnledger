@@ -1,69 +1,69 @@
-# 🔒 VulnLedger
+# VulnLedger
 
-VulnLedger is a self-hosted web application for managing security code review findings. Built for security consultants and teams who need to track clients, reviewed assets, code review sessions, and individual findings — with full edit history, report generation, and email notifications.
+VulnLedger is a self-hosted web application for managing security code review findings. Built for security consultants and teams who need to track clients, reviewed assets, code review sessions, and individual findings -- with full edit history, report generation, and email notifications.
 
 **Fully self-hostable. No US Cloud Act dependencies. Your data stays yours.**
 
 ---
 
-## 📋 Table of Contents
+## Table of Contents
 
-- [Features](#-features)
-- [Tech Stack](#-tech-stack)
-- [Architecture](#-architecture)
-- [Data Model](#-data-model)
-- [Local Development Setup](#-local-development-setup)
-- [Production / Distributed Deployment](#-production--distributed-deployment)
-- [Configuration Reference](#-configuration-reference)
-- [Finding Templates](#-finding-templates)
-- [API Overview](#-api-overview)
-- [Security](#-security)
-- [Backup & Recovery](#-backup--recovery)
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Data Model](#data-model)
+- [Local Development Setup](#local-development-setup)
+- [Production / Distributed Deployment](#production--distributed-deployment)
+- [Configuration Reference](#configuration-reference)
+- [Finding Templates](#finding-templates)
+- [API Overview](#api-overview)
+- [Security](#security)
+- [Backup & Recovery](#backup--recovery)
 
 ---
 
-## ✨ Features
+## Features
 
 ### Core
-- 👥 **Client Management** — Track clients with contact details and linked assets
-- 🖥️ **Asset Tracking** — Catalog reviewed assets (web apps, APIs, mobile apps, infrastructure, etc.)
-- 📝 **Review Sessions** — Organize findings per engagement with reviewer assignment and status tracking
-- 🔍 **Finding Management** — Full CRUD with risk levels (critical → informational), remediation statuses, markdown-rich descriptions, and file attachments
-- 📜 **Change History** — Per-field audit trail on every finding edit (who changed what, when)
-- 📎 **File Attachments** — Upload screenshots, evidence, and documents (stored in MinIO)
+- **Client Management** -- Track clients with contact details and linked assets
+- **Asset Tracking** -- Catalog reviewed assets (web apps, APIs, mobile apps, infrastructure, etc.)
+- **Review Sessions** -- Organize findings per engagement with reviewer assignment and status tracking
+- **Finding Management** -- Full CRUD with risk levels (critical → informational), remediation statuses, markdown-rich descriptions, and file attachments
+- **Change History** -- Per-field audit trail on every finding edit (who changed what, when)
+- **File Attachments** -- Upload screenshots, evidence, and documents (stored in MinIO)
 
 ### Templates
-- 📋 **25 Built-in Finding Templates** — Covering OWASP Top 10 categories: injection, authentication, access control, cryptography, misconfiguration, and more
-- ✏️ **Custom Templates** — Create, edit, and delete your own finding templates
-- 🔄 **YAML-based Sync** — Built-in templates managed via YAML files, idempotent sync on startup
+- **25 Built-in Finding Templates** -- Covering OWASP Top 10 categories: injection, authentication, access control, cryptography, misconfiguration, and more
+- **Custom Templates** -- Create, edit, and delete your own finding templates
+- **YAML-based Sync** -- Built-in templates managed via YAML files, idempotent sync on startup
 
 ### Reporting & Notifications
-- 📄 **PDF Reports** — Professional, styled security review reports with executive summary, risk breakdown, and detailed findings (WeasyPrint)
-- 📊 **CSV Export** — Spreadsheet-friendly export of all findings per session
-- 📦 **JSON Export** — Structured data export for integration with other tools
-- 🗂️ **Stored Export History** — Generated PDF/CSV/JSON exports are recorded per session with export date, file name, creator, and later download access
-- 📧 **Email Notifications** — Via Mailjet: new finding alerts, status change notifications, report-ready notifications
+- **PDF Reports** -- Professional, styled security review reports with executive summary, risk breakdown, and detailed findings (WeasyPrint)
+- **CSV Export** -- Spreadsheet-friendly export of all findings per session
+- **JSON Export** -- Structured data export for integration with other tools
+- **Stored Export History** -- Generated PDF/CSV/JSON exports are recorded per session with export date, file name, creator, and later download access
+- **Email Notifications** -- Via Mailjet: new finding alerts, status change notifications, report-ready notifications
 
 ### Dashboard
-- 📈 **Risk Level Breakdown** — Visual bar charts of findings by severity
-- 📊 **Status Breakdown** — At-a-glance remediation progress
-- 🔗 **Quick Actions** — One-click access to create clients, findings
-- 🕐 **Recent Activity** — Latest sessions and findings
+- **Risk Level Breakdown** -- Visual bar charts of findings by severity
+- **Status Breakdown** -- At-a-glance remediation progress
+- **Quick Actions** -- One-click access to create clients, findings
+- **Recent Activity** -- Latest sessions and findings
 
 ### Security & Operations
-- 🔐 **JWT Authentication** — Access tokens (5 min) + HttpOnly refresh token cookies (7 days)
-- 👤 **Role-Based Access Control** — Admin, Reviewer, Client User roles with data isolation
-- 🧭 **Versioned Taxonomies** — DB-managed risk, remediation, session-status, and asset-type taxonomies with explicit active versions
-- 🚨 **Availability Banner** — Shared top-of-page outage notice for backend, proxy, database-startup, or local network failures that should not be treated as normal per-request UI errors
-- 🚦 **Rate Limiting** — Brute-force protection on login, configurable API limits
-- 🛡️ **Security Headers** — CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- 🔑 **Optional OIDC SSO** — Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
-- 🦠 **Virus Scanning** — ClamAV integration scans every file upload before storage and blocks uploads if the scanner is configured but unavailable
-- 💾 **Automated Backups** — Scheduled PostgreSQL dumps with configurable retention
+- **JWT Authentication** -- Access tokens (5 min) + HttpOnly refresh token cookies (7 days)
+- **Role-Based Access Control** -- Admin, Reviewer, Client User roles with data isolation
+- **Versioned Taxonomies** -- DB-managed risk, remediation, session-status, and asset-type taxonomies with explicit active versions
+- **Availability Banner** -- Shared top-of-page outage notice for backend, proxy, database-startup, or local network failures that should not be treated as normal per-request UI errors
+- **Rate Limiting** -- Brute-force protection on login, configurable API limits
+- **Security Headers** -- CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
+- **Optional OIDC SSO** -- Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
+- **Virus Scanning** -- ClamAV integration scans every file upload before storage and blocks uploads if the scanner is configured but unavailable
+- **Automated Backups** -- Scheduled PostgreSQL dumps with configurable retention
 
 ---
 
-## 🛠️ Tech Stack
+## Tech Stack
 
 | Layer | Technology | Purpose |
 |-------|-----------|---------|
@@ -86,18 +86,18 @@ VulnLedger is a self-hosted web application for managing security code review fi
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 ┌──────────────┐     ┌──────────────┐     ┌──────────────┐
 │              │     │              │     │              │
-│   Browser    │────▶│    Caddy     │────▶│   Frontend   │
+│   Browser    │────│    Caddy     │────│   Frontend   │
 │              │     │  (reverse    │     │  (SvelteKit) │
 │              │     │   proxy)     │     │  :5173       │
 └──────────────┘     │  :80/:443   │     └──────────────┘
                      │              │
                      │              │     ┌──────────────┐
-                     │   /api/*  ───│────▶│   Backend    │
+                     │   /api/*  ───│────│   Backend    │
                      │              │     │  (FastAPI)   │
                      └──────────────┘     │  :8000       │
                                           │              │
@@ -124,14 +124,14 @@ VulnLedger is a self-hosted web application for managing security code review fi
 5. The **backup service** independently dumps PostgreSQL on a cron schedule
 
 ### Storage Layout
-- **Evidence bucket** — Uploaded finding attachments are stored in the configured MinIO evidence bucket
-- **Reports bucket** — Generated PDF, CSV, and JSON exports are stored in a separate MinIO reports bucket
-- **Stored export downloads** — Session detail pages can list and download previously generated exports through the backend
+- **Evidence bucket** -- Uploaded finding attachments are stored in the configured MinIO evidence bucket
+- **Reports bucket** -- Generated PDF, CSV, and JSON exports are stored in a separate MinIO reports bucket
+- **Stored export downloads** -- Session detail pages can list and download previously generated exports through the backend
 
 ### Authentication Flow
 1. User submits credentials → `POST /api/auth/login`
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
-3. Frontend stores access token in memory (not localStorage — XSS safe)
+3. Frontend stores access token in memory (not localStorage -- XSS safe)
 4. On page load or after a 401, the frontend calls `POST /api/auth/refresh` using the cookie
 5. Refresh rotates both tokens transparently and restores the in-memory access token from DB-backed refresh session state
 6. All non-login frontend pages require authentication and redirect back to `/` when the user is signed out
@@ -148,26 +148,26 @@ VulnLedger is a self-hosted web application for managing security code review fi
 
 ---
 
-## 💾 Data Model
+## Data Model
 
 ```
 Users ──────────────────────────────────────┐
   │                                         │
   │ reviewer_id                             │ linked_client_id
   ▼                                         ▼
-ReviewSessions ◀── asset_id ── ReviewedAssets ◀── client_id ── Clients
+ReviewSessions ── asset_id ── ReviewedAssets ── client_id ── Clients
   │                                                              │
   │ session_id                                                   │
   ▼                                                              │
-Findings ──▶ FindingHistory (per-field change log)               │
+Findings ── FindingHistory (per-field change log)               │
   │                                                              │
   │ finding_id                                      Users.linked_client_id
   ▼                                    (client_user sees only their client's data)
 FindingAttachments (MinIO)
 
-ReviewSessions ──▶ ReportExports (stored export metadata + MinIO object key + taxonomy version)
+ReviewSessions ── ReportExports (stored export metadata + MinIO object key + taxonomy version)
 
-TaxonomyVersions ──▶ TaxonomyEntries
+TaxonomyVersions ── TaxonomyEntries
        ▲
        └──── active version drives risk/status/asset validation, labels, colors, and export rendering
 
@@ -193,14 +193,14 @@ Each taxonomy entry stores a machine value plus its label, sort order, optional 
 
 ---
 
-## 🖥️ Local Development Setup
+## Local Development Setup
 
 ### Prerequisites
 - [Docker](https://docs.docker.com/get-docker/) & [Docker Compose](https://docs.docker.com/compose/install/) v2+
 - [Node.js](https://nodejs.org/) 22+ (for frontend development)
 - [Python](https://www.python.org/) 3.12+ (for backend development)
 
-### Quick Start (Docker — recommended)
+### Quick Start (Docker -- recommended)
 
 ```bash
 # 1. Clone the repository
@@ -226,9 +226,9 @@ open http://localhost
 ```
 
 That's it. The app will be available at `http://localhost` with:
-- 📌 Your configured initial admin account from `.env`
-- 📌 25 finding templates auto-synced on startup
-- 📌 PostgreSQL, MinIO, and all services running
+- Your configured initial admin account from `.env`
+- 25 finding templates auto-synced on startup
+- PostgreSQL, MinIO, and all services running
 
 ### First-Run Helper
 
@@ -263,7 +263,7 @@ cd backend
 python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 
-# Install dependencies (WeasyPrint needs system libs — see below)
+# Install dependencies (WeasyPrint needs system libs -- see below)
 pip install -r requirements.txt
 
 # Start PostgreSQL (if not using Docker)
@@ -278,7 +278,7 @@ uvicorn app.main:app --reload --port 8000
 
 The backend no longer auto-creates tables on startup. Alembic is the canonical schema manager for both local development and deployed environments.
 
-> ⚠️ **WeasyPrint system dependencies** (required for PDF generation):
+>  **WeasyPrint system dependencies** (required for PDF generation):
 > - **macOS:** `brew install pango libffi cairo glib`
 > - **Ubuntu/Debian:** `apt install libpango-1.0-0 libpangocairo-1.0-0 libgdk-pixbuf-2.0-0 libffi-dev libcairo2`
 > - **Docker:** Already handled in the Dockerfile
@@ -363,7 +363,7 @@ CADDY_ATTACHMENT_MAX_SIZE=30MB
 
 ---
 
-## 🚀 Production / Distributed Deployment
+## Production / Distributed Deployment
 
 ### Single-Server Deployment (Docker Compose)
 
@@ -382,7 +382,7 @@ nano .env  # Set production values (see below)
 # CADDY_HOST=yourdomain.com
 ```
 
-> 💡 Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
+>  Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
 
 ```bash
 # 4. Start all services
@@ -419,7 +419,7 @@ If you are upgrading from an older install that previously relied on startup-tim
 These **must** be changed from defaults:
 
 ```env
-# ⚠️ CRITICAL — change these!
+# CRITICAL -- change these!
 FINDINGS_SECRET_KEY=<random-64-char-string>
 MINIO_ROOT_USER=<strong-access-key>
 MINIO_ROOT_PASSWORD=<strong-secret-key>
@@ -520,7 +520,7 @@ docker run -d \
   findings-backup
 ```
 
-### Docker Compose (Production) — All Services
+### Docker Compose (Production) -- All Services
 
 The default `docker-compose.yml` runs all 7 services:
 
@@ -531,22 +531,22 @@ The default `docker-compose.yml` runs all 7 services:
 | `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
 | `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
 | `caddy` | caddy:2.11.2-alpine | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
-| `backup` | Custom (postgres + cron) | — | Scheduled database backups |
+| `backup` | Custom (postgres + cron) | -- | Scheduled database backups |
 | `clamav` | clamav/clamav:stable | `127.0.0.1:3310` | Antivirus scanning |
 
 ### Volumes
 
 | Volume | Data | Backup? |
 |--------|------|---------|
-| `pgdata` | PostgreSQL data | ✅ Auto-backed up by backup service |
-| `minio_data` | Evidence files and generated report exports | ⚠️ Back up separately or use MinIO replication |
-| `backups` | SQL dump files | 📁 Mount to host or NFS for off-server storage |
-| `caddy_data` | TLS certificates | 🔄 Auto-managed by Caddy |
-| `clamav_data` | Virus definitions | 🔄 Auto-updated by ClamAV |
+| `pgdata` | PostgreSQL data |  Auto-backed up by backup service |
+| `minio_data` | Evidence files and generated report exports |  Back up separately or use MinIO replication |
+| `backups` | SQL dump files |  Mount to host or NFS for off-server storage |
+| `caddy_data` | TLS certificates |  Auto-managed by Caddy |
+| `clamav_data` | Virus definitions |  Auto-updated by ClamAV |
 
 ---
 
-## ⚙️ Configuration Reference
+## Configuration Reference
 
 Application settings use the `FINDINGS_` prefix. The deployment also exposes supporting Docker, port, and Caddy variables through the same `.env` file.
 
@@ -608,7 +608,7 @@ Set on the `backup` service (not `FINDINGS_` prefix):
 
 ---
 
-## 📋 Finding Templates
+## Finding Templates
 
 The application ships with **25 built-in finding templates** organized by category:
 
@@ -645,7 +645,7 @@ Create custom templates through the UI (Templates → New Template) or add YAML 
 
 ---
 
-## 🌐 API Overview
+## API Overview
 
 All endpoints are prefixed with `/api`. Authentication is via Bearer token in the `Authorization` header. The only public routes are the login/logout/refresh endpoints and the optional OIDC entry/callback endpoints. All other API routes require an authenticated session.
 
@@ -720,44 +720,44 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 
 ---
 
-## 🔐 Security
+## Security
 
 ### Authentication & Authorization
-- **JWT Tokens** — Short-lived access tokens (5 min) with refresh rotation
-- **HttpOnly Cookies** — Refresh tokens stored in secure, HttpOnly, SameSite=Strict cookies
-- **Authenticated Pages Only** — Every frontend page except the login screen requires an authenticated session
-- **DB-Backed Refresh Sessions** — Active refresh-session families survive backend restarts
-- **Token-Version Kill Switch** — Logout or refresh-family revocation immediately invalidates outstanding access tokens for that user
-- **bcrypt Hashing** — Passwords hashed with bcrypt via passlib
-- **RBAC** — Three roles with server-enforced permissions
-- **Client Scoping** — `client_user` role sees only data belonging to their linked client (row-level filtering at ORM level)
+- **JWT Tokens** -- Short-lived access tokens (5 min) with refresh rotation
+- **HttpOnly Cookies** -- Refresh tokens stored in secure, HttpOnly, SameSite=Strict cookies
+- **Authenticated Pages Only** -- Every frontend page except the login screen requires an authenticated session
+- **DB-Backed Refresh Sessions** -- Active refresh-session families survive backend restarts
+- **Token-Version Kill Switch** -- Logout or refresh-family revocation immediately invalidates outstanding access tokens for that user
+- **bcrypt Hashing** -- Passwords hashed with bcrypt via passlib
+- **RBAC** -- Three roles with server-enforced permissions
+- **Client Scoping** -- `client_user` role sees only data belonging to their linked client (row-level filtering at ORM level)
 
 ### HTTP Security
-- **Rate Limiting** — 5 req/min on login, 60 req/min on API (configurable)
-- **Security Headers** — CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy
-- **CORS** — Configurable allowed origins
-- **TLS** — Auto-provisioned via Caddy (Let's Encrypt) in production
+- **Rate Limiting** -- 5 req/min on login, 60 req/min on API (configurable)
+- **Security Headers** -- CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy
+- **CORS** -- Configurable allowed origins
+- **TLS** -- Auto-provisioned via Caddy (Let's Encrypt) in production
 
 ### File Security
-- **Content-Type Validation** — Only allowed MIME types accepted (images, PDF, text, CSV, JSON, ZIP)
-- **Size Limits** — Attachment uploads are limited in both Caddy and the backend; the backend is authoritative, and the Caddy cap should be set at or slightly above it to reject oversized uploads early
-- **Virus Scanning** — ClamAV scans every upload before storage (when enabled)
-- **Separated Storage Buckets** — Evidence and generated exports are stored in different MinIO buckets
-- **Proxied Downloads** — Evidence files and stored exports are served through the backend (MinIO not exposed to the internet)
+- **Content-Type Validation** -- Only allowed MIME types accepted (images, PDF, text, CSV, JSON, ZIP)
+- **Size Limits** -- Attachment uploads are limited in both Caddy and the backend; the backend is authoritative, and the Caddy cap should be set at or slightly above it to reject oversized uploads early
+- **Virus Scanning** -- ClamAV scans every upload before storage (when enabled)
+- **Separated Storage Buckets** -- Evidence and generated exports are stored in different MinIO buckets
+- **Proxied Downloads** -- Evidence files and stored exports are served through the backend (MinIO not exposed to the internet)
 
 ### Reporting Controls
-- **Export Guardrails** — The backend rejects oversized exports based on finding count, total input size, and generated output size
-- **Stored Export Metadata** — Each export records the export date, file name, creating user, format, size, and taxonomy version used at generation time
-- **Historical Taxonomy Reference** — Stored exports are linked to the taxonomy version that was active when they were created
+- **Export Guardrails** -- The backend rejects oversized exports based on finding count, total input size, and generated output size
+- **Stored Export Metadata** -- Each export records the export date, file name, creating user, format, size, and taxonomy version used at generation time
+- **Historical Taxonomy Reference** -- Stored exports are linked to the taxonomy version that was active when they were created
 
 ### Operational
-- **No Cloud Dependencies** — Fully self-hosted, EU-friendly, no US Cloud Act exposure
-- **Automated Backups** — Daily PostgreSQL dumps with configurable retention
-- **Change Audit Trail** — Per-field history on all finding modifications
+- **No Cloud Dependencies** -- Fully self-hosted, EU-friendly, no US Cloud Act exposure
+- **Automated Backups** -- Daily PostgreSQL dumps with configurable retention
+- **Change Audit Trail** -- Per-field history on all finding modifications
 
 ---
 
-## 💾 Backup & Recovery
+## Backup & Recovery
 
 ### Automatic Backups
 
@@ -809,7 +809,7 @@ docker run --rm -v findings_minio_data:/data -v /host/backup:/backup alpine \
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 findings/
@@ -846,6 +846,6 @@ findings/
 
 ---
 
-## 📄 License
+## License
 
 Self-hosted. Private use.

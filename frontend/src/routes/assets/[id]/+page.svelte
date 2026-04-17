@@ -123,7 +123,7 @@
         <dt>Type</dt>
         <dd>{taxonomy.label('asset_type', asset!.asset_type)}</dd>
         <dt>Description</dt>
-        <dd>{asset.description || '—'}</dd>
+        <dd>{asset.description || '--'}</dd>
         <dt>Client</dt>
         <dd><a href="/clients/{asset.client_id}">View Client</a></dd>
       </dl>
@@ -148,7 +148,7 @@
             <tr>
               <td><a href="/sessions/{session.session_id}">{session.review_name}</a></td>
               <td>{session.review_date}</td>
-              <td>{session.reviewer_name || '—'}</td>
+              <td>{session.reviewer_name || '--'}</td>
               <td><Badge text={session.status} variant={session.status} /></td>
             </tr>
           {/each}

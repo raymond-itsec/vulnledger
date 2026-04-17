@@ -8,63 +8,63 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.1.11] - 2026-04-17
 
 ### Changed
-- Made Alembic the complete first-run schema path by expanding the baseline migration to create the core application tables needed for clean installs before later report-export and taxonomy revisions run.
-- Added a shared application-availability banner in the frontend that surfaces real backend/proxy/network outages separately from normal toast-level request failures.
+- Expanded the baseline Alembic migration. Clean installs now create core application tables before later report-export and taxonomy revisions run.
+- Added a shared frontend availability banner. It distinguishes backend/proxy/network outages from normal toast-level request failures.
 
 ### Fixed
-- Stopped the outage banner flow from replacing protected pages with a dead-end shell, so authenticated users keep their current page state while the availability notice is shown.
-- Split login-page startup checks so whole-app availability no longer depends on the OIDC redirect endpoint, and cached only the non-sensitive one-time login-page probe results to avoid stale outage state after recovery.
+- Stopped the outage banner flow from replacing protected pages with a dead-end shell. Authenticated users now keep page state while the notice is shown.
+- Split login-page startup checks. Whole-app availability no longer depends on the OIDC redirect endpoint. Only non-sensitive one-time probe results are cached.
 
 ## [v0.1.10] - 2026-04-16
 
 ### Changed
-- Split MinIO storage so evidence attachments and generated report artifacts use separate buckets, with new environment settings for bucket names and storage security.
-- Added DB-managed, versioned taxonomies for risk levels, remediation statuses, session statuses, and asset types, with a seeded default taxonomy and admin APIs to create, list, and activate taxonomy versions.
-- Moved backend validation, report rendering, and the frontend badge/form/filter options onto the active taxonomy version instead of hardcoded status and risk definitions.
+- Split MinIO storage. Evidence attachments and generated report artifacts now use separate buckets with new settings for bucket names and storage security.
+- Added DB-managed versioned taxonomies for risk levels, remediation statuses, session statuses, and asset types. Added a seeded default taxonomy and admin APIs to create, list, and activate versions.
+- Moved backend validation and report rendering to the active taxonomy version. Moved frontend badge/form/filter options there too.
 - Added explicit report export guardrails for maximum finding count, maximum input size, and maximum generated output size.
 - Added explicit attachment body-size controls in both the backend configuration and the Caddy reverse proxy configuration.
 
 ### Fixed
 - Switched attachment downloads to stream from MinIO instead of buffering the entire object in backend memory.
 - Stored generated PDF, CSV, and JSON report artifacts in the dedicated reports bucket during export.
-- Added persistent report export records, including export date, file name, creator, stored object key, and taxonomy version, plus endpoints and UI support to list and download prior exports per session.
-- Added schema-level length and count limits for large finding and session fields so oversized content is rejected before it can amplify report rendering cost.
+- Added persistent report export records. Each record stores export date, file name, creator, object key, and taxonomy version. Added endpoints and UI support to list and download prior exports per session.
+- Added schema-level length and count limits for large finding and session fields. Oversized content is now rejected before it can amplify report rendering cost.
 
 ## [v0.1.9] - 2026-04-16
 
 ### Changed
-- Upgraded the backend dependency set to current compatible releases, including FastAPI, Uvicorn, SQLAlchemy, Pydantic settings, Authlib, WeasyPrint `68.1`, and the matching `pydyf` line.
+- Upgraded backend dependencies to current compatible releases. This includes FastAPI, Uvicorn, SQLAlchemy, Pydantic settings, Authlib, WeasyPrint `68.1`, and matching `pydyf`.
 - Upgraded the frontend toolchain to the current compatible SvelteKit stack with Vite `8`, `@sveltejs/vite-plugin-svelte` `7`, and TypeScript `6`.
 - Tightened several runtime image pins by moving Python, Node, Postgres, and MinIO to exact image tags instead of broader floating tags.
 
 ### Fixed
-- Updated the backend settings loader to ignore unrelated Docker and host environment keys so newer `pydantic-settings` versions work cleanly with the shared project `.env` file.
+- Updated the backend settings loader to ignore unrelated Docker and host environment keys. Newer `pydantic-settings` versions now work cleanly with the shared `.env` file.
 
 ## [v0.1.8] - 2026-04-16
 
 ### Changed
-- Added prerequisite-aware creation flows so asset, session, and finding creation now redirect users to the next required step instead of silently dead-ending when upstream data does not exist yet.
-- Added a top-level review session creation flow on the sessions page and wired the dashboard's New Client shortcut to open the create-client modal directly.
-- Standardized non-critical frontend errors onto a shared toast notification system and positioned those notifications in the bottom-right corner of the app.
+- Added prerequisite-aware creation flows. Asset, session, and finding creation now redirect to the next required step when upstream data is missing.
+- Added a top-level review-session creation flow on the sessions page. Wired the dashboard's New Client shortcut to open the create-client modal directly.
+- Standardized non-critical frontend errors on a shared toast system. Positioned notifications in the bottom-right corner of the app.
 - Added local Python `3.12` verification scaffolding via `.python-version`, `scripts/verify-backend.sh`, and a `verify-backend` command in `scripts/first-run.sh`.
 
 ### Fixed
-- Fixed the session detail page so it no longer gets stuck on loading when opening an individual review session, and added graceful toast fallbacks for session-detail load, save, and export failures.
+- Fixed the session detail page loading issue when opening an individual review session. Added graceful toast fallbacks for session-detail load, save, and export failures.
 
 ## [v0.1.7] - 2026-04-16
 
 ### Fixed
-- Stopped exposing backend and infrastructure error details directly in website messages by replacing 5xx and technical failures with generic user-facing errors in the frontend.
+- Stopped exposing backend and infrastructure details in website messages. Replaced 5xx and technical failures with generic user-facing frontend errors.
 
 ## [v0.1.6] - 2026-04-16
 
 ### Fixed
-- Made frontend auth error handling tolerate non-JSON backend failures so login and refresh issues show a clean message instead of a JSON parse error.
+- Updated frontend auth error handling to tolerate non-JSON backend failures. Login and refresh issues now show a clean message.
 
 ## [v0.1.5] - 2026-04-16
 
 ### Changed
-- Bound access and refresh tokens to the current backend process so a backend redeploy invalidates all existing browser sessions.
+- Bound access and refresh tokens to the current backend process. A backend redeploy now invalidates existing browser sessions.
 - Enforced authenticated routing on every non-login page in the frontend and redirected signed-out users back to the login screen.
 - Made logout await the server-side cookie deletion before clearing client auth state and redirecting to the login page.
 - Protected the health endpoint behind the normal API authentication flow to keep non-auth API routes private.
@@ -72,25 +72,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [v0.1.4] - 2026-04-16
 
 ### Changed
-- Added the optional Mailjet settings to `.env.example` and documented the official Mailjet signup and quick-start links in the README.
+- Added optional Mailjet settings to `.env.example`. Documented the official Mailjet signup and quick-start links in the README.
 
 ## [v0.1.3] - 2026-04-16
 
 ### Changed
-- Updated the README to use the VulnLedger product name and the canonical GitHub repository URL `https://github.com/raymond-itsec/vulnledger.git`.
+- Updated the README with the VulnLedger product name. Updated the canonical repository URL to `https://github.com/raymond-itsec/vulnledger.git`.
 
 ## [v0.1.2] - 2026-04-16
 
 ### Fixed
-- Switched attachment downloads to use authenticated fetch requests so evidence files still download when the app keeps the access token only in memory.
-- Made session report exports reuse the authenticated request flow so expired access tokens refresh before PDF, CSV, and JSON exports.
-- Added a reviewer listing endpoint for admins and reviewers, and validated reviewer selection server-side so creating review sessions no longer depends on manually entering a user UUID.
+- Switched attachment downloads to authenticated fetch requests. Evidence files now download when the app keeps access tokens only in memory.
+- Made session report exports reuse the authenticated request flow. Expired access tokens now refresh before PDF, CSV, and JSON exports.
+- Added a reviewer listing endpoint for admins and reviewers. Added server-side reviewer validation. Creating review sessions no longer depends on manual user UUID entry.
 
 ## [v0.1.1] - 2026-04-16
 
 ### Fixed
-- Switched password hashing to `bcrypt_sha256` with bcrypt fallback so long initial admin passwords no longer fail during startup.
-- Pinned `bcrypt` to `4.0.1` so `passlib==1.7.4` remains compatible during backend startup and admin seeding.
+- Switched password hashing to `bcrypt_sha256` with bcrypt fallback. Long initial admin passwords no longer fail during startup.
+- Pinned `bcrypt` to `4.0.1`. `passlib==1.7.4` remains compatible during backend startup and admin seeding.
 
 ## [v0.1.0] - 2026-04-15
 
@@ -103,13 +103,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Updated the Caddy deployment to use a hostname-based site address so Automatic HTTPS can activate when `CADDY_HOST` is set to a public domain.
 - Pinned the Caddy container image to `caddy:2.11.2-alpine` for reproducible deployments.
 - Exposed `443/udp` on the Caddy service so HTTP/3 can work alongside HTTPS.
-- Hardened the Docker Compose defaults by moving secrets and the initial admin bootstrap into environment variables and binding internal service ports to `127.0.0.1`.
+- Hardened Docker Compose defaults. Moved secrets and initial admin bootstrap into environment variables. Bound internal service ports to `127.0.0.1`.
 - Changed OIDC login to bootstrap sessions from the refresh cookie instead of putting access tokens in the URL.
 - Made ClamAV uploads fail closed when scanning is configured but unavailable.
 
 ### Fixed
 - Escaped markdown-rendered finding, session, and template content to prevent stored XSS in the frontend preview and detail views.
 - Enforced client-scope authorization checks on attachment listing and downloads.
-- Updated the backend Docker image dependencies to use Debian's current `libgdk-pixbuf-2.0-0` package name so builds succeed on newer slim base images.
-- Made the Caddy host ports configurable via environment variables so local port conflicts on `80/443` can be resolved without editing Compose files.
-- Documented the recommended first-run and reset flow so partial installs are easier to recover from.
+- Updated backend Docker image dependencies to use Debian's current `libgdk-pixbuf-2.0-0` package name. Builds now succeed on newer slim base images.
+- Made Caddy host ports configurable with environment variables. Local conflicts on `80/443` can now be resolved without editing Compose files.
+- Documented the recommended first-run and reset flow. Partial installs are easier to recover.

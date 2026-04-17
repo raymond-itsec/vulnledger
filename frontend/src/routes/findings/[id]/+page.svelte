@@ -257,7 +257,7 @@
                     {att.file_name}
                   </button>
                 </td>
-                <td>{att.content_type || '—'}</td>
+                <td>{att.content_type || '--'}</td>
                 <td>{formatFileSize(att.size_bytes)}</td>
                 <td>{new Date(att.uploaded_at).toLocaleString()}</td>
                 <td>
@@ -301,8 +301,8 @@
                   <td>{new Date(h.changed_at).toLocaleString()}</td>
                   <td>{h.changed_by_name || h.changed_by}</td>
                   <td><code>{h.field_name}</code></td>
-                  <td class="val-cell">{h.old_value || '—'}</td>
-                  <td class="val-cell">{h.new_value || '—'}</td>
+                  <td class="val-cell">{h.old_value || '--'}</td>
+                  <td class="val-cell">{h.new_value || '--'}</td>
                 </tr>
               {/each}
             </tbody>

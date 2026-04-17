@@ -20,7 +20,7 @@ def _get_client() -> MailjetClient | None:
 def send_email(to_email: str, to_name: str, subject: str, html_body: str) -> bool:
     client = _get_client()
     if not client:
-        logger.warning("Mailjet not configured — email not sent: %s", subject)
+        logger.warning("Mailjet not configured -- email not sent: %s", subject)
         return False
 
     data = {

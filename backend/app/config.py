@@ -26,7 +26,7 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_login: str = "5/minute"
     rate_limit_api: str = "60/minute"
-    # OIDC SSO (optional — leave empty to disable)
+    # OIDC SSO (optional -- leave empty to disable)
     oidc_enabled: bool = False
     oidc_client_id: str = ""
     oidc_client_secret: str = ""
@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     initial_admin_password: str = ""
     initial_admin_email: str = ""
     initial_admin_full_name: str = "Administrator"
-    # ClamAV (optional — leave empty to disable)
+    # ClamAV (optional -- leave empty to disable)
     clamav_host: str = ""
     clamav_port: int = 3310
 

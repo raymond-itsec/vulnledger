@@ -163,7 +163,7 @@
     {:else}
       <dl class="detail-grid">
         <dt>Date</dt><dd>{session.review_date}</dd>
-        <dt>Reviewer</dt><dd>{session.reviewer_name || '—'}</dd>
+        <dt>Reviewer</dt><dd>{session.reviewer_name || '--'}</dd>
         <dt>Status</dt><dd><Badge text={session.status} variant={session.status} /></dd>
         <dt>Asset</dt><dd><a href="/assets/{session.asset_id}">View Asset</a></dd>
       </dl>

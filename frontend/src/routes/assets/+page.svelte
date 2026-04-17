@@ -74,7 +74,7 @@
   });
 
   function clientName(id: string): string {
-    return clients.find((c) => c.client_id === id)?.company_name || '—';
+    return clients.find((c) => c.client_id === id)?.company_name || '--';
   }
 
   async function handleCreate() {
@@ -122,7 +122,7 @@
             <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
             <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
             <td><a href="/clients/{asset.client_id}">{clientName(asset.client_id)}</a></td>
-            <td>{asset.description || '—'}</td>
+            <td>{asset.description || '--'}</td>
           </tr>
         {/each}
       </tbody>

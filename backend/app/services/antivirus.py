@@ -34,7 +34,7 @@ def scan_file(data: bytes, filename: str) -> tuple[bool, str]:
     """Scan file data for viruses.
 
     Returns:
-        (is_clean, message) — True if clean or scanner unavailable, False if infected.
+        (is_clean, message) -- True if clean or scanner unavailable, False if infected.
     """
     if not settings.clamav_host:
         return True, "Scanner disabled"

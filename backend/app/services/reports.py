@@ -1,4 +1,4 @@
-"""Report generation service — PDF (WeasyPrint), CSV, and JSON exports."""
+"""Report generation service -- PDF (WeasyPrint), CSV, and JSON exports."""
 
 import csv
 import io
