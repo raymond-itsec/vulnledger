@@ -150,11 +150,12 @@
     padding: 1.25rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.25rem;
   }
   .sidebar-logo {
-    width: 5.5rem;
+    width: 11rem;
     height: auto;
     flex-shrink: 0;
     object-fit: contain;
