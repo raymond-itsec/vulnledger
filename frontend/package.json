@@ -16,5 +16,8 @@
     "typescript": "^6.0.2",
     "vite": "^8.0.8"
   },
+  "overrides": {
+    "cookie": "^0.7.0"
+  },
   "type": "module"
 }
