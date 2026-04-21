@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.13] - 2026-04-21
+
+### Changed
+- Removed Docker runtime mode switching. Startup now uses production behavior only.
+- Removed `docker-compose.dev.yml` and mode-switch helper scripts.
+- Updated backend and frontend Docker images to run production commands only.
+- Removed `FINDINGS_RUNTIME_MODE` from compose wiring and `.env.example`.
+- Updated README commands and deployment guidance to match prod-only operation.
+
 ## [v0.1.12] - 2026-04-17
 
 ### Changed

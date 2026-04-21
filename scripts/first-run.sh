@@ -21,40 +21,12 @@ die() {
   exit 1
 }
 
-runtime_mode() {
-  ensure_env_file
-  mode=$(awk -F= '/^FINDINGS_RUNTIME_MODE=/{ print $2; found = 1 } END { if (!found) print "prod" }' .env | tail -n 1 | tr -d '[:space:]\r')
-  case "$mode" in
-    dev|prod)
-      printf '%s\n' "$mode"
-      ;;
-    *)
-      warn "Unknown FINDINGS_RUNTIME_MODE '$mode' in .env, defaulting to prod"
-      printf '%s\n' "prod"
-      ;;
-  esac
-}
-
 compose() {
-  mode=$(runtime_mode)
+  ensure_env_file
   if docker compose version >/dev/null 2>&1; then
-    if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
-      docker compose --project-directory "$ROOT_DIR" \
-        -f "$ROOT_DIR/docker-compose.yml" \
-        -f "$ROOT_DIR/docker-compose.dev.yml" \
-        "$@"
-    else
-      docker compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
-    fi
+    docker compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
   elif command -v docker-compose >/dev/null 2>&1; then
-    if [ "$mode" = "dev" ] && [ -f docker-compose.dev.yml ]; then
-      docker-compose --project-directory "$ROOT_DIR" \
-        -f "$ROOT_DIR/docker-compose.yml" \
-        -f "$ROOT_DIR/docker-compose.dev.yml" \
-        "$@"
-    else
-      docker-compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
-    fi
+    docker-compose --project-directory "$ROOT_DIR" -f "$ROOT_DIR/docker-compose.yml" "$@"
   else
     die "Neither 'docker compose' nor 'docker-compose' is installed."
   fi
@@ -180,7 +152,6 @@ Usage: ./scripts/first-run.sh <command>
 Commands:
   init    Create .env from .env.example if it does not exist
   doctor  Validate common first-run prerequisites
-  mode    Switch runtime mode (dev or prod) and run cleanup
   retest  Clean cache artifacts and fast-forward pull latest code
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
   up      Start the stack with --build
@@ -198,9 +169,6 @@ case "$command_name" in
     ;;
   doctor)
     doctor
-    ;;
-  mode)
-    ./scripts/switch-runtime-mode.sh "${2:-}"
     ;;
   retest)
     ./scripts/retest-sync.sh

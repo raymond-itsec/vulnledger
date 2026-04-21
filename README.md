@@ -238,8 +238,6 @@ The VulnLedger repository includes a helper script for smoother installs:
 ./scripts/first-run.sh init    # create .env from .env.example
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
-./scripts/first-run.sh mode prod  # switch Docker runtime mode to prod
-./scripts/first-run.sh mode dev   # switch Docker runtime mode to dev
 ./scripts/first-run.sh retest  # clean caches and pull latest code
 ./scripts/first-run.sh up      # build and start the stack
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
@@ -251,16 +249,13 @@ The VulnLedger repository includes a helper script for smoother installs:
 - Host ports that are already in use
 - Placeholder secrets that were never updated in `.env`
 
-`mode` updates `FINDINGS_RUNTIME_MODE` in `.env` and runs cleanup before the next startup. Use `mode prod` on servers and `mode dev` only when you explicitly want hot reload behavior.
-In `prod`, `scripts/first-run.sh` uses `docker-compose.yml` only (no source bind mounts).
-In `dev`, it also applies `docker-compose.dev.yml` (backend source bind mount for reload).
-The backend image build context is `./backend`.
+`scripts/first-run.sh` always uses production containers from `docker-compose.yml`. The backend image build context is `./backend`.
 
 `retest` removes frontend build caches and backend Python cache artifacts, then runs `git pull --ff-only`. It does not delete source files. It exits if tracked git changes are present.
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 
-### Development Mode (hot reload)
+### Local Development (optional)
 
 If you want to develop with live reloading on both frontend and backend:
 
@@ -347,10 +342,6 @@ FINDINGS_REPORT_MAX_FINDINGS=250
 FINDINGS_REPORT_MAX_INPUT_CHARS=200000
 FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB=25
 
-# Optional: Docker runtime mode
-# Use prod on servers. Use dev only for local hot reload workflows.
-FINDINGS_RUNTIME_MODE=prod
-
 # Optional: Email notifications
 # Register: https://www.mailjet.com/pricing/
 # Quick start: https://documentation.mailjet.com/hc/en-us/articles/37251169295003--Quick-Start-with-Mailjet
@@ -395,20 +386,15 @@ nano .env  # Set production values (see below)
 # 3. Set your public host in .env
 # CADDY_HOST=yourdomain.com
 
-# 4. Force production runtime mode
-./scripts/first-run.sh mode prod
-```
-
->  Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
-
-```bash
-# 5. Start all services
+# 4. Start all services
 docker compose up -d
 
-# 6. Verify everything is running
+# 5. Verify everything is running
 docker compose ps
 docker compose logs -f backend  # Watch for startup messages
 ```
+
+>  Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
 
 The backend container runs `alembic upgrade head` before starting Uvicorn, so normal Docker Compose starts apply pending schema migrations automatically.
 
