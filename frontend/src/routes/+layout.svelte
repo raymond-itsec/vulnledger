@@ -39,30 +39,44 @@
     return currentPath.startsWith(href);
   }
 
-  onMount(async () => {
-    appAvailability.start();
-    try {
-      await Promise.race([
-        bootstrapAuth(),
-        new Promise<void>((resolve) => {
-          setTimeout(resolve, AUTH_BOOTSTRAP_TIMEOUT_MS);
-        }),
-      ]);
-      if (auth.isAuthenticated && !appAvailability.unavailable) {
-        await taxonomy.load();
+  onMount(() => {
+    let unmounted = false;
+    void (async () => {
+      try {
+        await Promise.race([
+          bootstrapAuth(),
+          new Promise<void>((resolve) => {
+            setTimeout(resolve, AUTH_BOOTSTRAP_TIMEOUT_MS);
+          }),
+        ]);
+        if (!unmounted && auth.isAuthenticated && !appAvailability.unavailable) {
+          await taxonomy.load();
+        }
+      } catch (error) {
+        console.error('[auth-bootstrap] startup failed', error);
+      } finally {
+        if (!unmounted) {
+          authReady = true;
+        }
       }
-    } catch (error) {
-      console.error('[auth-bootstrap] startup failed', error);
-    } finally {
-      authReady = true;
-    }
+    })();
+
     return () => {
+      unmounted = true;
       appAvailability.stop();
     };
   });
 
   $effect(() => {
     appAvailability.setAuthToken(auth.token);
+  });
+
+  $effect(() => {
+    if (!authReady || !auth.isAuthenticated) {
+      appAvailability.stop();
+      return;
+    }
+    appAvailability.start();
   });
 
   $effect(() => {

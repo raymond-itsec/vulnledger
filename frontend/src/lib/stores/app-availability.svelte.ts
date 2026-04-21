@@ -48,6 +48,28 @@ function writeCachedBoolean(key: string, value: boolean) {
   window.sessionStorage.setItem(key, JSON.stringify({ value }));
 }
 
+function requestPathname(input: RequestInfo | URL): string {
+  if (input instanceof URL) return input.pathname;
+
+  const raw = input instanceof Request ? input.url : String(input);
+  const base = typeof window !== 'undefined' ? window.location.origin : 'http://localhost';
+  try {
+    return new URL(raw, base).pathname;
+  } catch {
+    return raw.split('?')[0]?.split('#')[0] || raw;
+  }
+}
+
+function isHealthProbeSuccess(
+  input: RequestInfo | URL,
+  res: Response,
+  clearOnSuccess: boolean,
+): boolean {
+  if (!clearOnSuccess) return false;
+  if (res.status < 200 || res.status >= 300) return false;
+  return requestPathname(input) === '/api/health';
+}
+
 export const appAvailability = {
   get unavailable() {
     return unavailable;
@@ -156,10 +178,14 @@ export const appAvailability = {
 
     return await loginPageOidcAvailabilityProbePromise;
   },
-  observeResponse(res: Response, clearOnSuccess = false): Response {
+  observeResponse(
+    input: RequestInfo | URL,
+    res: Response,
+    clearOnSuccess = false,
+  ): Response {
     if (res.status >= 500) {
       setUnavailable(true);
-    } else if (clearOnSuccess) {
+    } else if (isHealthProbeSuccess(input, res, clearOnSuccess)) {
       setUnavailable(false);
     }
     return res;
@@ -236,7 +262,7 @@ export async function fetchWithAvailability(
 ): Promise<Response> {
   try {
     const res = await fetch(input, init);
-    return appAvailability.observeResponse(res, clearOnSuccess);
+    return appAvailability.observeResponse(input, res, clearOnSuccess);
   } catch (error) {
     throw appAvailability.handleFetchError(error);
   }
