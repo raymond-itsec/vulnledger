@@ -2,6 +2,7 @@ import io
 import logging
 from collections.abc import Iterator
 from pathlib import Path
+from typing import BinaryIO
 from uuid import uuid4
 
 from minio import Minio
@@ -63,6 +64,24 @@ def _put_object(
     return storage_key
 
 
+def _put_object_stream(
+    bucket_name: str,
+    storage_key: str,
+    content_type: str,
+    data_stream: BinaryIO,
+    length: int,
+) -> str:
+    client = get_minio_client()
+    client.put_object(
+        bucket_name,
+        storage_key,
+        data_stream,
+        length=length,
+        content_type=content_type,
+    )
+    return storage_key
+
+
 def upload_evidence_file(
     finding_id: str,
     file_name: str,
@@ -72,6 +91,24 @@ def upload_evidence_file(
     unique_name = f"{uuid4().hex}-{file_name}"
     storage_key = f"findings/{finding_id}/{unique_name}"
     return _put_object(EVIDENCE_BUCKET_NAME, storage_key, content_type, data)
+
+
+def upload_evidence_file_stream(
+    finding_id: str,
+    file_name: str,
+    content_type: str,
+    data_stream: BinaryIO,
+    length: int,
+) -> str:
+    unique_name = f"{uuid4().hex}-{file_name}"
+    storage_key = f"findings/{finding_id}/{unique_name}"
+    return _put_object_stream(
+        EVIDENCE_BUCKET_NAME,
+        storage_key,
+        content_type,
+        data_stream,
+        length,
+    )
 
 
 def upload_report_file(

@@ -3,6 +3,7 @@ import {
   appAvailability,
   fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
+import { toast } from '$lib/stores/toast.svelte';
 
 interface User {
   user_id: string;
@@ -86,6 +87,11 @@ function clearBrowserStateOnLogout(): void {
   }
 
   appAvailability.resetAfterLogout();
+  void import('$lib/stores/taxonomy.svelte')
+    .then((module) => module.taxonomy.reset())
+    .catch(() => {
+      // Best effort.
+    });
 }
 
 async function clearStaleSession(): Promise<void> {
@@ -221,15 +227,31 @@ export async function bootstrapAuth(): Promise<void> {
   }
 }
 
-export async function logout(): Promise<void> {
+export async function logout(notifyFailure = true): Promise<boolean> {
+  let revokeSucceeded = false;
   try {
-    await fetchWithAvailability('/api/auth/logout', { method: 'POST', credentials: 'include' }, true);
+    const res = await fetchWithAvailability(
+      '/api/auth/logout',
+      { method: 'POST', credentials: 'include' },
+      true,
+    );
+    if (!res.ok) {
+      const detail = await readErrorMessage(res, 'Could not revoke server session during logout.');
+      if (notifyFailure) {
+        toast.error(detail);
+      }
+    } else {
+      revokeSucceeded = true;
+    }
   } catch {
-    // Logging out should always clear local auth state, even if the backend is unavailable.
+    if (notifyFailure) {
+      toast.error('Could not reach backend to revoke session. Local logout completed.');
+    }
   } finally {
     bootstrapAttempted = true;
     token = null;
     user = null;
     clearBrowserStateOnLogout();
   }
+  return revokeSucceeded;
 }

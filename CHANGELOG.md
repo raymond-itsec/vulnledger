@@ -5,6 +5,52 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### TODO (Next Change)
+- Complete full migration from module-level `settings = Settings()` usage to dependency-based settings access (`get_settings()` end-to-end).
+Reason: settings are still imported directly in many modules, which limits test isolation and makes runtime overrides harder. Finishing this migration is needed for reliable per-test/per-environment configuration without side effects.
+- Implement protected-route server-load enforcement (`+page.server.ts`) where applicable, instead of relying on client-only auth guards.
+Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
+
+## [v0.1.16] - 2026-04-23
+
+### Added
+- Added OIDC canonical identity support with `users.oidc_issuer` + `users.oidc_subject` and Alembic migration `20260423_03`.
+- Added OIDC state and nonce cookie checks in callback flow.
+- Added redirect URI allowlist support for OIDC (`FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST`).
+- Added explicit CORS method/header settings (`FINDINGS_ALLOWED_METHODS`, `FINDINGS_ALLOWED_HEADERS`).
+- Added backup encryption-at-rest support using a secret file path (`BACKUP_ENCRYPTION_SECRET_FILE`).
+- Added supercronic fetch hardening script with SHA-verified install and optional local vendor cache.
+- Added security audit workflow (`pip-audit`, production `npm audit`, Trivy image scan).
+- Added backend async test harness scaffold in `backend/tests/`.
+- Added hardened Caddy build context with `caddy-ratelimit` module.
+- Added `.dockerignore` files for backend/frontend/backup contexts.
+- Added `backend/scripts/export_openapi.py` and CI OpenAPI -> frontend type generation job.
+
+### Changed
+- Tightened frontend logout flow to await backend revocation, surface failure, and then clear local state deterministically.
+- Reset taxonomy client state on logout/session clear.
+- Replaced wildcard CORS settings in backend middleware with explicit allowlists.
+- Changed default `FINDINGS_TRUST_PROXY_HEADERS` to `false` in backend config while keeping compose wiring explicit for proxy deployments.
+- Replaced markdown `{@html}` rendering path with tokenized safe rendering in the frontend markdown viewer.
+- Added global structured API error payload shape (`code`, `detail`, `timestamp`) via exception handlers while preserving `detail`.
+- Aligned `/api/auth/refresh` failure responses with the structured error payload shape.
+- Added SQLAlchemy engine disposal on backend shutdown.
+- Switched attachment upload flow to stream through temporary file buffers (size-checked) instead of eager whole-file memory reads.
+- Removed storage backend exception leakage from attachment API responses.
+- Replaced mass assignment (`setattr` loops) with explicit field mapping in users/clients/assets/sessions/templates/findings update handlers.
+- Added explicit transaction blocks for finding update history writes.
+- Hardened containers with `cap_drop`/`no-new-privileges` defaults and read-only filesystems where configured.
+- Pinned compose/runtime base images to immutable digests (Postgres, MinIO, ClamAV, Gatus, Python, Node, Caddy base images).
+- Enforced stricter antivirus policy by runtime mode: production fails uploads when scanner is unavailable or misconfigured.
+- Updated stack version default to `0.1.16`.
+
+### Fixed
+- Replaced silent `except Exception: pass` handling in findings and attachments flows with logged handling.
+- Improved OIDC provisioning: identity is now issuer/subject first, with one-time email linking fallback.
+- Fixed OIDC callback cookie binding to correctly read `oidc_state` and `oidc_nonce` cookies.
+
 ## [v0.1.15] - 2026-04-23
 
 ### Changed

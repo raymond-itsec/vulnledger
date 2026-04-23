@@ -1,0 +1,10 @@
+.git
+.gitignore
+node_modules/
+.svelte-kit/
+dist/
+build/
+.vite/
+coverage/
+*.log
+README.md

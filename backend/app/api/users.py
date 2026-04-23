@@ -73,8 +73,13 @@ async def update_me(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(user, field, value)
+    update_data = body.model_dump(exclude_unset=True)
+    if "full_name" in update_data:
+        user.full_name = update_data["full_name"]
+    if "company_name" in update_data:
+        user.company_name = update_data["company_name"]
+    if "email" in update_data:
+        user.email = update_data["email"]
 
     try:
         await db.commit()
@@ -110,8 +115,19 @@ async def update_user(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(user, field, value)
+    update_data = body.model_dump(exclude_unset=True)
+    if "full_name" in update_data:
+        user.full_name = update_data["full_name"]
+    if "company_name" in update_data:
+        user.company_name = update_data["company_name"]
+    if "email" in update_data:
+        user.email = update_data["email"]
+    if "role" in update_data:
+        user.role = update_data["role"]
+    if "linked_client_id" in update_data:
+        user.linked_client_id = update_data["linked_client_id"]
+    if "is_active" in update_data:
+        user.is_active = update_data["is_active"]
     await db.commit()
     await db.refresh(user)
     return user

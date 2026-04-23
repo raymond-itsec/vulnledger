@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -14,6 +14,7 @@ class User(Base, TimestampMixin):
             "role != 'client_user' OR linked_client_id IS NOT NULL",
             name="ck_client_user_has_client",
         ),
+        UniqueConstraint("oidc_issuer", "oidc_subject", name="uq_users_oidc_identity"),
     )
 
     user_id: Mapped[uuid.UUID] = mapped_column(
@@ -39,6 +40,8 @@ class User(Base, TimestampMixin):
         default=0,
         server_default="0",
     )
+    oidc_issuer: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    oidc_subject: Mapped[str | None] = mapped_column(String(255), nullable=True)
 
     client = relationship("Client", back_populates="users")
     refresh_sessions = relationship("RefreshSession", back_populates="user")

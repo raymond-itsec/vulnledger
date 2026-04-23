@@ -94,8 +94,16 @@ async def update_asset(
             await require_taxonomy_value(db, "asset_type", update_data["asset_type"])
         except TaxonomyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-    for field, value in update_data.items():
-        setattr(asset, field, value)
+    if "client_id" in update_data:
+        asset.client_id = update_data["client_id"]
+    if "asset_name" in update_data:
+        asset.asset_name = update_data["asset_name"]
+    if "asset_type" in update_data:
+        asset.asset_type = update_data["asset_type"]
+    if "description" in update_data:
+        asset.description = update_data["description"]
+    if "metadata_" in update_data:
+        asset.metadata_ = update_data["metadata_"]
     await db.commit()
     await db.refresh(asset)
     return asset

@@ -239,6 +239,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
 ./scripts/first-run.sh redeploy  # ff-only pull + ordered rollout: migrate DB, backend, frontend
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
+PYTHONPATH=backend FINDINGS_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" python backend/scripts/export_openapi.py backend/openapi.generated.json
+npm --prefix frontend run generate:types  # regenerate frontend API types from backend OpenAPI
 ./scripts/first-run.sh up      # ordered rollout (same as redeploy)
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
@@ -366,7 +368,7 @@ FINDINGS_CLAMAV_PORT=3310
 CADDY_ATTACHMENT_MAX_SIZE=30MB
 
 # Optional: Unified app version shown in UI and backend metadata
-APP_VERSION=0.1.15
+APP_VERSION=0.1.16
 ```
 
 ---
@@ -532,13 +534,15 @@ The default `docker-compose.yml` runs all 7 services:
 
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
-| `db` | postgres:16.13-alpine3.23 | `127.0.0.1:5432` | Primary database |
-| `minio` | minio/minio:RELEASE.2025-09-07T16-13-09Z | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for evidence and generated exports |
+| `db` | postgres:16.13-alpine3.23@sha256:... | `127.0.0.1:5432` | Primary database |
+| `minio` | minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:... | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for evidence and generated exports |
 | `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
 | `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
-| `caddy` | caddy:2.11.2-alpine | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
+| `caddy` | Custom (Caddy + ratelimit module) | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
 | `backup` | Custom (postgres + cron) | -- | Scheduled database backups |
-| `clamav` | clamav/clamav:stable | `127.0.0.1:3310` | Antivirus scanning |
+| `clamav` | clamav/clamav:1.4.3@sha256:... | `127.0.0.1:3310` | Antivirus scanning |
+
+> Runtime image references in `docker-compose.yml` are pinned by immutable digest.
 
 ### Volumes
 
@@ -565,8 +569,10 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Per-token refresh lifetime; each rotation issues a new token with this expiry (bounded by the family cap below) |
 | `FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS` | `30` | **Security policy.** Absolute ceiling on a single login — no amount of rotation extends a refresh-token family past this. When crossed, the family is revoked and the user must log in again. Must be between `7` and `30` inclusive. |
 | `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | _auto_ (`2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`) | **DB housekeeping.** How long already-dead refresh-session rows (expired or revoked) are kept in `auth_refresh_sessions` before the pruner deletes them. Must be `>= 2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`. Affects forensic/audit window only; has no effect on auth behavior. |
-| `FINDINGS_TRUST_PROXY_HEADERS` | `true` | Trust proxy headers (for example from Caddy) to extract real client IPs |
+| `FINDINGS_TRUST_PROXY_HEADERS` | `false` | Trust proxy headers (for example from Caddy) to extract real client IPs |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
+| `FINDINGS_ALLOWED_METHODS` | `["GET","POST","PATCH","DELETE","OPTIONS"]` | CORS allowed methods |
+| `FINDINGS_ALLOWED_HEADERS` | `["Authorization","Content-Type","Accept","If-None-Match"]` | CORS allowed request headers |
 | `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
 | `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
 | `FINDINGS_MINIO_SECRET_KEY` | _(empty)_ | MinIO secret key |
@@ -589,6 +595,8 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_OIDC_CLIENT_SECRET` | _(empty)_ | OIDC client secret |
 | `FINDINGS_OIDC_DISCOVERY_URL` | _(empty)_ | OIDC discovery URL (`.well-known/openid-configuration`) |
 | `FINDINGS_OIDC_REDIRECT_URI` | _(empty)_ | OIDC callback URL |
+| `FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST` | `[]` | Explicit allowlist for OIDC callback redirect URI |
+| `FINDINGS_OIDC_REQUIRE_NONCE` | `true` | Require nonce validation on OIDC callback |
 | `FINDINGS_OIDC_DEFAULT_ROLE` | `reviewer` | Default role for auto-provisioned SSO users |
 | `FINDINGS_INITIAL_ADMIN_USERNAME` | _(empty)_ | Username for the one-time seeded admin account |
 | `FINDINGS_INITIAL_ADMIN_PASSWORD` | _(empty)_ | Password for the one-time seeded admin account |
@@ -596,7 +604,12 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
-| `APP_VERSION` | `0.1.15` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
+| `FINDINGS_JWT_PRIMARY_ALGORITHM` | `HS256` | Access-token signing algorithm (`HS256` or `RS256`) |
+| `FINDINGS_JWT_ALLOW_LEGACY_HS256` | `true` | When enabled, token verification still accepts HS256 during RS256 migration |
+| `FINDINGS_JWT_PRIVATE_KEY_PEM` | _(empty)_ | RS256 private key PEM (required when RS256 signing is enabled) |
+| `FINDINGS_JWT_PUBLIC_KEY_PEM` | _(empty)_ | RS256 public key PEM |
+| `FINDINGS_RUNTIME_MODE` | `development` | Runtime mode used by backup encryption policy (`production` enforces secret presence) |
+| `APP_VERSION` | `0.1.16` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
 | `MINIO_PORT` | `9000` | Host port published for MinIO |
 | `MINIO_CONSOLE_PORT` | `9001` | Host port published for the MinIO console |
@@ -616,6 +629,8 @@ Set on the `backup` service (not `FINDINGS_` prefix):
 |----------|---------|-------------|
 | `BACKUP_CRON` | `0 2 * * *` | Cron schedule (default: daily 2 AM) |
 | `BACKUP_RETENTION_DAYS` | `30` | Days to keep old backups |
+| `BACKUP_ENCRYPTION_SECRET_FILE` | `/run/secrets/backup_encryption_passphrase` | Path to backup encryption passphrase file |
+| `BACKUP_ENCRYPTION_REQUIRED` | `false` | Require passphrase file for every backup; forced in `production` runtime mode |
 
 ---
 

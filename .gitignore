@@ -19,6 +19,7 @@ npm-debug.log*
 .env
 .env.local
 .env.*.local
+secrets/
 
 # Docker
 docker-compose.override.yml
@@ -38,3 +39,8 @@ Thumbs.db
 frontend/build/
 frontend/dist/
 frontend/.svelte-kit/
+backend/openapi.generated.json
+
+# Local backup vendor cache
+backup/vendor/*
+!backup/vendor/.gitkeep

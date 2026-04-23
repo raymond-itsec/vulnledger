@@ -1,4 +1,6 @@
 from uuid import UUID
+import logging
+from tempfile import SpooledTemporaryFile
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
@@ -13,16 +15,17 @@ from app.models.finding_attachment import FindingAttachment
 from app.models.review_session import ReviewSession
 from app.models.user import User
 from app.schemas.attachment import AttachmentResponse
-from app.services.antivirus import scan_file
+from app.services.antivirus import scan_file_stream
 from app.services.storage import (
     ALLOWED_CONTENT_TYPES,
     MAX_FILE_SIZE,
     delete_evidence_file,
     stream_evidence_file,
-    upload_evidence_file,
+    upload_evidence_file_stream,
 )
 
 router = APIRouter(tags=["attachments"])
+logger = logging.getLogger(__name__)
 
 admin_or_reviewer = require_role("admin", "reviewer")
 
@@ -94,17 +97,28 @@ async def upload_attachment(
             detail=f"File type '{content_type}' is not allowed. Allowed types: {sorted(ALLOWED_CONTENT_TYPES)}",
         )
 
-    # Read and validate size
-    data = await file.read()
-    if len(data) > MAX_FILE_SIZE:
-        raise HTTPException(
-            status_code=413,
-            detail=f"File size exceeds maximum of {MAX_FILE_SIZE // (1024*1024)} MB",
-        )
+    size_bytes = 0
+    temp_file = SpooledTemporaryFile(max_size=1 * 1024 * 1024, mode="w+b")
+    try:
+        while True:
+            chunk = await file.read(64 * 1024)
+            if not chunk:
+                break
+            size_bytes += len(chunk)
+            if size_bytes > MAX_FILE_SIZE:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"File size exceeds maximum of {MAX_FILE_SIZE // (1024*1024)} MB",
+                )
+            temp_file.write(chunk)
+        temp_file.seek(0)
+    finally:
+        await file.close()
 
     # Virus scan
-    is_clean, scan_message = scan_file(data, file.filename or "unnamed")
+    is_clean, scan_message = scan_file_stream(temp_file, file.filename or "unnamed")
     if not is_clean:
+        temp_file.close()
         raise HTTPException(
             status_code=422,
             detail=f"File rejected: {scan_message}",
@@ -112,14 +126,19 @@ async def upload_attachment(
 
     # Upload to MinIO
     try:
-        storage_key = upload_evidence_file(
+        temp_file.seek(0)
+        storage_key = upload_evidence_file_stream(
             str(finding_id),
             file.filename or "unnamed",
             content_type,
-            data,
+            temp_file,
+            size_bytes,
         )
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Storage error: {e}")
+    except Exception:
+        logger.exception("Evidence upload failed for finding %s", finding_id)
+        raise HTTPException(status_code=502, detail="Storage backend is unavailable.")
+    finally:
+        temp_file.close()
 
     # Save metadata
     attachment = FindingAttachment(
@@ -127,7 +146,7 @@ async def upload_attachment(
         file_name=file.filename or "unnamed",
         storage_key=storage_key,
         content_type=content_type,
-        size_bytes=len(data),
+        size_bytes=size_bytes,
         uploaded_by=current_user.user_id,
     )
     db.add(attachment)
@@ -166,8 +185,9 @@ async def download_attachment(
 
     try:
         file_iterator, content_type = stream_evidence_file(attachment.storage_key)
-    except Exception as e:
-        raise HTTPException(status_code=502, detail=f"Storage error: {e}")
+    except Exception:
+        logger.exception("Evidence download stream failed for attachment %s", attachment_id)
+        raise HTTPException(status_code=502, detail="Could not stream attachment from storage.")
 
     return StreamingResponse(
         file_iterator,
@@ -197,7 +217,12 @@ async def delete_attachment(
     try:
         delete_evidence_file(attachment.storage_key)
     except Exception:
-        pass  # File may already be gone
+        logger.warning(
+            "Could not delete storage object %s while deleting attachment %s",
+            attachment.storage_key,
+            attachment_id,
+            exc_info=True,
+        )
 
     await db.delete(attachment)
     await db.commit()

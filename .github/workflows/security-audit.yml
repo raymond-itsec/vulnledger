@@ -1,0 +1,81 @@
+name: Security Audits
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+  schedule:
+    - cron: "17 5 * * 2"
+
+jobs:
+  backend-pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install pip-audit
+        run: python -m pip install --upgrade pip pip-audit
+      - name: Run pip-audit
+        run: pip-audit -r backend/requirements.txt
+
+  frontend-npm-audit:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+  frontend-openapi-types:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image for OpenAPI export
+        run: docker build -t vulnledger-backend-openapi ./backend
+      - name: Export backend OpenAPI schema
+        run: |
+          docker run --rm \
+            -e FINDINGS_SECRET_KEY=change-this-to-a-real-32-byte-secret-value \
+            -e FINDINGS_RUNTIME_MODE=development \
+            -v "$PWD:/workspace" \
+            -w /workspace \
+            vulnledger-backend-openapi \
+            python backend/scripts/export_openapi.py backend/openapi.generated.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        run: npm --prefix frontend ci
+      - name: Generate frontend API types from OpenAPI
+        run: npm --prefix frontend run generate:types
+      - name: Ensure generated file exists
+        run: test -s frontend/src/lib/api/generated.ts
+
+  image-trivy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build backend image
+        run: docker build -t vulnledger-backend-ci ./backend
+      - name: Trivy scan backend image
+        uses: aquasecurity/trivy-action@0.24.0
+        with:
+          image-ref: vulnledger-backend-ci
+          format: table
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+          exit-code: "1"

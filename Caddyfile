@@ -1,19 +1,39 @@
-{
-	debug
-}
-
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
+	# Baseline edge hardening headers.
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+	}
+
+	@https protocol https
+	header @https Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+	# Do not trust user-supplied forwarding chains.
+	@spoofed_xff header X-Forwarded-For *
+	respond @spoofed_xff "Forbidden" 403
+	@spoofed_forwarded header Forwarded *
+	respond @spoofed_forwarded "Forbidden" 403
+
 	route {
-		@spoofed_xff header X-Forwarded-For *
-		respond @spoofed_xff "Forbidden" 403
-
-		@spoofed_forwarded header Forwarded *
-		respond @spoofed_forwarded "Forbidden" 403
-
 		request_body /api/findings/*/attachments {
 			max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
+		}
+
+		# Edge API rate limiting (requires caddy-ratelimit module).
+		@api_limited {
+			path /api/*
+			not path /api/health /api/health/live
+		}
+		rate_limit @api_limited {
+			zone api_zone {
+				key {remote_host}
+				events 120
+				window 1m
+			}
 		}
 
 		handle /api/* {

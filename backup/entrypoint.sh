@@ -8,7 +8,7 @@ CRON_DIR="/tmp/backup-cron"
 CRON_FILE="$CRON_DIR/postgres"
 
 latest_backup_age_seconds() {
-  latest_file=$(ls -1t "$BACKUP_DIR"/findings_*.sql.gz 2>/dev/null | head -n 1 || true)
+  latest_file=$(ls -1t "$BACKUP_DIR"/findings_*.sql.gz* 2>/dev/null | head -n 1 || true)
   if [ -z "$latest_file" ]; then
     echo ""
     return 0

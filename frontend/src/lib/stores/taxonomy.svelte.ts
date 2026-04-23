@@ -42,6 +42,11 @@ export const taxonomy = {
     })();
     await state.loadPromise;
   },
+  reset() {
+    state.current = null;
+    state.loading = false;
+    state.loadPromise = null;
+  },
   activeEntries(domain: string): TaxonomyEntry[] {
     return sortedEntries(state.current?.domains[domain]).filter((entry) => entry.is_active);
   },

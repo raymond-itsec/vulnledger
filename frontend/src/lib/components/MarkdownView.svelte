@@ -1,67 +1,227 @@
 <script lang="ts">
-  let { content = '' }: { content: string } = $props();
+  type InlineToken =
+    | { type: 'text'; value: string }
+    | { type: 'code'; value: string }
+    | { type: 'strong'; value: string }
+    | { type: 'em'; value: string }
+    | { type: 'link'; value: string; href: string };
 
-  function escapeHtml(value: string): string {
-    return value
-      .replaceAll('&', '&amp;')
-      .replaceAll('<', '&lt;')
-      .replaceAll('>', '&gt;')
-      .replaceAll('"', '&quot;')
-      .replaceAll("'", '&#39;');
-  }
+  type BlockToken =
+    | { type: 'h2'; tokens: InlineToken[] }
+    | { type: 'h3'; tokens: InlineToken[] }
+    | { type: 'h4'; tokens: InlineToken[] }
+    | { type: 'p'; tokens: InlineToken[] }
+    | { type: 'ul'; items: InlineToken[][] }
+    | { type: 'pre'; value: string };
+
+  let { content = '' }: { content: string } = $props();
 
   function sanitizeUrl(url: string): string | null {
     const value = url.trim();
     if (/^(https?:\/\/|mailto:|\/|#)/i.test(value)) {
-      return escapeHtml(value);
+      return value;
     }
     return null;
   }
 
-  function renderMarkdown(md: string): string {
-    if (!md) return '';
+  function parseInline(value: string): InlineToken[] {
+    const tokens: InlineToken[] = [];
+    const pattern = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(\[[^\]]+\]\([^)]+\))/g;
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
 
-    let html = escapeHtml(md)
-      // code blocks
-      .replace(/```(\w*)\n([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-      // inline code
-      .replace(/`([^`]+)`/g, '<code>$1</code>')
-      // headers
-      .replace(/^### (.+)$/gm, '<h4>$1</h4>')
-      .replace(/^## (.+)$/gm, '<h3>$1</h3>')
-      .replace(/^# (.+)$/gm, '<h2>$1</h2>')
-      // bold and italic
-      .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-      .replace(/\*(.+?)\*/g, '<em>$1</em>')
-      // links
-      .replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_match, text: string, url: string) => {
-        const safeUrl = sanitizeUrl(url);
-        if (!safeUrl) return text;
-        return `<a href="${safeUrl}" target="_blank" rel="noopener noreferrer">${text}</a>`;
-      })
-      // unordered lists
-      .replace(/^[-*] (.+)$/gm, '<li>$1</li>')
-      // paragraphs
-      .replace(/\n\n/g, '</p><p>')
-      // line breaks
-      .replace(/\n/g, '<br>');
+    while ((match = pattern.exec(value)) !== null) {
+      if (match.index > lastIndex) {
+        tokens.push({ type: 'text', value: value.slice(lastIndex, match.index) });
+      }
 
-    // Wrap loose <li> in <ul>
-    html = html.replace(/((?:<li>.*?<\/li>\s*)+)/g, '<ul>$1</ul>');
-    return `<p>${html}</p>`;
+      const raw = match[0];
+      if (raw.startsWith('`') && raw.endsWith('`')) {
+        tokens.push({ type: 'code', value: raw.slice(1, -1) });
+      } else if (raw.startsWith('**') && raw.endsWith('**')) {
+        tokens.push({ type: 'strong', value: raw.slice(2, -2) });
+      } else if (raw.startsWith('*') && raw.endsWith('*')) {
+        tokens.push({ type: 'em', value: raw.slice(1, -1) });
+      } else if (raw.startsWith('[')) {
+        const linkMatch = raw.match(/^\[([^\]]+)\]\(([^)]+)\)$/);
+        if (linkMatch) {
+          const safeHref = sanitizeUrl(linkMatch[2]);
+          if (safeHref) {
+            tokens.push({ type: 'link', value: linkMatch[1], href: safeHref });
+          } else {
+            tokens.push({ type: 'text', value: linkMatch[1] });
+          }
+        } else {
+          tokens.push({ type: 'text', value: raw });
+        }
+      } else {
+        tokens.push({ type: 'text', value: raw });
+      }
+
+      lastIndex = pattern.lastIndex;
+    }
+
+    if (lastIndex < value.length) {
+      tokens.push({ type: 'text', value: value.slice(lastIndex) });
+    }
+    return tokens;
   }
 
-  let rendered = $derived(renderMarkdown(content));
+  function parseBlocks(md: string): BlockToken[] {
+    const text = md.replaceAll('\r\n', '\n').trim();
+    if (!text) return [];
+
+    const lines = text.split('\n');
+    const blocks: BlockToken[] = [];
+    let i = 0;
+
+    while (i < lines.length) {
+      const line = lines[i].trimEnd();
+      if (!line.trim()) {
+        i += 1;
+        continue;
+      }
+
+      if (line.startsWith('```')) {
+        i += 1;
+        const codeLines: string[] = [];
+        while (i < lines.length && !lines[i].startsWith('```')) {
+          codeLines.push(lines[i]);
+          i += 1;
+        }
+        blocks.push({ type: 'pre', value: codeLines.join('\n') });
+        if (i < lines.length && lines[i].startsWith('```')) i += 1;
+        continue;
+      }
+
+      if (line.startsWith('### ')) {
+        blocks.push({ type: 'h4', tokens: parseInline(line.slice(4).trim()) });
+        i += 1;
+        continue;
+      }
+      if (line.startsWith('## ')) {
+        blocks.push({ type: 'h3', tokens: parseInline(line.slice(3).trim()) });
+        i += 1;
+        continue;
+      }
+      if (line.startsWith('# ')) {
+        blocks.push({ type: 'h2', tokens: parseInline(line.slice(2).trim()) });
+        i += 1;
+        continue;
+      }
+
+      if (/^[-*]\s+/.test(line)) {
+        const items: InlineToken[][] = [];
+        while (i < lines.length && /^[-*]\s+/.test(lines[i].trimStart())) {
+          const item = lines[i].trimStart().replace(/^[-*]\s+/, '');
+          items.push(parseInline(item));
+          i += 1;
+        }
+        blocks.push({ type: 'ul', items });
+        continue;
+      }
+
+      const paragraphLines: string[] = [line];
+      i += 1;
+      while (i < lines.length) {
+        const next = lines[i].trimEnd();
+        if (!next.trim()) {
+          i += 1;
+          break;
+        }
+        if (
+          next.startsWith('# ')
+          || next.startsWith('## ')
+          || next.startsWith('### ')
+          || next.startsWith('```')
+          || /^[-*]\s+/.test(next.trimStart())
+        ) {
+          break;
+        }
+        paragraphLines.push(next);
+        i += 1;
+      }
+      blocks.push({ type: 'p', tokens: parseInline(paragraphLines.join(' ')) });
+    }
+
+    return blocks;
+  }
+
+  let blocks = $derived(parseBlocks(content));
 </script>
 
-<div class="markdown-content">{@html rendered}</div>
+<div class="markdown-content">
+  {#if blocks.length === 0}
+    <p class="muted">No content.</p>
+  {:else}
+    {#each blocks as block}
+      {#if block.type === 'h2'}
+        <h2>
+          {#each block.tokens as token}
+            {#if token.type === 'text'}{token.value}{/if}
+            {#if token.type === 'code'}<code>{token.value}</code>{/if}
+            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+            {#if token.type === 'em'}<em>{token.value}</em>{/if}
+            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+          {/each}
+        </h2>
+      {:else if block.type === 'h3'}
+        <h3>
+          {#each block.tokens as token}
+            {#if token.type === 'text'}{token.value}{/if}
+            {#if token.type === 'code'}<code>{token.value}</code>{/if}
+            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+            {#if token.type === 'em'}<em>{token.value}</em>{/if}
+            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+          {/each}
+        </h3>
+      {:else if block.type === 'h4'}
+        <h4>
+          {#each block.tokens as token}
+            {#if token.type === 'text'}{token.value}{/if}
+            {#if token.type === 'code'}<code>{token.value}</code>{/if}
+            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+            {#if token.type === 'em'}<em>{token.value}</em>{/if}
+            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+          {/each}
+        </h4>
+      {:else if block.type === 'p'}
+        <p>
+          {#each block.tokens as token}
+            {#if token.type === 'text'}{token.value}{/if}
+            {#if token.type === 'code'}<code>{token.value}</code>{/if}
+            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+            {#if token.type === 'em'}<em>{token.value}</em>{/if}
+            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+          {/each}
+        </p>
+      {:else if block.type === 'ul'}
+        <ul>
+          {#each block.items as itemTokens}
+            <li>
+              {#each itemTokens as token}
+                {#if token.type === 'text'}{token.value}{/if}
+                {#if token.type === 'code'}<code>{token.value}</code>{/if}
+                {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+                {#if token.type === 'em'}<em>{token.value}</em>{/if}
+                {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+              {/each}
+            </li>
+          {/each}
+        </ul>
+      {:else if block.type === 'pre'}
+        <pre><code>{block.value}</code></pre>
+      {/if}
+    {/each}
+  {/if}
+</div>
 
 <style>
-  .markdown-content :global(h2) { font-size: 1.25rem; margin: 1rem 0 0.5rem; font-weight: 600; }
-  .markdown-content :global(h3) { font-size: 1.1rem; margin: 0.75rem 0 0.5rem; font-weight: 600; }
-  .markdown-content :global(h4) { font-size: 1rem; margin: 0.5rem 0 0.25rem; font-weight: 600; }
-  .markdown-content :global(p) { margin-bottom: 0.5rem; }
-  .markdown-content :global(pre) {
+  .markdown-content h2 { font-size: 1.25rem; margin: 1rem 0 0.5rem; font-weight: 600; }
+  .markdown-content h3 { font-size: 1.1rem; margin: 0.75rem 0 0.5rem; font-weight: 600; }
+  .markdown-content h4 { font-size: 1rem; margin: 0.5rem 0 0.25rem; font-weight: 600; }
+  .markdown-content p { margin-bottom: 0.5rem; white-space: pre-wrap; }
+  .markdown-content pre {
     background: #f1f5f9;
     border: 1px solid #e2e8f0;
     border-radius: 0.375rem;
@@ -70,15 +230,16 @@
     font-size: 0.85rem;
     margin: 0.5rem 0;
   }
-  .markdown-content :global(code) {
+  .markdown-content code {
     background: #f1f5f9;
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
     font-size: 0.85em;
   }
-  .markdown-content :global(pre code) { background: none; padding: 0; }
-  .markdown-content :global(ul) { padding-left: 1.5rem; margin: 0.5rem 0; }
-  .markdown-content :global(li) { margin-bottom: 0.25rem; }
-  .markdown-content :global(a) { color: var(--accent); }
-  .markdown-content :global(strong) { font-weight: 600; }
+  .markdown-content pre code { background: none; padding: 0; }
+  .markdown-content ul { padding-left: 1.5rem; margin: 0.5rem 0; }
+  .markdown-content li { margin-bottom: 0.25rem; }
+  .markdown-content a { color: var(--accent); }
+  .markdown-content strong { font-weight: 600; }
+  .muted { color: var(--text-secondary); font-style: italic; }
 </style>

@@ -6,9 +6,15 @@ x-logging: &default-logging
 
 services:
   db:
-    image: postgres:16.13-alpine3.23
+    image: postgres:16.13-alpine3.23@sha256:4e6e670bb069649261c9c18031f0aded7bb249a5b6664ddec29c013a89310d50
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-findings}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -25,9 +31,14 @@ services:
       start_period: 10s
 
   minio:
-    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:14cea493d9a34af32f524e538b8346cf79f3321eff8e708c1e2960462bd8936e
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
@@ -49,6 +60,8 @@ services:
       context: ./backend
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       db:
         condition: service_healthy
@@ -58,9 +71,12 @@ services:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
       FINDINGS_LOG_LEVEL: ${FINDINGS_LOG_LEVEL:-INFO}
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-development}
       FINDINGS_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-findings}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-findings}
       FINDINGS_SECRET_KEY: ${FINDINGS_SECRET_KEY:?Set FINDINGS_SECRET_KEY in .env}
       FINDINGS_TRUST_PROXY_HEADERS: ${FINDINGS_TRUST_PROXY_HEADERS:-true}
+      FINDINGS_ALLOWED_METHODS: ${FINDINGS_ALLOWED_METHODS:-["GET","POST","PATCH","DELETE","OPTIONS"]}
+      FINDINGS_ALLOWED_HEADERS: ${FINDINGS_ALLOWED_HEADERS:-["Authorization","Content-Type","Accept","If-None-Match"]}
       FINDINGS_MINIO_ENDPOINT: minio:9000
       FINDINGS_MINIO_ACCESS_KEY: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
       FINDINGS_MINIO_SECRET_KEY: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
@@ -79,9 +95,15 @@ services:
       FINDINGS_INITIAL_ADMIN_PASSWORD: ${FINDINGS_INITIAL_ADMIN_PASSWORD:?Set FINDINGS_INITIAL_ADMIN_PASSWORD in .env}
       FINDINGS_INITIAL_ADMIN_EMAIL: ${FINDINGS_INITIAL_ADMIN_EMAIL:?Set FINDINGS_INITIAL_ADMIN_EMAIL in .env}
       FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:-Administrator}
-      FINDINGS_APP_VERSION: ${APP_VERSION:-0.1.15}
+      FINDINGS_APP_VERSION: ${APP_VERSION:-0.1.16}
       FINDINGS_CLAMAV_HOST: clamav
       FINDINGS_CLAMAV_PORT: "3310"
+      FINDINGS_JWT_PRIMARY_ALGORITHM: ${FINDINGS_JWT_PRIMARY_ALGORITHM:-HS256}
+      FINDINGS_JWT_ALLOW_LEGACY_HS256: ${FINDINGS_JWT_ALLOW_LEGACY_HS256:-true}
+      FINDINGS_JWT_PRIVATE_KEY_PEM: ${FINDINGS_JWT_PRIVATE_KEY_PEM:-}
+      FINDINGS_JWT_PUBLIC_KEY_PEM: ${FINDINGS_JWT_PUBLIC_KEY_PEM:-}
+      FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST: ${FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST:-[]}
+      FINDINGS_OIDC_REQUIRE_NONCE: ${FINDINGS_OIDC_REQUIRE_NONCE:-true}
     healthcheck:
       test:
         [
@@ -98,9 +120,11 @@ services:
     build:
       context: ./frontend
       args:
-        APP_VERSION: ${APP_VERSION:-0.1.15}
+        APP_VERSION: ${APP_VERSION:-0.1.16}
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       backend:
         condition: service_healthy
@@ -110,9 +134,16 @@ services:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
 
   caddy:
-    image: caddy:2.11.2-alpine
+    build:
+      context: ./caddy
+    image: vulnledger-caddy:2.11.2-ratelimit
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
     depends_on:
       frontend:
         condition: service_started
@@ -141,6 +172,8 @@ services:
     restart: unless-stopped
     logging: *default-logging
     user: "postgres"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
     depends_on:
       db:
         condition: service_healthy
@@ -152,13 +185,23 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-findings}
       BACKUP_RETENTION_DAYS: "30"
       BACKUP_CRON: "0 2 * * *"
+      BACKUP_ENCRYPTION_SECRET_FILE: ${BACKUP_ENCRYPTION_SECRET_FILE:-/run/secrets/backup_encryption_passphrase}
+      BACKUP_ENCRYPTION_REQUIRED: ${BACKUP_ENCRYPTION_REQUIRED:-false}
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-development}
     volumes:
       - backups:/backups
+      - ./secrets:/run/secrets:ro
 
   clamav:
-    image: clamav/clamav:stable
+    image: clamav/clamav:1.4.3@sha256:75fb5fd95fcbe1d7e6d240c369c1572b686ee2c95949d1042b5148de8eddebb4
     restart: unless-stopped
     logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/clamav
     ports:
       - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
@@ -171,7 +214,7 @@ services:
       start_period: 180s
 
   gatus:
-    image: twinproduction/gatus:v5.20.0
+    image: twinproduction/gatus:v5.20.0@sha256:e655d13d0cb89c64a2e53a853bbca9556a7238e788bc4a08c19aa5fb7938d0da
     profiles: ["monitoring"]
     restart: unless-stopped
     logging: *default-logging

@@ -75,8 +75,15 @@ async def update_client(
     client = result.scalar_one_or_none()
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
-    for field, value in body.model_dump(exclude_unset=True).items():
-        setattr(client, field, value)
+    update_data = body.model_dump(exclude_unset=True)
+    if "company_name" in update_data:
+        client.company_name = update_data["company_name"]
+    if "primary_contact_name" in update_data:
+        client.primary_contact_name = update_data["primary_contact_name"]
+    if "primary_contact_email" in update_data:
+        client.primary_contact_email = update_data["primary_contact_email"]
+    if "metadata_" in update_data:
+        client.metadata_ = update_data["metadata_"]
     await db.commit()
     await db.refresh(client)
     return client

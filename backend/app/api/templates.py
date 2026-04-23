@@ -99,8 +99,24 @@ async def update_template(
             await require_taxonomy_value(db, "risk_level", update_data["risk_level"])
         except TaxonomyError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
-    for field, value in update_data.items():
-        setattr(template, field, value)
+    if "stable_id" in update_data:
+        template.stable_id = update_data["stable_id"]
+    if "name" in update_data:
+        template.name = update_data["name"]
+    if "category" in update_data:
+        template.category = update_data["category"]
+    if "title" in update_data:
+        template.title = update_data["title"]
+    if "description" in update_data:
+        template.description = update_data["description"]
+    if "risk_level" in update_data:
+        template.risk_level = update_data["risk_level"]
+    if "impact" in update_data:
+        template.impact = update_data["impact"]
+    if "recommendation" in update_data:
+        template.recommendation = update_data["recommendation"]
+    if "references" in update_data:
+        template.references = update_data["references"]
     await db.commit()
     await db.refresh(template)
     return template

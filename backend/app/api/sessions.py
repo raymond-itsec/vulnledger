@@ -153,8 +153,18 @@ async def update_session(
     asset_id = update_data.get("asset_id", session.asset_id)
     if "reviewer_id" in update_data:
         await _validate_session_relations(db, asset_id, reviewer_id)
-    for field, value in update_data.items():
-        setattr(session, field, value)
+    if "asset_id" in update_data:
+        session.asset_id = update_data["asset_id"]
+    if "review_name" in update_data:
+        session.review_name = update_data["review_name"]
+    if "review_date" in update_data:
+        session.review_date = update_data["review_date"]
+    if "reviewer_id" in update_data:
+        session.reviewer_id = update_data["reviewer_id"]
+    if "status" in update_data:
+        session.status = update_data["status"]
+    if "notes" in update_data:
+        session.notes = update_data["notes"]
     await db.commit()
     result = await db.execute(
         select(ReviewSession)

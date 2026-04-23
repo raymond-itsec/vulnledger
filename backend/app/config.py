@@ -2,10 +2,13 @@ from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
+_ALLOWED_JWT_ALGORITHMS = {"HS256", "RS256"}
+_ALLOWED_RUNTIME_MODES = {"development", "production"}
 
 
 class Settings(BaseSettings):
-    app_version: str = "0.1.15"
+    app_version: str = "0.1.16"
+    runtime_mode: str = "development"
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
     secret_key: str = ""
     log_level: str = "INFO"
@@ -25,8 +28,10 @@ class Settings(BaseSettings):
     refresh_token_family_max_lifetime_days: int = 30
     # None = auto-derive as 2 * refresh_token_family_max_lifetime_days.
     refresh_session_retention_days: int | None = None
-    trust_proxy_headers: bool = True
+    trust_proxy_headers: bool = False
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
+    allowed_methods: list[str] = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
+    allowed_headers: list[str] = ["Authorization", "Content-Type", "Accept", "If-None-Match"]
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = ""
     minio_secret_key: str = ""
@@ -51,6 +56,8 @@ class Settings(BaseSettings):
     oidc_client_secret: str = ""
     oidc_discovery_url: str = ""
     oidc_redirect_uri: str = ""
+    oidc_redirect_uri_allowlist: list[str] = []
+    oidc_require_nonce: bool = True
     oidc_default_role: str = "reviewer"
     initial_admin_username: str = ""
     initial_admin_password: str = ""
@@ -59,6 +66,11 @@ class Settings(BaseSettings):
     # ClamAV (optional -- leave empty to disable)
     clamav_host: str = ""
     clamav_port: int = 3310
+    # JWT migration controls. Default stays HS256-compatible until RS256 keys are configured.
+    jwt_primary_algorithm: str = "HS256"
+    jwt_allow_legacy_hs256: bool = True
+    jwt_private_key_pem: str = ""
+    jwt_public_key_pem: str = ""
 
     model_config = {
         "env_prefix": "FINDINGS_",
@@ -77,6 +89,28 @@ class Settings(BaseSettings):
                 f"FINDINGS_{info.field_name.upper()} must be > 0 (got {value})"
             )
         return value
+
+    @field_validator("jwt_primary_algorithm", mode="before")
+    @classmethod
+    def _normalize_jwt_algorithm(cls, value: object) -> str:
+        normalized = str(value or "").strip().upper()
+        if normalized not in _ALLOWED_JWT_ALGORITHMS:
+            raise ValueError(
+                "FINDINGS_JWT_PRIMARY_ALGORITHM must be one of "
+                f"{sorted(_ALLOWED_JWT_ALGORITHMS)} (got {value!r})"
+            )
+        return normalized
+
+    @field_validator("runtime_mode", mode="before")
+    @classmethod
+    def _normalize_runtime_mode(cls, value: object) -> str:
+        normalized = str(value or "").strip().lower()
+        if normalized not in _ALLOWED_RUNTIME_MODES:
+            raise ValueError(
+                "FINDINGS_RUNTIME_MODE must be one of "
+                f"{sorted(_ALLOWED_RUNTIME_MODES)} (got {value!r})"
+            )
+        return normalized
 
     @field_validator("refresh_token_family_max_lifetime_days")
     @classmethod
@@ -109,3 +143,7 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+
+def get_settings() -> Settings:
+    return settings

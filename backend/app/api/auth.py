@@ -12,6 +12,7 @@ from app.api.deps import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
+from app.schemas.error import make_error_payload
 from app.schemas.auth import (
     LoginRequest,
     SecurityEventInfo,
@@ -134,7 +135,10 @@ def _clear_refresh_cookie(response: Response) -> None:
 def _refresh_failure_response(detail: str) -> JSONResponse:
     response = JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
-        content={"detail": detail},
+        content=make_error_payload(
+            code="session_expired",
+            detail=detail,
+        ),
     )
     _clear_refresh_cookie(response)
     return response

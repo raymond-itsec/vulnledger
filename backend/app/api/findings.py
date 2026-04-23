@@ -1,3 +1,4 @@
+import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -18,6 +19,7 @@ from app.schemas.pagination import PaginatedResponse
 from app.services.taxonomy import TaxonomyError, get_current_taxonomy, require_taxonomy_value
 
 router = APIRouter(prefix="/findings", tags=["findings"])
+logger = logging.getLogger(__name__)
 
 admin_or_reviewer = require_role("admin", "reviewer")
 
@@ -90,18 +92,18 @@ async def create_finding(
         await require_taxonomy_value(db, "remediation_status", body.remediation_status)
     except TaxonomyError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    finding = Finding(
-        session_id=body.session_id,
-        title=body.title,
-        description=body.description,
-        risk_level=body.risk_level,
-        impact=body.impact,
-        recommendation=body.recommendation,
-        remediation_status=body.remediation_status,
-        references=body.references,
-    )
-    db.add(finding)
-    await db.commit()
+    async with db.begin():
+        finding = Finding(
+            session_id=body.session_id,
+            title=body.title,
+            description=body.description,
+            risk_level=body.risk_level,
+            impact=body.impact,
+            recommendation=body.recommendation,
+            remediation_status=body.remediation_status,
+            references=body.references,
+        )
+        db.add(finding)
     await db.refresh(finding)
 
     # Send email notification to session reviewer
@@ -125,7 +127,11 @@ async def create_finding(
                     finding_id=str(finding.finding_id),
                 )
     except Exception:
-        pass  # Don't fail the request if email fails
+        logger.warning(
+            "New-finding notification failed for session %s",
+            body.session_id,
+            exc_info=True,
+        )
 
     return finding
 
@@ -168,26 +174,39 @@ async def update_finding(
     except TaxonomyError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
-    # Track changes
-    for field in TRACKED_FIELDS:
-        if field not in update_data:
-            continue
-        old_val = getattr(finding, field)
-        new_val = update_data[field]
-        old_str = str(old_val) if old_val is not None else None
-        new_str = str(new_val) if new_val is not None else None
-        if old_str != new_str:
-            db.add(FindingHistory(
-                finding_id=finding_id,
-                changed_by=current_user.user_id,
-                field_name=field,
-                old_value=old_str,
-                new_value=new_str,
-            ))
+    async with db.begin():
+        # Track changes
+        for field in TRACKED_FIELDS:
+            if field not in update_data:
+                continue
+            old_val = getattr(finding, field)
+            new_val = update_data[field]
+            old_str = str(old_val) if old_val is not None else None
+            new_str = str(new_val) if new_val is not None else None
+            if old_str != new_str:
+                db.add(FindingHistory(
+                    finding_id=finding_id,
+                    changed_by=current_user.user_id,
+                    field_name=field,
+                    old_value=old_str,
+                    new_value=new_str,
+                ))
 
-    for field, value in update_data.items():
-        setattr(finding, field, value)
-    await db.commit()
+        if "title" in update_data:
+            finding.title = update_data["title"]
+        if "description" in update_data:
+            finding.description = update_data["description"]
+        if "risk_level" in update_data:
+            finding.risk_level = update_data["risk_level"]
+        if "impact" in update_data:
+            finding.impact = update_data["impact"]
+        if "recommendation" in update_data:
+            finding.recommendation = update_data["recommendation"]
+        if "remediation_status" in update_data:
+            finding.remediation_status = update_data["remediation_status"]
+        if "references" in update_data:
+            finding.references = update_data["references"]
+
     await db.refresh(finding)
 
     # Notify on status change
@@ -215,7 +234,11 @@ async def update_finding(
                         finding_id=str(finding.finding_id),
                     )
         except Exception:
-            pass  # Don't fail the request if email fails
+            logger.warning(
+                "Status-change notification failed for finding %s",
+                finding_id,
+                exc_info=True,
+            )
 
     return finding
 

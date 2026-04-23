@@ -13,7 +13,29 @@ pwd_context = CryptContext(
     deprecated="auto",
 )
 
-ALGORITHM = "HS256"
+def _rs256_keys_configured() -> bool:
+    return bool(settings.jwt_private_key_pem.strip() and settings.jwt_public_key_pem.strip())
+
+
+def _signing_algorithm() -> str:
+    if settings.jwt_primary_algorithm == "RS256" and _rs256_keys_configured():
+        return "RS256"
+    return "HS256"
+
+
+def _signing_key() -> str:
+    if _signing_algorithm() == "RS256":
+        return settings.jwt_private_key_pem
+    return settings.secret_key
+
+
+def _verification_keys() -> list[tuple[str, str]]:
+    keys: list[tuple[str, str]] = []
+    if _rs256_keys_configured():
+        keys.append(("RS256", settings.jwt_public_key_pem))
+    if settings.jwt_allow_legacy_hs256 or not keys:
+        keys.append(("HS256", settings.secret_key))
+    return keys
 
 
 def hash_password(password: str) -> str:
@@ -41,11 +63,14 @@ def create_access_token(
         "exp": expire,
         "type": "access",
     }
-    return jwt.encode(payload, settings.secret_key, algorithm=ALGORITHM)
+    algorithm = _signing_algorithm()
+    return jwt.encode(payload, _signing_key(), algorithm=algorithm)
 
 
 def decode_token(token: str) -> dict:
-    try:
-        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
-    except JWTError:
-        return {}
+    for algorithm, key in _verification_keys():
+        try:
+            return jwt.decode(token, key, algorithms=[algorithm])
+        except JWTError:
+            continue
+    return {}

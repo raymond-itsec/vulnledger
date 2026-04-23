@@ -1,11 +1,13 @@
 {
   "name": "findings-frontend",
-  "version": "0.1.15",
+  "version": "0.1.16",
   "private": true,
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:types": "npx openapi-typescript ../backend/openapi.generated.json -o src/lib/api/generated.ts",
+    "generate:types:live": "npx openapi-typescript http://127.0.0.1:8000/openapi.json -o src/lib/api/generated.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",

@@ -37,5 +37,7 @@ class UserResponse(BaseModel):
     role: str
     linked_client_id: UUID | None
     is_active: bool
+    oidc_issuer: str | None = None
+    oidc_subject: str | None = None
 
     model_config = {"from_attributes": True}

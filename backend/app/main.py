@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 import ipaddress
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -13,8 +14,10 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
 from app.api.deps import get_current_user
 from app.config import settings
+from app.database import engine
 from app.logging_config import configure_logging
 from app.models.user import User
+from app.schemas.error import make_error_payload
 from app.services.seed import seed_admin_user, sync_builtin_templates
 from app.services.storage import ensure_buckets
 from app.services.taxonomy import ensure_default_taxonomy_version
@@ -56,6 +59,7 @@ async def lifespan(app: FastAPI):
     except Exception:
         logger.warning("MinIO not available -- file attachments and report storage disabled")
     yield
+    await engine.dispose()
 
 
 # Security headers middleware
@@ -93,10 +97,46 @@ app = FastAPI(
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too many requests. Please slow down."},
+        content=make_error_payload(
+            code="rate_limited",
+            detail="Too many requests. Please slow down.",
+        ),
     )
 
 app.state.limiter = limiter
+
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    detail = exc.detail if isinstance(exc.detail, str) else "Request failed."
+    code = detail.lower().replace(" ", "_").replace(".", "")[:64] or "http_error"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content=make_error_payload(code=code, detail=detail),
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    return JSONResponse(
+        status_code=422,
+        content=make_error_payload(
+            code="validation_error",
+            detail="Request validation failed.",
+        ),
+    )
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error at %s", request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content=make_error_payload(
+            code="internal_error",
+            detail="Internal server error.",
+        ),
+    )
 
 # Middleware (order matters: outermost first)
 app.add_middleware(SecurityHeadersMiddleware)
@@ -104,8 +144,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=settings.allowed_methods,
+    allow_headers=settings.allowed_headers,
 )
 
 app.include_router(auth.router, prefix="/api")
