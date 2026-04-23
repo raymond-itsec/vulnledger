@@ -12,6 +12,14 @@ import os
 import sys
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parents[2]
+BACKEND_ROOT = REPO_ROOT / "backend"
+
+# Ensure imports like `from app.main import app` work both locally and in CI,
+# even when invoked from repo root without external PYTHONPATH setup.
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
 
 def main() -> int:
     if len(sys.argv) != 2:
@@ -34,10 +42,7 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    # Help local and CI callers by defaulting PYTHONPATH to backend root when
-    # invoked from repo root without extra environment setup.
+    # Keep PYTHONPATH aligned for any subprocesses that may rely on it.
     if "PYTHONPATH" not in os.environ:
-        repo_root = Path(__file__).resolve().parents[2]
-        backend_root = repo_root / "backend"
-        os.environ["PYTHONPATH"] = str(backend_root)
+        os.environ["PYTHONPATH"] = str(BACKEND_ROOT)
     raise SystemExit(main())
