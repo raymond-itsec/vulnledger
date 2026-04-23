@@ -19,10 +19,12 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
+      - name: Verify backend lockfile sync
+        run: python backend/scripts/check-lock-sync.py
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
       - name: Run pip-audit
-        run: pip-audit -r backend/requirements.txt
+        run: pip-audit -r backend/requirements.lock.txt
 
   frontend-npm-audit:
     runs-on: ubuntu-latest

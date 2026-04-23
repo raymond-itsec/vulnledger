@@ -271,7 +271,10 @@ python -m venv venv
 source venv/bin/activate  # or venv\Scripts\activate on Windows
 
 # Install dependencies (WeasyPrint needs system libs -- see below)
-pip install -r requirements.txt
+pip install -r requirements.lock.txt
+
+# If requirements.txt changed, refresh the lock file
+./scripts/lock-requirements.sh
 
 # Start PostgreSQL (if not using Docker)
 # Ensure FINDINGS_DATABASE_URL points to your local PostgreSQL
