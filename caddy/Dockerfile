@@ -10,5 +10,9 @@ RUN apk add --no-cache libcap
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
 RUN chmod 0755 /usr/bin/caddy \
   && setcap -r /usr/bin/caddy || true \
+  && addgroup -S -g 10001 caddy \
+  && adduser -S -D -H -u 10001 -G caddy -s /sbin/nologin caddy \
+  && mkdir -p /data /config /var/lib/caddy /tmp \
+  && chown -R caddy:caddy /data /config /var/lib/caddy /tmp \
   && apk del libcap
-USER caddy
+USER 10001:10001

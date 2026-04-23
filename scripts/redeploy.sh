@@ -5,6 +5,32 @@ set -eu
 ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT_DIR"
 
+NO_CACHE=0
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    -nocache|-clean)
+      NO_CACHE=1
+      ;;
+    -h|--help)
+      cat <<'EOF'
+Usage: ./scripts/redeploy.sh [-nocache|-clean]
+
+Options:
+  -nocache   Build images with --no-cache
+  -clean     Alias for -nocache
+EOF
+      exit 0
+      ;;
+    *)
+      printf 'ERROR: Unknown option: %s\n' "$1" >&2
+      printf 'Usage: ./scripts/redeploy.sh [-nocache|-clean]\n' >&2
+      exit 1
+      ;;
+  esac
+  shift
+done
+
 info() {
   printf '%s\n' "$*"
 }
@@ -111,12 +137,22 @@ wait_for_backend() {
   die "Backend failed readiness check. See logs above."
 }
 
+build_service() {
+  service=$1
+  if [ "$NO_CACHE" -eq 1 ]; then
+    info "Building ${service} image (--pull --no-cache)"
+    compose build --pull --no-cache "$service"
+  else
+    info "Building ${service} image (--pull, cache enabled)"
+    compose build --pull "$service"
+  fi
+}
+
 sync_repo
 load_env
 require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
 
-info "Building backend image (fresh build)"
-compose build --pull --no-cache backend
+build_service backend
 
 info "Starting required infrastructure services"
 compose up -d db minio clamav
@@ -129,14 +165,9 @@ compose up -d --force-recreate backend
 
 wait_for_backend
 
-info "Building frontend image (fresh build)"
-compose build --pull --no-cache frontend
-
-info "Building backup image (fresh build)"
-compose build --pull --no-cache backup
-
-info "Building caddy image (fresh build)"
-compose build --pull --no-cache caddy
+build_service frontend
+build_service backup
+build_service caddy
 
 info "Deploying frontend and edge services"
 compose up -d --force-recreate frontend caddy backup
