@@ -7,7 +7,6 @@ export interface SessionInfo {
   last_seen_at: string;
   ip_address: string | null;
   user_agent: string | null;
-  country: string;
   is_current: boolean;
 }
 

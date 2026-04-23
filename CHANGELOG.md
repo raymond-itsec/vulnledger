@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.15] - 2026-04-23
+
+### Changed
+- Kept session/security logging focused on public client IPs only (no location enrichment).
+- Removed country display from profile session and security-activity UI.
+
+### Removed
+- Removed GeoIP country-enrichment support (`FINDINGS_GEOIP_DB_PATH`, backend GeoIP service, and `geoip2` dependency).
+- Removed GeoIP Docker mount and related documentation/configuration entries.
+
 ## [v0.1.14] - 2026-04-23
 
 ### Added
@@ -23,6 +33,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added `./scripts/first-run.sh redeploy`.
 - Added backend health checks in Compose.
 - Added `APP_VERSION` to `.env.example`.
+- Added `FINDINGS_TRUST_PROXY_HEADERS` to control forwarded IP parsing behind reverse proxies.
 
 ### Changed
 - Aligned backend runtime version and frontend UI version on one shared `APP_VERSION`.
@@ -35,12 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Gated frontend startup on backend health in Compose.
 - Gated Caddy startup on backend health in Compose.
 - Updated README deployment and configuration docs for version and redeploy flow.
+- Hardened logout behavior in the frontend to clear browser-side state (`sessionStorage`, `localStorage`, and cache storage) in addition to auth state.
+- Reset app-availability in-memory probe state on logout.
+- Changed auth request IP capture to prefer forwarded proxy IPs (`X-Real-IP` / `X-Forwarded-For`) before container-local socket IPs.
+- Changed revoke/logout security events to persist actor IP and User-Agent for better session activity visibility.
+- Changed session-start backup behavior to run initial backup only if no successful backup exists in the last 24 hours.
 
 ### Fixed
 - Escaped dynamic HTML values in email notifications.
 - Sanitized email subjects before sending.
 - Sanitized report HTML rendering for markdown and dynamic fields.
 - Sanitized taxonomy color usage in report output.
+- Fixed profile security activity showing `Unknown` IP/User-Agent for revoke-family and revoke-session events when actor metadata is available.
 
 ## [v0.1.13] - 2026-04-21
 

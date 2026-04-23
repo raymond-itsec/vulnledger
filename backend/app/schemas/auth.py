@@ -27,7 +27,6 @@ class SessionInfo(BaseModel):
     last_seen_at: datetime
     ip_address: str | None
     user_agent: str | None
-    country: str
     is_current: bool
 
 

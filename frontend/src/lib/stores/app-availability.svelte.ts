@@ -83,6 +83,16 @@ export const appAvailability = {
   clear() {
     setUnavailable(false);
   },
+  resetAfterLogout() {
+    this.stop();
+    setUnavailable(false);
+    authToken = null;
+    pollPromise = null;
+    loginPageAppAvailabilityProbePromise = null;
+    loginPageAppAvailabilityChecked = false;
+    loginPageOidcAvailabilityProbePromise = null;
+    loginPageOidcAvailability = null;
+  },
   setAuthToken(token: string | null) {
     authToken = token;
     if (!token) {

@@ -1,4 +1,5 @@
 from uuid import UUID
+import ipaddress
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -44,9 +45,64 @@ limiter = Limiter(key_func=get_remote_address)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
 
 
+def _parse_ip_candidate(value: str | None) -> str | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    # Handle potential "IP:port" form from some proxies.
+    if candidate.count(":") == 1 and "." in candidate:
+        host, _, _ = candidate.partition(":")
+        candidate = host.strip()
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
+
+
+def _is_public_ip(value: str | None) -> bool:
+    parsed_value = _parse_ip_candidate(value)
+    if not parsed_value:
+        return False
+    parsed = ipaddress.ip_address(parsed_value)
+    return not (
+        parsed.is_private
+        or parsed.is_loopback
+        or parsed.is_link_local
+        or parsed.is_reserved
+        or parsed.is_unspecified
+        or parsed.is_multicast
+    )
+
+
+def _extract_forwarded_ips(request: Request) -> list[str]:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if not forwarded_for:
+        return []
+    values = []
+    for part in forwarded_for.split(","):
+        normalized = _parse_ip_candidate(part)
+        if normalized:
+            values.append(normalized)
+    return values
+
+
 def _request_ip(request: Request) -> str | None:
-    # TODO: Honor trusted proxy headers (for example X-Forwarded-For) behind Caddy/load balancers.
-    return request.client.host if request.client else None
+    direct_ip = _parse_ip_candidate(request.client.host if request.client else None)
+    if not settings.trust_proxy_headers:
+        return direct_ip
+
+    x_real_ip = _parse_ip_candidate(request.headers.get("x-real-ip"))
+    forwarded_ips = _extract_forwarded_ips(request)
+    candidates = [x_real_ip, *forwarded_ips, direct_ip]
+    for candidate in candidates:
+        if _is_public_ip(candidate):
+            return candidate
+    for candidate in candidates:
+        if candidate:
+            return candidate
+    return None
 
 
 def _request_user_agent(request: Request) -> str | None:
@@ -104,6 +160,7 @@ async def login(
     response: Response,
     db: AsyncSession = Depends(get_db),
 ):
+    client_ip = _request_ip(request)
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
@@ -125,7 +182,7 @@ async def login(
     refresh_token = await issue_refresh_session(
         db,
         user_id=user.user_id,
-        created_ip=_request_ip(request),
+        created_ip=client_ip,
         created_user_agent=_request_user_agent(request),
     )
     _set_refresh_cookie(response, refresh_token)
@@ -139,13 +196,14 @@ async def refresh(
     db: AsyncSession = Depends(get_db),
     refresh_token: str | None = Cookie(None),
 ):
+    client_ip = _request_ip(request)
     if not refresh_token:
         return _refresh_failure_response("Session expired. Please sign in again.")
 
     exchange_result = await exchange_refresh_token(
         db,
         raw_token=refresh_token,
-        current_ip=_request_ip(request),
+        current_ip=client_ip,
         current_user_agent=_request_user_agent(request),
     )
     if exchange_result.status != "success" or not exchange_result.user or not exchange_result.refresh_token:
@@ -163,15 +221,19 @@ async def refresh(
 
 @router.post("/logout")
 async def logout(
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
     refresh_token: str | None = Cookie(None),
 ):
+    client_ip = _request_ip(request)
     if refresh_token:
         await revoke_refresh_session_family(
             db,
             raw_token=refresh_token,
             reason="logout",
+            actor_ip=client_ip,
+            actor_user_agent=_request_user_agent(request),
         )
     _clear_refresh_cookie(response)
     return {"detail": "Logged out"}
@@ -203,14 +265,18 @@ async def list_sessions(
 
 @router.post("/sessions/revoke-all", response_model=SessionRevokeAllResponse)
 async def revoke_all_sessions(
+    request: Request,
     response: Response,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    client_ip = _request_ip(request)
     revoked_count = await revoke_all_refresh_sessions_for_user(
         db,
         user_id=user.user_id,
         reason="logout_all_sessions",
+        actor_ip=client_ip,
+        actor_user_agent=_request_user_agent(request),
     )
     _clear_refresh_cookie(response)
     return SessionRevokeAllResponse(revoked_count=revoked_count)
@@ -218,15 +284,19 @@ async def revoke_all_sessions(
 
 @router.post("/sessions/{refresh_session_id}/revoke", response_model=SessionRevokeResponse)
 async def revoke_session(
+    request: Request,
     refresh_session_id: UUID,
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    client_ip = _request_ip(request)
     revoked = await revoke_refresh_session_by_id(
         db,
         user_id=user.user_id,
         refresh_session_id=refresh_session_id,
         reason="user_revoked_session",
+        actor_ip=client_ip,
+        actor_user_agent=_request_user_agent(request),
     )
     if not revoked:
         raise HTTPException(status_code=404, detail="Session not found")

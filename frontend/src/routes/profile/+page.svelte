@@ -238,7 +238,6 @@
               </div>
               <div class="session-line">
                 <span><strong>IP:</strong> {session.ip_address ?? 'Unknown'}</span>
-                <span><strong>Country:</strong> {session.country}</span>
               </div>
               <div class="session-line session-user-agent">
                 <strong>User-Agent:</strong> {session.user_agent ?? 'Unknown'}
@@ -282,6 +281,8 @@
             </div>
             <div class="event-line">
               <span><strong>IP:</strong> {event.ip_address ?? 'Unknown'}</span>
+            </div>
+            <div class="event-line">
               <span><strong>Session:</strong> {event.refresh_session_id ?? 'n/a'}</span>
             </div>
             <div class="event-line event-user-agent">

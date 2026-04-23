@@ -2,12 +2,13 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    app_version: str = "0.1.0"
+    app_version: str = "0.1.15"
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
     secret_key: str = ""
     access_token_expire_minutes: int = 5
     refresh_token_expire_days: int = 7
     refresh_session_retention_days: int = 30
+    trust_proxy_headers: bool = True
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     minio_endpoint: str = "minio:9000"
     minio_access_key: str = ""

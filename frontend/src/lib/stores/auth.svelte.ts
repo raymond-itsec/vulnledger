@@ -58,6 +58,36 @@ export const auth = {
   get isAuthenticated() { return !!token; },
 };
 
+function clearBrowserStateOnLogout(): void {
+  if (typeof window === 'undefined') return;
+
+  try {
+    window.sessionStorage.clear();
+  } catch {
+    // Best effort.
+  }
+
+  try {
+    window.localStorage.clear();
+  } catch {
+    // Best effort.
+  }
+
+  // Also clear any in-browser HTTP caches scoped to this origin.
+  if ('caches' in window) {
+    void (async () => {
+      try {
+        const cacheKeys = await window.caches.keys();
+        await Promise.all(cacheKeys.map((cacheKey) => window.caches.delete(cacheKey)));
+      } catch {
+        // Best effort.
+      }
+    })();
+  }
+
+  appAvailability.resetAfterLogout();
+}
+
 async function clearStaleSession(): Promise<void> {
   if (staleSessionCleanupPromise) {
     await staleSessionCleanupPromise;
@@ -200,5 +230,6 @@ export async function logout(): Promise<void> {
     bootstrapAttempted = true;
     token = null;
     user = null;
+    clearBrowserStateOnLogout();
   }
 }

@@ -369,7 +369,7 @@ FINDINGS_CLAMAV_PORT=3310
 CADDY_ATTACHMENT_MAX_SIZE=30MB
 
 # Optional: Unified app version shown in UI and backend metadata
-APP_VERSION=0.1.0
+APP_VERSION=0.1.15
 ```
 
 ---
@@ -566,6 +566,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
 | `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | `30` | Retention window for expired/revoked refresh-session rows before cleanup |
+| `FINDINGS_TRUST_PROXY_HEADERS` | `true` | Trust proxy headers (for example from Caddy) to extract real client IPs |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
 | `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
@@ -596,7 +597,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
-| `APP_VERSION` | `0.1.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
+| `APP_VERSION` | `0.1.15` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
 | `MINIO_PORT` | `9000` | Host port published for MinIO |
 | `MINIO_CONSOLE_PORT` | `9001` | Host port published for the MinIO console |

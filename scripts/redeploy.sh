@@ -76,8 +76,8 @@ wait_for_backend() {
 
 load_env
 
-info "Building backend image"
-compose build backend
+info "Building backend image (fresh build)"
+compose build --pull --no-cache backend
 
 info "Starting required infrastructure services"
 compose up -d db minio clamav
@@ -86,14 +86,14 @@ info "Running DB migrations first"
 compose run --rm --no-deps backend alembic upgrade head
 
 info "Deploying backend"
-compose up -d backend
+compose up -d --force-recreate backend
 
 wait_for_backend
 
-info "Building frontend image"
-compose build frontend
+info "Building frontend image (fresh build)"
+compose build --pull --no-cache frontend
 
 info "Deploying frontend and edge services"
-compose up -d frontend caddy backup
+compose up -d --force-recreate frontend caddy backup
 
 info "Redeploy complete"

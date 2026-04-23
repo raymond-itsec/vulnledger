@@ -2,7 +2,7 @@ FROM node:22.22-alpine
 
 WORKDIR /app
 
-ARG APP_VERSION=0.1.0
+ARG APP_VERSION=0.1.15
 ENV VITE_APP_VERSION=${APP_VERSION}
 
 COPY package*.json ./
@@ -10,6 +10,10 @@ RUN npm ci
 
 COPY . .
 RUN npm run build
+
+RUN chown -R node:node /app
+
+USER node
 
 EXPOSE 5173
 

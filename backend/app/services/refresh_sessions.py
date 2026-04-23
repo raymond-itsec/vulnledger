@@ -1,6 +1,5 @@
 import hashlib
 import hmac
-import ipaddress
 import logging
 import secrets
 import uuid
@@ -97,26 +96,6 @@ async def _load_refresh_session(
     if not hmac.compare_digest(session.token_hash, _hash_refresh_token(raw_token)):
         return None
     return session
-
-
-def _ip_country_hint(ip_address: str | None) -> str:
-    # TODO: Replace this heuristic with trusted GeoIP enrichment if/when we add it server-side.
-    normalized = _normalize_ip(ip_address)
-    if not normalized:
-        return "Unknown"
-    try:
-        parsed = ipaddress.ip_address(normalized)
-    except ValueError:
-        return "Unknown"
-    if (
-        parsed.is_private
-        or parsed.is_loopback
-        or parsed.is_link_local
-        or parsed.is_reserved
-        or parsed.is_unspecified
-    ):
-        return "Private/Local"
-    return "Unknown"
 
 
 async def _create_refresh_session(
@@ -273,6 +252,8 @@ async def revoke_refresh_session_by_id(
     user_id: uuid.UUID,
     refresh_session_id: uuid.UUID,
     reason: str,
+    actor_ip: str | None = None,
+    actor_user_agent: str | None = None,
 ) -> bool:
     result = await db.execute(
         select(RefreshSession)
@@ -293,6 +274,8 @@ async def revoke_refresh_session_by_id(
         event_type="refresh_session_revoked",
         family_id=session.family_id,
         refresh_session_id=session.refresh_session_id,
+        ip_address=actor_ip,
+        user_agent=actor_user_agent,
         details={"reason": reason},
     )
     await _bump_user_token_version(db, user_id)
@@ -306,6 +289,8 @@ async def revoke_all_refresh_sessions_for_user(
     *,
     user_id: uuid.UUID,
     reason: str,
+    actor_ip: str | None = None,
+    actor_user_agent: str | None = None,
 ) -> int:
     now = _now()
     result = await db.execute(
@@ -324,6 +309,8 @@ async def revoke_all_refresh_sessions_for_user(
         db,
         user_id=user_id,
         event_type="all_refresh_sessions_revoked",
+        ip_address=actor_ip,
+        user_agent=actor_user_agent,
         details={"reason": reason, "revoked_count": revoked_count},
     )
     await _bump_user_token_version(db, user_id)
@@ -430,6 +417,8 @@ async def revoke_refresh_session_family(
     *,
     raw_token: str | None,
     reason: str,
+    actor_ip: str | None = None,
+    actor_user_agent: str | None = None,
 ) -> None:
     parsed = _parse_refresh_token(raw_token)
     if not parsed:
@@ -453,6 +442,8 @@ async def revoke_refresh_session_family(
         event_type="refresh_session_family_revoked",
         family_id=session.family_id,
         refresh_session_id=session.refresh_session_id,
+        ip_address=actor_ip,
+        user_agent=actor_user_agent,
         details={"reason": reason},
     )
     await _bump_user_token_version(db, session.user_id)
@@ -471,5 +462,4 @@ def describe_refresh_session(session: RefreshSession) -> dict:
         "last_seen_at": last_seen_at,
         "ip_address": ip_address,
         "user_agent": user_agent,
-        "country": _ip_country_hint(ip_address),
     }
