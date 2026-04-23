@@ -5,6 +5,43 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [v0.1.14] - 2026-04-23
+
+### Added
+- Added `auth_security_events` with Alembic migration `20260423_01`.
+- Added security-event logging for refresh token reuse detection.
+- Added `GET /api/auth/sessions`.
+- Added `POST /api/auth/sessions/{refresh_session_id}/revoke`.
+- Added `POST /api/auth/sessions/revoke-all`.
+- Added `GET /api/auth/security-events`.
+- Added profile UI sections for current sessions and security activity.
+- Added per-session revoke controls in the profile page.
+- Added logout-all-sessions control in the profile page.
+- Added current-session highlighting in the profile page.
+- Added `frontend/src/lib/api/auth.ts` for session and security endpoints.
+- Added `scripts/redeploy.sh` for ordered rollout.
+- Added `./scripts/first-run.sh redeploy`.
+- Added backend health checks in Compose.
+- Added `APP_VERSION` to `.env.example`.
+
+### Changed
+- Aligned backend runtime version and frontend UI version on one shared `APP_VERSION`.
+- Wired Compose to pass `APP_VERSION` to backend as `FINDINGS_APP_VERSION`.
+- Wired Compose to pass `APP_VERSION` to frontend build as `VITE_APP_VERSION`.
+- Updated frontend version display to prefer `VITE_APP_VERSION`.
+- Kept `frontend/package.json` as fallback for local frontend-only runs.
+- Updated backend health response to include the active app version.
+- Made `./scripts/first-run.sh up` use the ordered redeploy path.
+- Gated frontend startup on backend health in Compose.
+- Gated Caddy startup on backend health in Compose.
+- Updated README deployment and configuration docs for version and redeploy flow.
+
+### Fixed
+- Escaped dynamic HTML values in email notifications.
+- Sanitized email subjects before sending.
+- Sanitized report HTML rendering for markdown and dynamic fields.
+- Sanitized taxonomy color usage in report output.
+
 ## [v0.1.13] - 2026-04-21
 
 ### Changed

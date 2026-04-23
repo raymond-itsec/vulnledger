@@ -64,7 +64,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
 app = FastAPI(
     title="Security Findings Manager",
-    version="0.1.0",
+    version=settings.app_version,
     lifespan=lifespan,
 )
 
@@ -107,4 +107,4 @@ if settings.oidc_enabled:
 
 @app.get("/api/health")
 async def health(_: User = Depends(get_current_user)):
-    return {"status": "ok"}
+    return {"status": "ok", "version": settings.app_version}

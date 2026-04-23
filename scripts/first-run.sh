@@ -152,9 +152,10 @@ Usage: ./scripts/first-run.sh <command>
 Commands:
   init    Create .env from .env.example if it does not exist
   doctor  Validate common first-run prerequisites
+  redeploy  Run ordered rollout: migrate DB, deploy backend, then deploy frontend
   retest  Clean cache artifacts and fast-forward pull latest code
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
-  up      Start the stack with --build
+  up      Ordered rollout (same as redeploy)
   down    Stop the stack
   reset   Stop the stack and remove named volumes
   logs    Follow caddy, frontend, and backend logs
@@ -170,6 +171,9 @@ case "$command_name" in
   doctor)
     doctor
     ;;
+  redeploy)
+    exec ./scripts/redeploy.sh
+    ;;
   retest)
     ./scripts/retest-sync.sh
     ;;
@@ -177,7 +181,7 @@ case "$command_name" in
     exec ./scripts/verify-backend.sh
     ;;
   up)
-    compose up -d --build
+    exec ./scripts/redeploy.sh
     ;;
   down)
     compose down

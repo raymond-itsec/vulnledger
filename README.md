@@ -237,9 +237,10 @@ The VulnLedger repository includes a helper script for smoother installs:
 ```bash
 ./scripts/first-run.sh init    # create .env from .env.example
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
+./scripts/first-run.sh redeploy  # ordered rollout: migrate DB, backend, frontend
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
 ./scripts/first-run.sh retest  # clean caches and pull latest code
-./scripts/first-run.sh up      # build and start the stack
+./scripts/first-run.sh up      # ordered rollout (same as redeploy)
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
 ./scripts/first-run.sh reset   # stop the stack and remove named volumes
@@ -252,6 +253,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 `scripts/first-run.sh` always uses production containers from `docker-compose.yml`. The backend image build context is `./backend`.
 
 `retest` removes frontend build caches and backend Python cache artifacts, then runs `git pull --ff-only`. It does not delete source files. It exits if tracked git changes are present.
+
+`redeploy` enforces rollout order. It runs DB migrations first. It deploys backend second. It waits for backend readiness. It deploys frontend and Caddy last.
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 
@@ -364,6 +367,9 @@ FINDINGS_CLAMAV_PORT=3310
 
 # Optional: Reverse proxy upload cap (Caddy)
 CADDY_ATTACHMENT_MAX_SIZE=30MB
+
+# Optional: Unified app version shown in UI and backend metadata
+APP_VERSION=0.1.0
 ```
 
 ---
@@ -590,6 +596,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
+| `APP_VERSION` | `0.1.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
 | `MINIO_PORT` | `9000` | Host port published for MinIO |
 | `MINIO_CONSOLE_PORT` | `9001` | Host port published for the MinIO console |

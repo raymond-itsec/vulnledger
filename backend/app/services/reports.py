@@ -5,12 +5,12 @@ import io
 import json
 from datetime import datetime
 
-import mistune
 from weasyprint import HTML
 
 from app.config import settings
 from app.models.finding import Finding
 from app.models.review_session import ReviewSession
+from app.services.html_safety import escape_html, sanitize_hex_color, sanitize_markdown_to_html
 from app.services.taxonomy import TaxonomyBundle
 
 MAX_REPORT_OUTPUT_SIZE = settings.report_max_output_size_mb * 1024 * 1024
@@ -26,9 +26,7 @@ def _sort_findings(findings: list[Finding], taxonomy: TaxonomyBundle) -> list[Fi
 
 
 def _render_md(text: str | None) -> str:
-    if not text:
-        return ""
-    return mistune.html(text)
+    return sanitize_markdown_to_html(text)
 
 
 def _estimate_report_input_size(session: ReviewSession, findings: list[Finding]) -> int:
@@ -211,24 +209,25 @@ def generate_pdf(
     for entry in taxonomy.active_entries("risk_level"):
         count = risk_counts.get(entry.value, 0)
         if count > 0:
-            color = entry.color or "#6b7280"
+            color = sanitize_hex_color(entry.color)
+            safe_label = escape_html(entry.label)
             summary_rows += (
                 f'<tr><td><span class="badge" style="background:{color};">'
-                f"{entry.label}</span></td><td>{count}</td></tr>"
+                f"{safe_label}</span></td><td>{count}</td></tr>"
             )
 
     status_rows = ""
     for entry in taxonomy.active_entries("remediation_status"):
         count = status_counts.get(entry.value, 0)
         if count > 0:
-            status_rows += f"<tr><td>{entry.label}</td><td>{count}</td></tr>"
+            status_rows += f"<tr><td>{escape_html(entry.label)}</td><td>{count}</td></tr>"
 
     # Finding cards
     finding_cards = ""
     for i, f in enumerate(findings, 1):
-        color = taxonomy.color("risk_level", f.risk_level, "#6b7280")
-        risk_label = taxonomy.label("risk_level", f.risk_level)
-        status_label = taxonomy.label("remediation_status", f.remediation_status)
+        color = sanitize_hex_color(taxonomy.color("risk_level", f.risk_level, "#6b7280"))
+        risk_label = escape_html(taxonomy.label("risk_level", f.risk_level))
+        status_label = escape_html(taxonomy.label("remediation_status", f.remediation_status))
 
         desc_html = _render_md(f.description)
         impact_html = _render_md(f.impact)
@@ -237,7 +236,7 @@ def generate_pdf(
         refs_html = ""
         if f.references:
             refs_items = "".join(
-                f"<li>{r}</li>" for r in f.references
+                f"<li>{escape_html(r)}</li>" for r in f.references
             )
             refs_html = f'<div class="section-label">References</div><ul class="ref-list">{refs_items}</ul>'
 
@@ -247,7 +246,7 @@ def generate_pdf(
         finding_cards += f"""
         <div class="finding">
             <div class="finding-header">
-                <p class="finding-title">{i}. {f.title}</p>
+                <p class="finding-title">{i}. {escape_html(f.title)}</p>
                 <span class="badge" style="background:{color};">{risk_label}</span>
             </div>
             <div style="font-size:10px;color:#6b7280;margin-bottom:8px;">
@@ -266,6 +265,13 @@ def generate_pdf(
         notes_html = _render_md(session.notes)
         notes_section = f'<h2>Session Notes</h2><div class="content">{notes_html}</div>'
 
+    safe_review_name = escape_html(session.review_name)
+    safe_review_date = escape_html(session.review_date)
+    safe_reviewer_name = escape_html(reviewer_name)
+    safe_asset_name = escape_html(asset_name)
+    safe_session_status = escape_html(taxonomy.label("session_status", session.status))
+    safe_taxonomy_version = escape_html(taxonomy.version.version_number)
+
     html_content = f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><style>{_PDF_CSS}</style></head>
@@ -274,12 +280,12 @@ def generate_pdf(
     <p class="meta">Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</p>
 
     <dl class="cover-info">
-        <dt>Review Name</dt><dd>{session.review_name}</dd>
-        <dt>Review Date</dt><dd>{session.review_date}</dd>
-        <dt>Reviewer</dt><dd>{reviewer_name}</dd>
-        <dt>Asset</dt><dd>{asset_name}</dd>
-        <dt>Status</dt><dd>{taxonomy.label("session_status", session.status)}</dd>
-        <dt>Taxonomy Version</dt><dd>v{taxonomy.version.version_number}</dd>
+        <dt>Review Name</dt><dd>{safe_review_name}</dd>
+        <dt>Review Date</dt><dd>{safe_review_date}</dd>
+        <dt>Reviewer</dt><dd>{safe_reviewer_name}</dd>
+        <dt>Asset</dt><dd>{safe_asset_name}</dd>
+        <dt>Status</dt><dd>{safe_session_status}</dd>
+        <dt>Taxonomy Version</dt><dd>v{safe_taxonomy_version}</dd>
     </dl>
 
     <h2>Executive Summary</h2>

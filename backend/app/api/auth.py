@@ -1,22 +1,40 @@
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
+from uuid import UUID
+
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.deps import get_current_user
 from app.config import settings
 from app.database import get_db
 from app.models.user import User
-from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.auth import (
+    LoginRequest,
+    SecurityEventInfo,
+    SecurityEventListResponse,
+    SessionInfo,
+    SessionListResponse,
+    SessionRevokeAllResponse,
+    SessionRevokeResponse,
+    TokenResponse,
+)
 from app.services.auth import (
     create_access_token,
     verify_password,
 )
 from app.services.refresh_sessions import (
+    describe_refresh_session,
     exchange_refresh_token,
     issue_refresh_session,
+    list_active_refresh_sessions_for_user,
+    list_security_events_for_user,
     refresh_cookie_max_age_seconds,
+    resolve_refresh_session,
+    revoke_all_refresh_sessions_for_user,
+    revoke_refresh_session_by_id,
     revoke_refresh_session_family,
 )
 
@@ -66,9 +84,26 @@ def _refresh_failure_response(detail: str) -> JSONResponse:
     return response
 
 
+async def _current_refresh_identity(
+    db: AsyncSession,
+    raw_token: str | None,
+) -> tuple[UUID | None, UUID | None]:
+    if not raw_token:
+        return None, None
+    session = await resolve_refresh_session(db, raw_token=raw_token)
+    if not session:
+        return None, None
+    return session.refresh_session_id, session.family_id
+
+
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(settings.rate_limit_login)
-async def login(request: Request, body: LoginRequest, response: Response, db: AsyncSession = Depends(get_db)):
+async def login(
+    request: Request,
+    body: LoginRequest,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):
@@ -140,3 +175,89 @@ async def logout(
         )
     _clear_refresh_cookie(response)
     return {"detail": "Logged out"}
+
+
+@router.get("/sessions", response_model=SessionListResponse)
+async def list_sessions(
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+    refresh_token: str | None = Cookie(None),
+):
+    sessions = await list_active_refresh_sessions_for_user(
+        db,
+        user_id=user.user_id,
+    )
+    current_session_id, current_family_id = await _current_refresh_identity(db, refresh_token)
+
+    items: list[SessionInfo] = []
+    for session in sessions:
+        payload = describe_refresh_session(session)
+        payload["is_current"] = (
+            current_session_id == session.refresh_session_id
+            or (current_family_id is not None and current_family_id == session.family_id)
+        )
+        items.append(SessionInfo(**payload))
+
+    return SessionListResponse(items=items)
+
+
+@router.post("/sessions/revoke-all", response_model=SessionRevokeAllResponse)
+async def revoke_all_sessions(
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    revoked_count = await revoke_all_refresh_sessions_for_user(
+        db,
+        user_id=user.user_id,
+        reason="logout_all_sessions",
+    )
+    _clear_refresh_cookie(response)
+    return SessionRevokeAllResponse(revoked_count=revoked_count)
+
+
+@router.post("/sessions/{refresh_session_id}/revoke", response_model=SessionRevokeResponse)
+async def revoke_session(
+    refresh_session_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    revoked = await revoke_refresh_session_by_id(
+        db,
+        user_id=user.user_id,
+        refresh_session_id=refresh_session_id,
+        reason="user_revoked_session",
+    )
+    if not revoked:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return SessionRevokeResponse(
+        revoked=True,
+        refresh_session_id=refresh_session_id,
+    )
+
+
+@router.get("/security-events", response_model=SecurityEventListResponse)
+async def list_security_events(
+    limit: int = Query(default=50, ge=1, le=200),
+    db: AsyncSession = Depends(get_db),
+    user: User = Depends(get_current_user),
+):
+    events = await list_security_events_for_user(
+        db,
+        user_id=user.user_id,
+        limit=limit,
+    )
+    items = [
+        SecurityEventInfo(
+            security_event_id=event.security_event_id,
+            event_type=event.event_type,
+            occurred_at=event.occurred_at,
+            family_id=event.family_id,
+            refresh_session_id=event.refresh_session_id,
+            ip_address=event.ip_address,
+            user_agent=event.user_agent,
+            details=event.details,
+        )
+        for event in events
+    ]
+    return SecurityEventListResponse(items=items, limit=limit)

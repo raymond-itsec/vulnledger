@@ -42,3 +42,4 @@ class User(Base, TimestampMixin):
 
     client = relationship("Client", back_populates="users")
     refresh_sessions = relationship("RefreshSession", back_populates="user")
+    security_events = relationship("AuthSecurityEvent", back_populates="user")

@@ -8,6 +8,7 @@ from app.models.finding_history import FindingHistory
 from app.models.finding_attachment import FindingAttachment
 from app.models.finding_template import FindingTemplate
 from app.models.refresh_session import RefreshSession
+from app.models.auth_security_event import AuthSecurityEvent
 from app.models.report_export import ReportExport
 from app.models.taxonomy import TaxonomyEntry, TaxonomyVersion
 
@@ -22,6 +23,7 @@ __all__ = [
     "FindingAttachment",
     "FindingTemplate",
     "RefreshSession",
+    "AuthSecurityEvent",
     "ReportExport",
     "TaxonomyVersion",
     "TaxonomyEntry",

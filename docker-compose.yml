@@ -29,8 +29,10 @@ services:
       context: ./backend
     restart: unless-stopped
     depends_on:
-      - db
-      - minio
+      db:
+        condition: service_started
+      minio:
+        condition: service_started
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
@@ -54,14 +56,30 @@ services:
       FINDINGS_INITIAL_ADMIN_PASSWORD: ${FINDINGS_INITIAL_ADMIN_PASSWORD:?Set FINDINGS_INITIAL_ADMIN_PASSWORD in .env}
       FINDINGS_INITIAL_ADMIN_EMAIL: ${FINDINGS_INITIAL_ADMIN_EMAIL:?Set FINDINGS_INITIAL_ADMIN_EMAIL in .env}
       FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:-Administrator}
+      FINDINGS_APP_VERSION: ${APP_VERSION:-0.1.0}
       FINDINGS_CLAMAV_HOST: clamav
       FINDINGS_CLAMAV_PORT: "3310"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
   frontend:
     build:
       context: ./frontend
+      args:
+        APP_VERSION: ${APP_VERSION:-0.1.0}
     restart: unless-stopped
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     environment:
       VITE_API_PROXY_TARGET: http://backend:8000
     ports:
@@ -71,8 +89,10 @@ services:
     image: caddy:2.11.2-alpine
     restart: unless-stopped
     depends_on:
-      - frontend
-      - backend
+      frontend:
+        condition: service_started
+      backend:
+        condition: service_healthy
     environment:
       CADDY_HOST: ${CADDY_HOST:-http://localhost}
       CADDY_ATTACHMENT_MAX_SIZE: ${CADDY_ATTACHMENT_MAX_SIZE:-30MB}

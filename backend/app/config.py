@@ -2,6 +2,7 @@ from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    app_version: str = "0.1.0"
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
     secret_key: str = ""
     access_token_expire_minutes: int = 5
