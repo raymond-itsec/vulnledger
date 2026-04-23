@@ -1,10 +1,10 @@
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
-	@spoofed_xff header X-Forwarded-For *
+	@spoofed_xff header X-Forwarded-For
 	respond @spoofed_xff "Forbidden" 403
 
-	@spoofed_forwarded header Forwarded *
+	@spoofed_forwarded header Forwarded
 	respond @spoofed_forwarded "Forbidden" 403
 
 	request_body /api/findings/*/attachments {
