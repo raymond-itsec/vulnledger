@@ -31,16 +31,10 @@ MIN_SECRET_KEY_BYTES = 32
 _secret_key_bytes = len(settings.secret_key.encode("utf-8"))
 if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
     if _secret_key_bytes == 0:
-        logger.critical(
-            "Refusing to start: signing configuration is missing."
-        )
+        reason = "missing"
     else:
-        logger.critical(
-            "Refusing to start: signing configuration does not meet minimum length "
-            "requirements (at least %d bytes).",
-            MIN_SECRET_KEY_BYTES,
-        )
-    raise RuntimeError("Invalid signing configuration.")
+        reason = f"too short; must be at least {MIN_SECRET_KEY_BYTES} bytes"
+    raise RuntimeError(f"Refusing to start: invalid signing configuration ({reason}).")
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_api])
