@@ -31,6 +31,29 @@ def _get_scanner() -> clamd.ClamdNetworkSocket | None:
         return None
 
 
+def probe_scanner() -> tuple[str, str]:
+    """Return scanner health state for diagnostics without raising exceptions.
+
+    States:
+        - "disabled": scanner is not configured
+        - "ok": scanner reachable and responding
+        - "down": scanner configured but unreachable
+    """
+    if not settings.clamav_host:
+        return "disabled", "not configured"
+
+    try:
+        scanner = clamd.ClamdNetworkSocket(
+            host=settings.clamav_host,
+            port=settings.clamav_port,
+            timeout=30,
+        )
+        scanner.ping()
+        return "ok", "reachable"
+    except Exception:
+        return "down", "unreachable"
+
+
 def scan_file(data: bytes, filename: str) -> tuple[bool, str]:
     return scan_file_stream(io.BytesIO(data), filename)
 

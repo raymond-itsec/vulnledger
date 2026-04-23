@@ -1,5 +1,9 @@
 import logging
+import os
+import time
+import asyncio
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 import ipaddress
 
 from fastapi import Depends, FastAPI, HTTPException, Request, status
@@ -9,6 +13,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
@@ -18,8 +23,14 @@ from app.database import engine
 from app.logging_config import configure_logging
 from app.models.user import User
 from app.schemas.error import make_error_payload
+from app.services.antivirus import probe_scanner
 from app.services.seed import seed_admin_user, sync_builtin_templates
-from app.services.storage import ensure_buckets
+from app.services.storage import (
+    EVIDENCE_BUCKET_NAME,
+    REPORTS_BUCKET_NAME,
+    ensure_buckets,
+    get_minio_client,
+)
 from app.services.taxonomy import ensure_default_taxonomy_version
 
 configure_logging()
@@ -27,6 +38,7 @@ configure_logging()
 logger = logging.getLogger(__name__)
 
 MIN_SECRET_KEY_BYTES = 32
+APP_START_MONOTONIC = time.monotonic()
 
 _secret_key_bytes = len(settings.secret_key.encode("utf-8"))
 if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
@@ -212,6 +224,69 @@ def _is_rfc1918_or_loopback(value: str | None) -> bool:
     return ip.is_loopback
 
 
+async def _check_database_health() -> dict[str, object]:
+    started = time.perf_counter()
+    try:
+        async with engine.connect() as connection:
+            await connection.execute(text("SELECT 1"))
+        return {
+            "status": "ok",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+    except Exception as exc:
+        logger.warning("Health debug database check failed (%s)", exc.__class__.__name__)
+        return {
+            "status": "down",
+            "reason": "unreachable",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
+
+def _check_minio_health_sync() -> dict[str, object]:
+    client = get_minio_client()
+    evidence_exists = client.bucket_exists(EVIDENCE_BUCKET_NAME)
+    reports_exists = client.bucket_exists(REPORTS_BUCKET_NAME)
+    return {
+        "evidence_bucket_exists": evidence_exists,
+        "reports_bucket_exists": reports_exists,
+    }
+
+
+async def _check_minio_health() -> dict[str, object]:
+    started = time.perf_counter()
+    try:
+        details = await asyncio.to_thread(_check_minio_health_sync)
+        status_value = (
+            "ok"
+            if details["evidence_bucket_exists"] and details["reports_bucket_exists"]
+            else "degraded"
+        )
+        return {
+            "status": status_value,
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+            **details,
+        }
+    except Exception as exc:
+        logger.warning("Health debug MinIO check failed (%s)", exc.__class__.__name__)
+        return {
+            "status": "down",
+            "reason": "unreachable",
+            "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+        }
+
+
+async def _check_clamav_health() -> dict[str, object]:
+    started = time.perf_counter()
+    status_value, reason = await asyncio.to_thread(probe_scanner)
+    payload: dict[str, object] = {
+        "status": status_value,
+        "reason": reason,
+        "latency_ms": round((time.perf_counter() - started) * 1000, 1),
+    }
+    payload["configured"] = settings.clamav_host.strip() != ""
+    return payload
+
+
 @app.get("/api/health")
 async def health(_: User = Depends(get_current_user)):
     return {"status": "ok", "version": settings.app_version}
@@ -226,3 +301,43 @@ async def health_live(request: Request):
             detail="Probe endpoint is restricted to internal networks.",
         )
     return {"status": "ok"}
+
+
+@app.get("/api/health/debug")
+async def health_debug(request: Request):
+    source_ip = _effective_probe_ip(request)
+    if not _is_rfc1918_or_loopback(source_ip):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Probe endpoint is restricted to internal networks.",
+        )
+
+    database_check, minio_check, clamav_check = await asyncio.gather(
+        _check_database_health(),
+        _check_minio_health(),
+        _check_clamav_health(),
+    )
+
+    critical_checks = (database_check, minio_check)
+    critical_down = any(check.get("status") == "down" for check in critical_checks)
+    degraded = any(check.get("status") in {"down", "degraded"} for check in (minio_check, clamav_check))
+
+    overall_status = "down" if critical_down else ("degraded" if degraded else "ok")
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE if critical_down else status.HTTP_200_OK
+
+    payload = {
+        "status": overall_status,
+        "service": "backend",
+        "version": settings.app_version,
+        "commit": os.getenv("APP_GIT_SHA", "unknown"),
+        "runtime_mode": settings.runtime_mode,
+        "time_utc": datetime.now(timezone.utc).isoformat(),
+        "uptime_seconds": int(time.monotonic() - APP_START_MONOTONIC),
+        "source_ip": source_ip or "unknown",
+        "checks": {
+            "database": database_check,
+            "minio": minio_check,
+            "clamav": clamav_check,
+        },
+    }
+    return JSONResponse(status_code=http_status, content=payload)
