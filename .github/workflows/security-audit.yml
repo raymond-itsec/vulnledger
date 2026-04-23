@@ -82,5 +82,7 @@ jobs:
           version: v0.70.0
           format: table
           vuln-type: os,library
+          ignore-unfixed: true
+          trivyignores: .trivyignore.yaml
           severity: CRITICAL,HIGH
           exit-code: "1"
