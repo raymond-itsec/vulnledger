@@ -6,8 +6,8 @@
     "dev": "vite dev",
     "build": "vite build",
     "preview": "vite preview",
-    "generate:types": "npx openapi-typescript ../backend/openapi.generated.json -o src/lib/api/generated.ts",
-    "generate:types:live": "npx openapi-typescript http://127.0.0.1:8000/openapi.json -o src/lib/api/generated.ts"
+    "generate:types": "npx --yes openapi-typescript@7.13.0 ../backend/openapi.generated.json -o src/lib/api/generated.ts",
+    "generate:types:live": "npx --yes openapi-typescript@7.13.0 http://127.0.0.1:8000/openapi.json -o src/lib/api/generated.ts"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
