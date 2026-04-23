@@ -217,10 +217,10 @@ async def oidc_callback(
 
     try:
         token = await oauth.oidc.authorize_access_token(request)
-    except Exception as exc:
+    except Exception:
         # Do not log raw exception text from token flows; some providers may include
         # sensitive auth details in error payloads.
-        logger.warning("OIDC token exchange failed (%s)", exc.__class__.__name__)
+        logger.warning("OIDC authentication exchange failed")
         raise HTTPException(status_code=401, detail="OIDC authentication failed")
 
     userinfo = token.get("userinfo")
