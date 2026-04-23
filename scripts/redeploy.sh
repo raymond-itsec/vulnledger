@@ -45,6 +45,26 @@ have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+require_clean_git_tree() {
+  if ! command -v git >/dev/null 2>&1; then
+    die "git is required for redeploy"
+  fi
+
+  if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    die "Redeploy must run inside a git work tree"
+  fi
+
+  if ! git diff --quiet --ignore-submodules -- || ! git diff --cached --quiet --ignore-submodules --; then
+    die "Tracked git changes detected. Commit/stash/restore first, then rerun redeploy."
+  fi
+}
+
+sync_repo() {
+  require_clean_git_tree
+  info "Pulling latest changes (fast-forward only)"
+  git pull --ff-only
+}
+
 require_min_length() {
   var_name=$1
   value=$2
@@ -91,6 +111,7 @@ wait_for_backend() {
   die "Backend failed readiness check. See logs above."
 }
 
+sync_repo
 load_env
 require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
 

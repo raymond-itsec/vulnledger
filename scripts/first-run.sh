@@ -169,7 +169,6 @@ Commands:
   init    Create .env from .env.example if it does not exist
   doctor  Validate common first-run prerequisites
   redeploy  Run ordered rollout: migrate DB, deploy backend, then deploy frontend
-  retest  Clean cache artifacts and fast-forward pull latest code
   verify-backend  Install backend dependencies in a temporary Python 3.12+ virtualenv and run smoke checks
   up      Ordered rollout (same as redeploy)
   down    Stop the stack
@@ -189,9 +188,6 @@ case "$command_name" in
     ;;
   redeploy)
     exec ./scripts/redeploy.sh
-    ;;
-  retest)
-    ./scripts/retest-sync.sh
     ;;
   verify-backend)
     exec ./scripts/verify-backend.sh

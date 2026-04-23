@@ -237,9 +237,8 @@ The VulnLedger repository includes a helper script for smoother installs:
 ```bash
 ./scripts/first-run.sh init    # create .env from .env.example
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
-./scripts/first-run.sh redeploy  # ordered rollout: migrate DB, backend, frontend
+./scripts/first-run.sh redeploy  # ff-only pull + ordered rollout: migrate DB, backend, frontend
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
-./scripts/first-run.sh retest  # clean caches and pull latest code
 ./scripts/first-run.sh up      # ordered rollout (same as redeploy)
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down    # stop the stack
@@ -252,9 +251,7 @@ The VulnLedger repository includes a helper script for smoother installs:
 
 `scripts/first-run.sh` always uses production containers from `docker-compose.yml`. The backend image build context is `./backend`.
 
-`retest` removes frontend build caches and backend Python cache artifacts, then runs `git pull --ff-only`. It does not delete source files. It exits if tracked git changes are present.
-
-`redeploy` enforces rollout order. It runs DB migrations first. It deploys backend second. It waits for backend readiness. It deploys frontend and Caddy last.
+`redeploy` now starts with `git pull --ff-only` (and exits if tracked git changes are present), then enforces rollout order. It runs DB migrations first. It deploys backend second. It waits for backend readiness. It deploys frontend and Caddy last.
 
 `reset` is the safest retry path after a failed first install if you changed `POSTGRES_PASSWORD`, because PostgreSQL only applies that password when initializing a fresh data directory.
 
