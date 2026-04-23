@@ -63,6 +63,21 @@ require_non_placeholder() {
   esac
 }
 
+require_min_length() {
+  var_name=$1
+  value=$2
+  min_len=$3
+
+  if [ -z "$value" ]; then
+    die "$var_name is empty in .env"
+  fi
+
+  value_len=$(printf '%s' "$value" | wc -c | tr -d '[:space:]')
+  if [ "$value_len" -lt "$min_len" ]; then
+    die "$var_name must be at least ${min_len} characters (got ${value_len}). Example: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+  fi
+}
+
 port_is_busy() {
   port=$1
 
@@ -127,6 +142,7 @@ doctor() {
 
   require_non_placeholder "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-}"
   require_non_placeholder "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}"
+  require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
   require_non_placeholder "MINIO_ROOT_PASSWORD" "${MINIO_ROOT_PASSWORD:-}"
   require_non_placeholder "FINDINGS_INITIAL_ADMIN_PASSWORD" "${FINDINGS_INITIAL_ADMIN_PASSWORD:-}"
   require_non_placeholder "FINDINGS_INITIAL_ADMIN_EMAIL" "${FINDINGS_INITIAL_ADMIN_EMAIL:-}"

@@ -45,6 +45,21 @@ have_cmd() {
   command -v "$1" >/dev/null 2>&1
 }
 
+require_min_length() {
+  var_name=$1
+  value=$2
+  min_len=$3
+
+  if [ -z "$value" ]; then
+    die "$var_name is empty in .env"
+  fi
+
+  value_len=$(printf '%s' "$value" | wc -c | tr -d '[:space:]')
+  if [ "$value_len" -lt "$min_len" ]; then
+    die "$var_name must be at least ${min_len} characters (got ${value_len}). Example: python -c 'import secrets; print(secrets.token_urlsafe(32))'"
+  fi
+}
+
 wait_for_backend() {
   host_port=${BACKEND_PORT:-8000}
   backend_url="http://127.0.0.1:${host_port}/openapi.json"
@@ -71,10 +86,13 @@ wait_for_backend() {
     attempt=$((attempt + 1))
   done
 
-  die "Backend did not become ready within timeout. Check: ./scripts/first-run.sh logs"
+  info "Backend did not become ready within timeout. Recent backend logs:"
+  compose logs --tail 120 backend || true
+  die "Backend failed readiness check. See logs above."
 }
 
 load_env
+require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
 
 info "Building backend image (fresh build)"
 compose build --pull --no-cache backend
