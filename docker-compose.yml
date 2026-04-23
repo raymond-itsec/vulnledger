@@ -138,7 +138,6 @@ services:
     restart: unless-stopped
     logging: *default-logging
     cap_drop: ["ALL"]
-    security_opt: ["no-new-privileges:true"]
     read_only: true
     tmpfs:
       - /tmp
