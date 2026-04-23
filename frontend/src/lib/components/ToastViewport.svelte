@@ -4,7 +4,7 @@
 
 <div class="toast-viewport" aria-live="polite" aria-atomic="true">
   {#each toast.items as item (item.id)}
-    <div class="toast" class:error={item.variant === 'error'}>
+    <div class="toast" class:error={item.variant === 'error'} class:success={item.variant === 'success'}>
       <span>{item.message}</span>
       <button type="button" class="toast-close" aria-label="Dismiss notification" onclick={() => toast.dismiss(item.id)}>
         &times;
@@ -39,6 +39,9 @@
   }
   .toast.error {
     background: rgba(153, 27, 27, 0.96);
+  }
+  .toast.success {
+    background: rgba(22, 101, 52, 0.96);
   }
   .toast span {
     flex: 1;

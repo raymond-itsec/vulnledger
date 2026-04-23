@@ -1,4 +1,4 @@
-type ToastVariant = 'error' | 'info';
+type ToastVariant = 'error' | 'info' | 'success';
 
 interface ToastItem {
   id: number;
@@ -30,6 +30,9 @@ function push(message: string, variant: ToastVariant, duration = 3200) {
 export const toast = {
   get items() {
     return items;
+  },
+  success(message: string, duration?: number) {
+    return push(message, 'success', duration);
   },
   error(message: string, duration?: number) {
     return push(message, 'error', duration);
