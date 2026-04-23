@@ -201,6 +201,8 @@ services:
     tmpfs:
       - /tmp
       - /run/clamav
+      - /var/lock
+      - /var/log/clamav
     ports:
       - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
