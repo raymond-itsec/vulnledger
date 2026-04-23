@@ -1,11 +1,12 @@
+{
+	debug
+}
+
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
-	@spoofed_xff header_regexp X-Forwarded-For .+
-	respond @spoofed_xff "Forbidden" 403
-
-	@spoofed_forwarded header_regexp Forwarded .+
-	respond @spoofed_forwarded "Forbidden" 403
+	@spoofed_forwarding expression `{header.X-Forwarded-For} != "" || {header.Forwarded} != ""`
+	respond @spoofed_forwarding "Forbidden" 403
 
 	request_body /api/findings/*/attachments {
 		max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
