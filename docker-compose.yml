@@ -109,6 +109,7 @@ services:
   backup:
     build: ./backup
     restart: unless-stopped
+    user: "postgres"
     depends_on:
       - db
     environment:

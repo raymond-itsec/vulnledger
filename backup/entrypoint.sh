@@ -4,7 +4,8 @@ set -e
 BACKUP_DIR="/backups"
 INITIAL_BACKUP_MAX_AGE_SECONDS=86400
 DEFAULT_BACKUP_CRON="0 2 * * *"
-CRON_FILE="/var/spool/cron/crontabs/postgres"
+CRON_DIR="/tmp/backup-cron"
+CRON_FILE="$CRON_DIR/postgres"
 
 latest_backup_age_seconds() {
   latest_file=$(ls -1t "$BACKUP_DIR"/findings_*.sql.gz 2>/dev/null | head -n 1 || true)
@@ -35,7 +36,8 @@ is_valid_backup_cron() {
 
   # Allow only standard cron field characters to prevent command injection
   # through shell metacharacters/newlines.
-  if ! printf '%s' "$expr" | grep -Eq '^[0-9*/,\-[:space:]]+$'; then
+  invalid_chars=$(printf '%s' "$expr" | tr -d '0123456789*/, -')
+  if [ -n "$invalid_chars" ]; then
     return 1
   fi
 
@@ -53,6 +55,8 @@ if ! is_valid_backup_cron "${BACKUP_CRON:-}"; then
 fi
 
 # Set up cron schedule for the current (non-root) postgres user.
+mkdir -p "$CRON_DIR"
+chmod 700 "$CRON_DIR"
 printf '%s %s\n' \
   "$BACKUP_CRON" \
   "/usr/local/bin/backup.sh >> /var/log/backup.log 2>&1" \
@@ -69,4 +73,4 @@ else
 fi
 
 # Start cron in foreground
-exec crond -f -l 2 -c /var/spool/cron/crontabs
+exec crond -f -l 2 -c "$CRON_DIR"

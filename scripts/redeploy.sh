@@ -93,6 +93,9 @@ wait_for_backend
 info "Building frontend image (fresh build)"
 compose build --pull --no-cache frontend
 
+info "Building backup image (fresh build)"
+compose build --pull --no-cache backup
+
 info "Deploying frontend and edge services"
 compose up -d --force-recreate frontend caddy backup
 
