@@ -195,7 +195,7 @@ services:
     restart: unless-stopped
     logging: *default-logging
     cap_drop: ["ALL"]
-    cap_add: ["CHOWN"]
+    cap_add: ["CHOWN", "SETGID", "SETUID"]
     security_opt: ["no-new-privileges:true"]
     read_only: true
     tmpfs:
