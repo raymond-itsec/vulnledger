@@ -5,4 +5,10 @@ RUN xcaddy build v2.11.2 \
 
 FROM caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
 
+USER root
+RUN apk add --no-cache libcap
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
+RUN chmod 0755 /usr/bin/caddy \
+  && setcap -r /usr/bin/caddy || true \
+  && apk del libcap
+USER caddy
