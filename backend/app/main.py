@@ -30,20 +30,20 @@ MIN_SECRET_KEY_BYTES = 32
 
 _secret_key_bytes = len(settings.secret_key.encode("utf-8"))
 if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
-    reason = (
-        "FINDINGS_SECRET_KEY is not set"
-        if _secret_key_bytes == 0
-        else (
-            f"FINDINGS_SECRET_KEY is too short: got {_secret_key_bytes} bytes, "
-            f"require at least {MIN_SECRET_KEY_BYTES}"
+    if _secret_key_bytes == 0:
+        logger.critical(
+            "Refusing to start: FINDINGS_SECRET_KEY is missing. "
+            "Generate a strong value, e.g. "
+            "`python -c 'import secrets; print(secrets.token_urlsafe(32))'`."
         )
-    )
-    logger.critical(
-        "Refusing to start: %s. Generate a strong value, e.g. "
-        "`python -c 'import secrets; print(secrets.token_urlsafe(32))'`.",
-        reason,
-    )
-    raise RuntimeError(reason)
+    else:
+        logger.critical(
+            "Refusing to start: FINDINGS_SECRET_KEY does not meet minimum length "
+            "requirements (at least %d bytes). Generate a strong value, e.g. "
+            "`python -c 'import secrets; print(secrets.token_urlsafe(32))'`.",
+            MIN_SECRET_KEY_BYTES,
+        )
+    raise RuntimeError("Invalid FINDINGS_SECRET_KEY configuration.")
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_api])
