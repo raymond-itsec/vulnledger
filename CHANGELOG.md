@@ -13,6 +13,23 @@ Reason: settings are still imported directly in many modules, which limits test 
 - Implement protected-route server-load enforcement (`+page.server.ts`) where applicable, instead of relying on client-only auth guards.
 Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
 
+## [v0.1.17] - 2026-04-23
+
+### Changed
+- Updated frontend toolchain dependencies and lockfile: TypeScript `6.0.3` and Vite `8.0.10`.
+- Updated backend Python dependency pins: Uvicorn `0.46.0`, Pydantic `2.13.3`, Pydantic Settings `2.14.0`, bcrypt `5.0.0`, Authlib `1.7.0`, and python-json-logger `4.1.0`.
+- Updated GitHub Actions versions in security workflows:
+  - `actions/checkout` -> `v6`
+  - `actions/setup-node` -> `v6`
+  - `actions/setup-python` -> `v6`
+  - `aquasecurity/trivy-action` -> `v0.36.0`
+  - `github/codeql-action/upload-sarif` -> `v4`
+- Updated Semgrep workflow action pin to the current `v1` target commit (`713efdd345f3035192eaa63f56867b88e63e4e5d`).
+- Updated backup scheduler toolchain to Supercronic `0.2.45` with refreshed SHA1 verification values for `amd64` and `arm64`.
+- Updated pinned container images in Compose for:
+  - ClamAV `1.5.2` (immutable digest pin)
+  - Gatus `v5.35.0` (immutable digest pin)
+
 ## [v0.1.16] - 2026-04-23
 
 ### Added

@@ -190,7 +190,7 @@ services:
       - ./secrets:/run/secrets:ro
 
   clamav:
-    image: clamav/clamav:1.4.3@sha256:75fb5fd95fcbe1d7e6d240c369c1572b686ee2c95949d1042b5148de8eddebb4
+    image: clamav/clamav:1.5.2@sha256:c592fa56f9c538837a9c76faf17337e9b7d5e099332dd33be65c6cc80d179d0b
     restart: unless-stopped
     logging: *default-logging
     cap_drop: ["ALL"]
@@ -211,7 +211,7 @@ services:
       start_period: 180s
 
   gatus:
-    image: twinproduction/gatus:v5.20.0@sha256:e655d13d0cb89c64a2e53a853bbca9556a7238e788bc4a08c19aa5fb7938d0da
+    image: twinproduction/gatus:v5.35.0@sha256:21609f31be8c4e680ce3004b24276305666239c99aff58391503f3fb6142f39d
     profiles: ["monitoring"]
     restart: unless-stopped
     logging: *default-logging

@@ -12,8 +12,8 @@ jobs:
   backend-pip-audit:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Install pip-audit
@@ -27,8 +27,8 @@ jobs:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -41,7 +41,7 @@ jobs:
   frontend-openapi-types:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build backend image for OpenAPI export
         run: docker build -t vulnledger-backend-openapi ./backend
       - name: Export backend OpenAPI schema
@@ -53,7 +53,7 @@ jobs:
             -w /workspace \
             vulnledger-backend-openapi \
             python backend/scripts/export_openapi.py backend/openapi.generated.json
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: "22"
           cache: "npm"
@@ -68,13 +68,14 @@ jobs:
   image-trivy:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build backend image
         run: docker build -t vulnledger-backend-ci ./backend
       - name: Trivy scan backend image
-        uses: aquasecurity/trivy-action@0.24.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: vulnledger-backend-ci
+          version: v0.70.0
           format: table
           vuln-type: os,library
           severity: CRITICAL,HIGH
