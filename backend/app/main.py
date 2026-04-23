@@ -12,15 +12,34 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
 from app.api.deps import get_current_user
 from app.config import settings
+from app.logging_config import configure_logging
 from app.models.user import User
 from app.services.seed import seed_admin_user, sync_builtin_templates
 from app.services.storage import ensure_buckets
 from app.services.taxonomy import ensure_default_taxonomy_version
 
+configure_logging()
+
 logger = logging.getLogger(__name__)
 
-if not settings.secret_key:
-    raise RuntimeError("FINDINGS_SECRET_KEY must be set before starting the backend")
+MIN_SECRET_KEY_BYTES = 32
+
+_secret_key_bytes = len(settings.secret_key.encode("utf-8"))
+if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
+    reason = (
+        "FINDINGS_SECRET_KEY is not set"
+        if _secret_key_bytes == 0
+        else (
+            f"FINDINGS_SECRET_KEY is too short: got {_secret_key_bytes} bytes, "
+            f"require at least {MIN_SECRET_KEY_BYTES}"
+        )
+    )
+    logger.critical(
+        "Refusing to start: %s. Generate a strong value, e.g. "
+        "`python -c 'import secrets; print(secrets.token_urlsafe(32))'`.",
+        reason,
+    )
+    raise RuntimeError(reason)
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_api])

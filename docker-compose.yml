@@ -1,7 +1,14 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
 services:
   db:
     image: postgres:16.13-alpine3.23
     restart: unless-stopped
+    logging: *default-logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-findings}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
@@ -10,10 +17,17 @@ services:
       - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-findings} -d ${POSTGRES_DB:-findings}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
 
   minio:
     image: minio/minio:RELEASE.2025-09-07T16-13-09Z
     restart: unless-stopped
+    logging: *default-logging
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
@@ -23,19 +37,27 @@ services:
       - "127.0.0.1:${MINIO_CONSOLE_PORT:-9001}:9001"
     volumes:
       - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:9000/minio/health/live"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+      start_period: 15s
 
   backend:
     build:
       context: ./backend
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       db:
-        condition: service_started
+        condition: service_healthy
       minio:
-        condition: service_started
+        condition: service_healthy
     ports:
       - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
     environment:
+      FINDINGS_LOG_LEVEL: ${FINDINGS_LOG_LEVEL:-INFO}
       FINDINGS_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-findings}:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/${POSTGRES_DB:-findings}
       FINDINGS_SECRET_KEY: ${FINDINGS_SECRET_KEY:?Set FINDINGS_SECRET_KEY in .env}
       FINDINGS_TRUST_PROXY_HEADERS: ${FINDINGS_TRUST_PROXY_HEADERS:-true}
@@ -78,6 +100,7 @@ services:
       args:
         APP_VERSION: ${APP_VERSION:-0.1.15}
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       backend:
         condition: service_healthy
@@ -89,6 +112,7 @@ services:
   caddy:
     image: caddy:2.11.2-alpine
     restart: unless-stopped
+    logging: *default-logging
     depends_on:
       frontend:
         condition: service_started
@@ -105,13 +129,21 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile
       - caddy_data:/data
       - caddy_config:/config
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "--spider", "http://localhost:2019/config/"]
+      interval: 15s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
 
   backup:
     build: ./backup
     restart: unless-stopped
+    logging: *default-logging
     user: "postgres"
     depends_on:
-      - db
+      db:
+        condition: service_healthy
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"
@@ -126,10 +158,34 @@ services:
   clamav:
     image: clamav/clamav:stable
     restart: unless-stopped
+    logging: *default-logging
     ports:
       - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
       - clamav_data:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+  gatus:
+    image: twinproduction/gatus:v5.20.0
+    profiles: ["monitoring"]
+    restart: unless-stopped
+    logging: *default-logging
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-findings}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-findings}
+    volumes:
+      - ./monitoring/gatus.yaml:/config/config.yaml:ro
+    ports:
+      - "127.0.0.1:${GATUS_PORT:-8080}:8080"
+    depends_on:
+      backend:
+        condition: service_healthy
 
 volumes:
   pgdata:

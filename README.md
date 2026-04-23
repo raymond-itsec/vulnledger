@@ -562,10 +562,12 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `FINDINGS_DATABASE_URL` | `postgresql+asyncpg://findings:findings@db:5432/findings` | PostgreSQL connection string |
-| `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required) |
+| `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required). Must be at least 32 bytes; the backend logs a CRITICAL message and refuses to start otherwise. |
+| `FINDINGS_LOG_LEVEL` | `INFO` | Backend log verbosity (`DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL`, case-insensitive). Invalid values refuse startup. |
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |
-| `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Refresh token lifetime |
-| `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | `30` | Retention window for expired/revoked refresh-session rows before cleanup |
+| `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Per-token refresh lifetime; each rotation issues a new token with this expiry (bounded by the family cap below) |
+| `FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS` | `30` | **Security policy.** Absolute ceiling on a single login — no amount of rotation extends a refresh-token family past this. When crossed, the family is revoked and the user must log in again. Must be between `7` and `30` inclusive. |
+| `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | _auto_ (`2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`) | **DB housekeeping.** How long already-dead refresh-session rows (expired or revoked) are kept in `auth_refresh_sessions` before the pruner deletes them. Must be `>= 2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`. Affects forensic/audit window only; has no effect on auth behavior. |
 | `FINDINGS_TRUST_PROXY_HEADERS` | `true` | Trust proxy headers (for example from Caddy) to extract real client IPs |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
@@ -607,6 +609,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `CADDY_HTTP_PORT` | `80` | Host port published for Caddy HTTP |
 | `CADDY_HTTPS_PORT` | `443` | Host port published for Caddy HTTPS and HTTP/3 |
 | `CADDY_ATTACHMENT_MAX_SIZE` | `30MB` | Reverse-proxy upload body limit; keep this at or slightly above `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` |
+| `GATUS_PORT` | `8080` | Host port published for the optional Gatus monitoring dashboard (only when started with `--profile monitoring`) |
 
 ### Backup Configuration
 
@@ -738,6 +741,7 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 - **HttpOnly Cookies** -- Refresh tokens stored in secure, HttpOnly, SameSite=Strict cookies
 - **Authenticated Pages Only** -- Every frontend page except the login screen requires an authenticated session
 - **DB-Backed Refresh Sessions** -- Active refresh-session families survive backend restarts
+- **Refresh-Token Family Lifetime Cap** -- Every login starts a token family with an immutable `family_expires_at`. Rotation never extends it, so a stolen refresh token cannot be rotated indefinitely. See `FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS` (security policy, default 30 days, bounded 7–30) versus `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` (DB cleanup lag for dead rows, auto-derived as 2 × the family cap) -- the two settings govern different things and should not be confused.
 - **Token-Version Kill Switch** -- Logout or refresh-family revocation immediately invalidates outstanding access tokens for that user
 - **bcrypt Hashing** -- Passwords hashed with bcrypt via passlib
 - **RBAC** -- Three roles with server-enforced permissions
@@ -817,6 +821,40 @@ docker compose exec minio mc mirror /data /backup-destination
 docker run --rm -v findings_minio_data:/data -v /host/backup:/backup alpine \
   tar czf /backup/minio_$(date +%Y%m%d).tar.gz /data
 ```
+
+---
+
+## Monitoring & Logging
+
+### Structured logs
+
+The backend emits one JSON object per log line to stdout. Level is controlled by `FINDINGS_LOG_LEVEL` (`DEBUG` | `INFO` | `WARNING` | `ERROR` | `CRITICAL`, case-insensitive; default `INFO`). Uvicorn access and error logs share the same JSON format.
+
+Inspect live logs with:
+
+```bash
+docker compose logs -f backend | jq
+```
+
+Every service uses the `json-file` driver with rotation at 10MB × 5 files to keep disk use bounded.
+
+### Healthchecks and startup order
+
+`docker-compose.yml` defines healthchecks for `db` (`pg_isready`), `minio`, `clamav`, and `caddy`. The `backend` and `backup` services declare `depends_on` with `condition: service_healthy` against `db` and `minio`, so the backend does not attempt migrations or accept traffic until its dependencies are actually ready. `docker compose ps` reflects per-service health, and crashed containers restart via `restart: unless-stopped`.
+
+### Optional health dashboard (Gatus)
+
+An opt-in monitoring profile runs [Gatus](https://gatus.io) against every service. Configuration is fully declarative in [`monitoring/gatus.yaml`](monitoring/gatus.yaml) — no setup wizard, no admin login.
+
+Start with monitoring enabled:
+
+```bash
+docker compose --profile monitoring up -d
+```
+
+Then open `http://127.0.0.1:${GATUS_PORT:-8080}` for the status page. Add alert channels (Slack, Discord, email, webhook) by editing `monitoring/gatus.yaml`; see the Gatus docs for syntax.
+
+Gatus checks each service over the docker network using each image's fixed listening port, so host-side port overrides in `.env` do not need to be mirrored into the Gatus config.
 
 ---
 

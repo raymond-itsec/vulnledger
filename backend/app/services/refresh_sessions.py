@@ -106,11 +106,26 @@ async def _create_refresh_session(
     parent_session_id: uuid.UUID | None,
     created_ip: str | None,
     created_user_agent: str | None,
+    family_started_at: datetime | None = None,
+    family_expires_at: datetime | None = None,
 ) -> tuple[RefreshSession, str]:
     refresh_session_id = uuid.uuid4()
     secret = secrets.token_urlsafe(48)
     raw_token = _build_refresh_token(refresh_session_id, secret)
     issued_at = _now()
+
+    # A new family (no parent) anchors its start at this moment and caps
+    # absolute lifetime. Rotations inherit both values unchanged so an
+    # attacker who keeps rotating a stolen token cannot extend the family.
+    if family_started_at is None:
+        family_started_at = issued_at
+    if family_expires_at is None:
+        family_expires_at = family_started_at + timedelta(
+            days=settings.refresh_token_family_max_lifetime_days
+        )
+
+    per_token_expiry = issued_at + timedelta(days=settings.refresh_token_expire_days)
+    expires_at = min(per_token_expiry, family_expires_at)
 
     session = RefreshSession(
         refresh_session_id=refresh_session_id,
@@ -119,8 +134,9 @@ async def _create_refresh_session(
         parent_session_id=parent_session_id,
         token_hash=_hash_refresh_token(raw_token),
         issued_at=issued_at,
-        # FIXME: Add an absolute family lifetime cap. Current policy extends lifetime on each rotation.
-        expires_at=issued_at + timedelta(days=settings.refresh_token_expire_days),
+        family_started_at=family_started_at,
+        family_expires_at=family_expires_at,
+        expires_at=expires_at,
         created_ip=_normalize_ip(created_ip),
         created_user_agent=_normalize_user_agent(created_user_agent),
     )
@@ -187,9 +203,6 @@ async def _bump_user_token_version(
 
 
 async def _prune_stale_refresh_sessions(db: AsyncSession) -> None:
-    if settings.refresh_session_retention_days <= 0:
-        return
-
     cutoff = _now() - timedelta(days=settings.refresh_session_retention_days)
     await db.execute(
         delete(RefreshSession).where(
@@ -378,6 +391,26 @@ async def exchange_refresh_token(
         await db.commit()
         return RefreshExchangeResult(status="invalid")
 
+    if session.family_expires_at <= now:
+        await _revoke_family(db, session.family_id, reason="family_expired")
+        await _record_security_event(
+            db,
+            user_id=session.user_id,
+            event_type="refresh_session_family_expired",
+            family_id=session.family_id,
+            refresh_session_id=session.refresh_session_id,
+            ip_address=current_ip,
+            user_agent=current_user_agent,
+            details={
+                "family_started_at": session.family_started_at.isoformat(),
+                "family_expires_at": session.family_expires_at.isoformat(),
+            },
+        )
+        await _bump_user_token_version(db, session.user_id)
+        await _prune_stale_refresh_sessions(db)
+        await db.commit()
+        return RefreshExchangeResult(status="invalid")
+
     user_result = await db.execute(select(User).where(User.user_id == session.user_id))
     user = user_result.scalar_one_or_none()
     if not user or not user.is_active:
@@ -398,6 +431,8 @@ async def exchange_refresh_token(
         parent_session_id=session.refresh_session_id,
         created_ip=current_ip,
         created_user_agent=current_user_agent,
+        family_started_at=session.family_started_at,
+        family_expires_at=session.family_expires_at,
     )
     session.replaced_by_session_id = replacement.refresh_session_id
     session.revoked_at = now

@@ -1,0 +1,50 @@
+# Declarative health-check config for Gatus.
+#
+# The monitoring profile in docker-compose.yml mounts this file read-only
+# into the gatus container. Add alert channels (slack / discord / email /
+# webhook) inline per the Gatus docs: https://gatus.io/docs/alerting
+#
+# Addresses target the docker network names and each image's fixed
+# listening port (not the host-side port mappings in .env).
+metrics: false
+
+ui:
+  title: "VulnLedger — Service Health"
+  header: "VulnLedger"
+
+endpoints:
+  - name: backend-api
+    group: core
+    url: "http://backend:8000/api/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+      - "[RESPONSE_TIME] < 2000"
+
+  - name: caddy-edge
+    group: core
+    url: "http://caddy/api/health"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: postgres
+    group: infra
+    url: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    interval: 60s
+    conditions:
+      - "[CONNECTED] == true"
+
+  - name: minio
+    group: infra
+    url: "http://minio:9000/minio/health/live"
+    interval: 30s
+    conditions:
+      - "[STATUS] == 200"
+
+  - name: clamav
+    group: infra
+    url: "tcp://clamav:3310"
+    interval: 60s
+    conditions:
+      - "[CONNECTED] == true"
