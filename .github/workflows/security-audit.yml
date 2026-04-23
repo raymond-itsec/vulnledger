@@ -50,6 +50,7 @@ jobs:
       - name: Export backend OpenAPI schema
         run: |
           docker run --rm \
+            --user "$(id -u):$(id -g)" \
             -e FINDINGS_SECRET_KEY=change-this-to-a-real-32-byte-secret-value \
             -e FINDINGS_RUNTIME_MODE=development \
             -v "$PWD:/workspace" \
