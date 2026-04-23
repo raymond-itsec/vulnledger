@@ -72,5 +72,5 @@ else
   echo "[$(date)] Skipping initial backup (latest backup age: ${latest_age}s)"
 fi
 
-# Start cron in foreground
-exec crond -f -l 2 -c "$CRON_DIR"
+# Start supercronic (non-root cron) in foreground with the generated crontab.
+exec supercronic "$CRON_FILE"
