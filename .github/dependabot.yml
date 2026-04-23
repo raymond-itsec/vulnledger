@@ -1,11 +1,53 @@
 version: 2
 updates:
   - package-ecosystem: "docker"
-    directory: "/"
+    directory: "/backend"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "05:00"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:03"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/backup"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:06"
+      timezone: "Europe/Amsterdam"
+    target-branch: "main"
+    labels:
+      - "dependencies"
+      - "docker"
+      - "security"
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: "docker"
+    directory: "/caddy"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "05:09"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
