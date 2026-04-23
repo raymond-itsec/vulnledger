@@ -15,7 +15,7 @@ ui:
 endpoints:
   - name: backend-api
     group: core
-    url: "http://backend:8000/api/health"
+    url: "http://backend:8000/api/health/live"
     interval: 30s
     conditions:
       - "[STATUS] == 200"
@@ -23,7 +23,7 @@ endpoints:
 
   - name: caddy-edge
     group: core
-    url: "http://caddy/api/health"
+    url: "http://caddy/api/health/live"
     interval: 30s
     conditions:
       - "[STATUS] == 200"

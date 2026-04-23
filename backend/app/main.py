@@ -1,7 +1,8 @@
 import logging
 from contextlib import asynccontextmanager
+import ipaddress
 
-from fastapi import Depends, FastAPI, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
@@ -124,6 +125,73 @@ if settings.oidc_enabled:
     app.include_router(oidc.router, prefix="/api")
 
 
+def _parse_ip_candidate(value: str | None) -> str | None:
+    if not value:
+        return None
+    candidate = value.strip()
+    if not candidate:
+        return None
+    # Handle potential "IP:port" form from some proxies.
+    if candidate.count(":") == 1 and "." in candidate:
+        host, _, _ = candidate.partition(":")
+        candidate = host.strip()
+    try:
+        return str(ipaddress.ip_address(candidate))
+    except ValueError:
+        return None
+
+
+def _extract_forwarded_ips(request: Request) -> list[str]:
+    forwarded_for = request.headers.get("x-forwarded-for", "")
+    if not forwarded_for:
+        return []
+    values: list[str] = []
+    for part in forwarded_for.split(","):
+        normalized = _parse_ip_candidate(part)
+        if normalized:
+            values.append(normalized)
+    return values
+
+
+def _effective_probe_ip(request: Request) -> str | None:
+    """Resolve the probe source IP, preferring forwarded client IP over proxy IP."""
+    if settings.trust_proxy_headers:
+        forwarded_ips = _extract_forwarded_ips(request)
+        if forwarded_ips:
+            # X-Forwarded-For is client, proxy1, proxy2... -> left-most is origin.
+            return forwarded_ips[0]
+        x_real_ip = _parse_ip_candidate(request.headers.get("x-real-ip"))
+        if x_real_ip:
+            return x_real_ip
+    return _parse_ip_candidate(request.client.host if request.client else None)
+
+
+def _is_rfc1918_or_loopback(value: str | None) -> bool:
+    parsed_value = _parse_ip_candidate(value)
+    if not parsed_value:
+        return False
+    ip = ipaddress.ip_address(parsed_value)
+    if ip.version == 4:
+        return (
+            ip in ipaddress.ip_network("10.0.0.0/8")
+            or ip in ipaddress.ip_network("172.16.0.0/12")
+            or ip in ipaddress.ip_network("192.168.0.0/16")
+            or ip in ipaddress.ip_network("127.0.0.0/8")
+        )
+    return ip.is_loopback
+
+
 @app.get("/api/health")
 async def health(_: User = Depends(get_current_user)):
     return {"status": "ok", "version": settings.app_version}
+
+
+@app.get("/api/health/live")
+async def health_live(request: Request):
+    source_ip = _effective_probe_ip(request)
+    if not _is_rfc1918_or_loopback(source_ip):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Probe endpoint is restricted to internal networks.",
+        )
+    return {"status": "ok"}
