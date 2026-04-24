@@ -94,6 +94,14 @@ function clearBrowserStateOnLogout(): void {
     });
 }
 
+function redirectToLoginShell(): void {
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname === '/') return;
+  // Use a hard redirect after forced/expired logout so stale in-memory state
+  // from the previous route cannot keep running in a broken state.
+  window.location.replace('/');
+}
+
 async function clearStaleSession(): Promise<void> {
   if (staleSessionCleanupPromise) {
     await staleSessionCleanupPromise;
@@ -252,6 +260,7 @@ export async function logout(notifyFailure = true): Promise<boolean> {
     token = null;
     user = null;
     clearBrowserStateOnLogout();
+    redirectToLoginShell();
   }
   return revokeSucceeded;
 }

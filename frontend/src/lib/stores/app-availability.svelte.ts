@@ -32,7 +32,12 @@ function handleOffline() {
 
 function readCachedBoolean(key: string): boolean | null {
   if (typeof window === 'undefined') return null;
-  const raw = window.sessionStorage.getItem(key);
+  let raw: string | null = null;
+  try {
+    raw = window.sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
   if (!raw) return null;
 
   try {
@@ -45,7 +50,11 @@ function readCachedBoolean(key: string): boolean | null {
 
 function writeCachedBoolean(key: string, value: boolean) {
   if (typeof window === 'undefined') return;
-  window.sessionStorage.setItem(key, JSON.stringify({ value }));
+  try {
+    window.sessionStorage.setItem(key, JSON.stringify({ value }));
+  } catch {
+    // Best effort.
+  }
 }
 
 function requestPathname(input: RequestInfo | URL): string {

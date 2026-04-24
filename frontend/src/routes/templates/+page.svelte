@@ -44,11 +44,11 @@
   });
 
   let grouped = $derived(() => {
-    const groups: Record<string, Template[]> = {};
+    const groups: Record<string, Template[]> = Object.create(null) as Record<string, Template[]>;
     for (const t of templates) {
-      const cat = t.category || 'Uncategorized';
-      if (!groups[cat]) groups[cat] = [];
-      groups[cat].push(t);
+      const cat = (t.category || 'Uncategorized').trim() || 'Uncategorized';
+      const bucket = groups[cat] ?? (groups[cat] = []);
+      bucket.push(t);
     }
     return groups;
   });
