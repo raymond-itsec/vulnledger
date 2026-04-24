@@ -38,7 +38,8 @@ compose exec -T db psql -U findings -d postgres \
   -c "CREATE DATABASE ${TEST_DB};" >/dev/null
 
 echo "--> installing test deps in backend"
-compose exec -T -u root backend pip install --quiet pytest pytest-asyncio >/dev/null
+compose exec -T -u root backend \
+  pip install --disable-pip-version-check --quiet pytest pytest-asyncio >/dev/null
 
 echo "--> copying tests into backend"
 compose cp backend/tests backend:/app/tests >/dev/null
