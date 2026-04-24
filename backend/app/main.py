@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 import ipaddress
 
-from fastapi import Depends, FastAPI, HTTPException, Request, status
+from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -17,11 +17,9 @@ from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
-from app.api.deps import get_current_user
 from app.config import settings
 from app.database import engine
 from app.logging_config import configure_logging
-from app.models.user import User
 from app.schemas.error import make_error_payload
 from app.services.antivirus import probe_scanner
 from app.services.seed import seed_admin_user, sync_builtin_templates
@@ -288,7 +286,7 @@ async def _check_clamav_health() -> dict[str, object]:
 
 
 @app.get("/api/health")
-async def health(_: User = Depends(get_current_user)):
+async def health():
     return {"status": "ok", "version": settings.app_version}
 
 

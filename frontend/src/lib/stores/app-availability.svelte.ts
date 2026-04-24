@@ -1,6 +1,7 @@
 export const APPLICATION_UNAVAILABLE_MESSAGE = 'Application is currently not available';
 
 const POLL_INTERVAL_MS = 15000;
+const MAX_IDLE_HEALTH_CHECKS = 2;
 const LOGIN_PAGE_APP_AVAILABILITY_CACHE_KEY = 'findings.loginPageAppAvailabilityProbe';
 const LOGIN_PAGE_OIDC_AVAILABILITY_CACHE_KEY = 'findings.loginPageOidcAvailabilityProbe';
 
@@ -13,6 +14,7 @@ let loginPageAppAvailabilityProbePromise: Promise<void> | null = null;
 let loginPageAppAvailabilityChecked = $state(false);
 let loginPageOidcAvailabilityProbePromise: Promise<boolean> | null = null;
 let loginPageOidcAvailability = $state<boolean | null>(null);
+let idleHealthChecks = 0;
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError';
@@ -28,6 +30,65 @@ function handleOnline() {
 
 function handleOffline() {
   setUnavailable(true);
+}
+
+async function logHealthCheckResult(context: string, response: Response): Promise<void> {
+  const logBase = `[health-check:${context}]`;
+  const meta = {
+    timestamp: new Date().toISOString(),
+    httpStatus: response.status,
+  };
+
+  try {
+    const body = await response.clone().json();
+    if (response.ok) {
+      console.info(logBase, { ...meta, body });
+    } else {
+      console.warn(logBase, { ...meta, body });
+    }
+    return;
+  } catch {
+    // Fall back to status-only logs when response body isn't JSON.
+  }
+
+  if (response.ok) {
+    console.info(logBase, meta);
+  } else {
+    console.warn(logBase, meta);
+  }
+}
+
+function stopPollingLoop() {
+  if (!intervalHandle) return;
+  clearInterval(intervalHandle);
+  intervalHandle = null;
+}
+
+function startPollingLoop() {
+  if (intervalHandle) return;
+  intervalHandle = setInterval(() => {
+    void appAvailability.checkNow();
+  }, POLL_INTERVAL_MS);
+}
+
+function markUserActivity() {
+  idleHealthChecks = 0;
+  if (!monitorStarted || typeof window === 'undefined') return;
+  if (!intervalHandle) {
+    void appAvailability.checkNow();
+    startPollingLoop();
+  }
+}
+
+function handleUserActivity() {
+  markUserActivity();
+}
+
+function handleVisibilityChange() {
+  if (typeof document === 'undefined') return;
+  if (document.visibilityState === 'visible') {
+    markUserActivity();
+  }
 }
 
 function readCachedBoolean(key: string): boolean | null {
@@ -97,6 +158,7 @@ export const appAvailability = {
     setUnavailable(false);
     authToken = null;
     pollPromise = null;
+    idleHealthChecks = 0;
     loginPageAppAvailabilityProbePromise = null;
     loginPageAppAvailabilityChecked = false;
     loginPageOidcAvailabilityProbePromise = null;
@@ -135,7 +197,7 @@ export const appAvailability = {
 
     loginPageAppAvailabilityProbePromise = (async () => {
       try {
-        await fetchWithAvailability(
+        const response = await fetchWithAvailability(
           `/api/health?ts=${Date.now()}`,
           {
             method: 'GET',
@@ -143,6 +205,7 @@ export const appAvailability = {
           },
           true,
         );
+        await logHealthCheckResult('login-probe', response);
       } catch {
         // fetchWithAvailability already updates the shared availability flag.
       } finally {
@@ -238,14 +301,21 @@ export const appAvailability = {
           };
         }
 
-        await fetchWithAvailability(
+        const response = await fetchWithAvailability(
           `/api/health?ts=${Date.now()}`,
           requestInit,
           clearOnSuccess,
         );
+        await logHealthCheckResult('poll', response);
       } catch {
         // fetchWithAvailability already updates the shared availability state.
       } finally {
+        if (monitorStarted) {
+          idleHealthChecks += 1;
+          if (idleHealthChecks >= MAX_IDLE_HEALTH_CHECKS) {
+            stopPollingLoop();
+          }
+        }
         pollPromise = null;
       }
     })();
@@ -255,22 +325,28 @@ export const appAvailability = {
   start() {
     if (typeof window === 'undefined' || monitorStarted) return;
     monitorStarted = true;
+    idleHealthChecks = 0;
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
+    window.addEventListener('pointerdown', handleUserActivity, { passive: true });
+    window.addEventListener('keydown', handleUserActivity);
+    window.addEventListener('wheel', handleUserActivity, { passive: true });
+    window.addEventListener('touchstart', handleUserActivity, { passive: true });
+    document.addEventListener('visibilitychange', handleVisibilityChange);
     void this.checkNow();
-    intervalHandle = setInterval(() => {
-      void this.checkNow();
-    }, POLL_INTERVAL_MS);
+    startPollingLoop();
   },
   stop() {
     if (typeof window === 'undefined' || !monitorStarted) return;
     monitorStarted = false;
     window.removeEventListener('online', handleOnline);
     window.removeEventListener('offline', handleOffline);
-    if (intervalHandle) {
-      clearInterval(intervalHandle);
-      intervalHandle = null;
-    }
+    window.removeEventListener('pointerdown', handleUserActivity);
+    window.removeEventListener('keydown', handleUserActivity);
+    window.removeEventListener('wheel', handleUserActivity);
+    window.removeEventListener('touchstart', handleUserActivity);
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    stopPollingLoop();
   },
 };
 
