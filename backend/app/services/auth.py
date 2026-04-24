@@ -1,24 +1,45 @@
 from datetime import datetime, timedelta, timezone
 import base64
+import bcrypt
+import hashlib
+import hmac
 import json
+import re
 from typing import Any
 from uuid import UUID
 
 from joserfc import jwt, jwk
-from passlib.context import CryptContext
 
 from app.config import settings
 
 JWT_ISSUER = "vulnledger-backend"
 JWT_AUDIENCE = "vulnledger-api"
 _JWT_LEEWAY_SECONDS = 10
-
-# Use bcrypt_sha256 by default so long passwords don't fail at 72 bytes.
-# Keep plain bcrypt in the context so existing hashes continue to verify.
-pwd_context = CryptContext(
-    schemes=["bcrypt_sha256", "bcrypt"],
-    deprecated="auto",
+_BCRYPT_SHA256_V2_RE = re.compile(
+    r"^\$bcrypt-sha256\$v=2,t=(2[aby]),r=(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
 )
+_BCRYPT_SHA256_V1_RE = re.compile(
+    r"^\$bcrypt-sha256\$(2[aby]),(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
+)
+_BCRYPT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{53})$")
+
+
+def _password_bytes(password: str) -> bytes:
+    return password.encode("utf-8")
+
+
+def _bcrypt_sha256_prehash_v2(password: str, salt: str) -> bytes:
+    digest = hmac.new(salt.encode("ascii"), _password_bytes(password), hashlib.sha256).digest()
+    return base64.b64encode(digest)
+
+
+def _bcrypt_sha256_prehash_v1(password: str) -> bytes:
+    digest = hashlib.sha256(_password_bytes(password)).digest()
+    return base64.b64encode(digest)
+
+
+def _build_bcrypt_hash(variant: str, rounds: int, salt: str, checksum: str) -> str:
+    return f"${variant}${rounds:02d}${salt}{checksum}"
 
 def _rs256_keys_configured() -> bool:
     return bool(settings.jwt_private_key_pem.strip() and settings.jwt_public_key_pem.strip())
@@ -30,22 +51,16 @@ def _signing_algorithm() -> str:
     return "HS256"
 
 
-def _signing_key() -> str:
-    if _signing_algorithm() == "RS256":
-        return settings.jwt_private_key_pem
-    return settings.secret_key
-
-
 def _signing_jwk() -> Any:
     if _signing_algorithm() == "RS256":
-        return jwk.import_key(settings.jwt_private_key_pem)
+        return jwk.import_key(settings.jwt_private_key_pem, "RSA")
     return jwk.import_key(settings.secret_key, "oct")
 
 
 def _verification_keys() -> list[tuple[str, Any]]:
     keys: list[tuple[str, Any]] = []
     if _rs256_keys_configured():
-        keys.append(("RS256", jwk.import_key(settings.jwt_public_key_pem)))
+        keys.append(("RS256", jwk.import_key(settings.jwt_public_key_pem, "RSA")))
     if settings.jwt_allow_legacy_hs256 or not keys:
         keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
     return keys
@@ -76,11 +91,52 @@ def _encode_jwt_token(header: dict, payload: dict, key: Any, algorithm: str) -> 
 
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    salt_spec = bcrypt.gensalt(rounds=12, prefix=b"2b")
+    match = _BCRYPT_RE.match(salt_spec.decode("ascii"))
+    if not match:
+        raise ValueError("Could not generate bcrypt salt")
+    variant = match.group(1)
+    rounds = int(match.group(2))
+    salt = match.group(3)[:22]
+
+    prehashed = _bcrypt_sha256_prehash_v2(password, salt)
+    bcrypt_hash = bcrypt.hashpw(prehashed, salt_spec).decode("ascii")
+    bcrypt_match = _BCRYPT_RE.match(bcrypt_hash)
+    if not bcrypt_match:
+        raise ValueError("Unexpected bcrypt hash format")
+    checksum = bcrypt_match.group(3)[22:]
+
+    return f"$bcrypt-sha256$v=2,t={variant},r={rounds:02d}${salt}${checksum}"
 
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    value = (hashed or "").strip()
+    if not value:
+        return False
+
+    try:
+        v2_match = _BCRYPT_SHA256_V2_RE.match(value)
+        if v2_match:
+            variant, rounds_raw, salt, checksum = v2_match.groups()
+            rounds = int(rounds_raw)
+            prehashed = _bcrypt_sha256_prehash_v2(plain, salt)
+            bcrypt_hash = _build_bcrypt_hash(variant, rounds, salt, checksum).encode("ascii")
+            return bcrypt.checkpw(prehashed, bcrypt_hash)
+
+        v1_match = _BCRYPT_SHA256_V1_RE.match(value)
+        if v1_match:
+            variant, rounds_raw, salt, checksum = v1_match.groups()
+            rounds = int(rounds_raw)
+            prehashed = _bcrypt_sha256_prehash_v1(plain)
+            bcrypt_hash = _build_bcrypt_hash(variant, rounds, salt, checksum).encode("ascii")
+            return bcrypt.checkpw(prehashed, bcrypt_hash)
+
+        if _BCRYPT_RE.match(value):
+            return bcrypt.checkpw(_password_bytes(plain), value.encode("ascii"))
+    except ValueError:
+        return False
+
+    return False
 
 
 def create_access_token(
