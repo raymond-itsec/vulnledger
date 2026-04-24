@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta, timezone
 import base64
 import json
+from typing import Any
 from uuid import UUID
 
-from authlib.jose import jwt
+from joserfc import jwt, jwk
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -35,12 +36,18 @@ def _signing_key() -> str:
     return settings.secret_key
 
 
-def _verification_keys() -> list[tuple[str, str]]:
-    keys: list[tuple[str, str]] = []
+def _signing_jwk() -> Any:
+    if _signing_algorithm() == "RS256":
+        return jwk.import_key(settings.jwt_private_key_pem)
+    return jwk.import_key(settings.secret_key, "oct")
+
+
+def _verification_keys() -> list[tuple[str, Any]]:
+    keys: list[tuple[str, Any]] = []
     if _rs256_keys_configured():
-        keys.append(("RS256", settings.jwt_public_key_pem))
+        keys.append(("RS256", jwk.import_key(settings.jwt_public_key_pem)))
     if settings.jwt_allow_legacy_hs256 or not keys:
-        keys.append(("HS256", settings.secret_key))
+        keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
     return keys
 
 
@@ -61,8 +68,8 @@ def _jwt_alg_from_header(token: str) -> str | None:
     return alg.upper()
 
 
-def _encode_jwt_token(header: dict, payload: dict, key: str) -> str:
-    encoded = jwt.encode(header, payload, key)
+def _encode_jwt_token(header: dict, payload: dict, key: Any, algorithm: str) -> str:
+    encoded = jwt.encode(header, payload, key, algorithms=[algorithm])
     if isinstance(encoded, bytes):
         return encoded.decode("utf-8")
     return str(encoded)
@@ -99,7 +106,7 @@ def create_access_token(
     }
     algorithm = _signing_algorithm()
     header = {"alg": algorithm, "typ": "JWT"}
-    return _encode_jwt_token(header, payload, _signing_key())
+    return _encode_jwt_token(header, payload, _signing_jwk(), algorithm)
 
 
 def decode_token(token: str) -> dict:
@@ -111,19 +118,22 @@ def decode_token(token: str) -> dict:
         if token_alg != algorithm:
             continue
         try:
-            claims = jwt.decode(
-                token, key,
-                claims_options={
-                    "iss": {"essential": True, "value": JWT_ISSUER},
-                    "aud": {"essential": True, "value": JWT_AUDIENCE},
-                    "sub": {"essential": True},
-                    "exp": {"essential": True},
-                    "iat": {"essential": True},
-                    "type": {"essential": True, "value": "access"},
-                },
+            decoded = jwt.decode(
+                token,
+                key,
+                algorithms=[algorithm],
             )
-            claims.validate(leeway=_JWT_LEEWAY_SECONDS)
-            return dict(claims)
+            claims_registry = jwt.JWTClaimsRegistry(
+                leeway=_JWT_LEEWAY_SECONDS,
+                iss={"essential": True, "value": JWT_ISSUER},
+                aud={"essential": True, "value": JWT_AUDIENCE},
+                sub={"essential": True},
+                exp={"essential": True},
+                iat={"essential": True},
+                type={"essential": True, "value": "access"},
+            )
+            claims_registry.validate(decoded.claims)
+            return dict(decoded.claims)
         except Exception:
             continue
     return {}
