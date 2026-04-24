@@ -64,6 +64,20 @@ def get_client_scope(user: User) -> UUID | None:
     return None
 
 
+def ensure_client_access(user: User, client_id: UUID | None) -> None:
+    """Raise 403 if the user is scoped to a client and ``client_id`` does not match.
+
+    Unscoped users (admins, reviewers) always pass. Scoped users (client_user)
+    must match their linked client; a missing (None) client_id is also refused
+    to avoid silently passing on broken object chains.
+    """
+    scope = get_client_scope(user)
+    if scope is None:
+        return
+    if client_id is None or client_id != scope:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+
 async def paginate(
     db: AsyncSession,
     query: Select,

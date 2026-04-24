@@ -1,5 +1,6 @@
 import { authorizedFetch } from './client';
 import { readPublicErrorMessage } from './errors';
+import { downloadBlob } from '$lib/util/dom';
 
 export interface Attachment {
   attachment_id: string;
@@ -38,12 +39,7 @@ export const attachmentsApi = {
     }
 
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    link.click();
-    URL.revokeObjectURL(url);
+    downloadBlob(blob, fileName);
   },
 
   delete: async (attachmentId: string): Promise<void> => {

@@ -9,6 +9,7 @@
   import { toast } from '$lib/stores/toast.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let assets = $state<Asset[]>([]);
   let clients = $state<Client[]>([]);
@@ -21,10 +22,6 @@
   let form = $state({ client_id: '', asset_name: '', asset_type: 'web_application', description: '' });
   let saving = $state(false);
   const assetTypes = $derived(taxonomy.activeEntries('asset_type'));
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const clientFieldId = fieldId('asset-client');
   const assetNameFieldId = fieldId('asset-name');

@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import get_client_scope, get_current_user, require_role
+from app.api.deps import ensure_client_access, get_current_user, require_role
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.finding_attachment import FindingAttachment
@@ -46,13 +46,8 @@ async def _get_accessible_finding(
     if not finding:
         raise HTTPException(status_code=404, detail="Finding not found")
 
-    scope = get_client_scope(user)
-    if scope and (
-        not finding.session
-        or not finding.session.asset
-        or finding.session.asset.client_id != scope
-    ):
-        raise HTTPException(status_code=403, detail="Access denied")
+    asset = finding.session.asset if finding.session else None
+    ensure_client_access(user, asset.client_id if asset else None)
 
     return finding
 
@@ -188,14 +183,9 @@ async def download_attachment(
     if not attachment:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
-    scope = get_client_scope(user)
-    if scope and (
-        not attachment.finding
-        or not attachment.finding.session
-        or not attachment.finding.session.asset
-        or attachment.finding.session.asset.client_id != scope
-    ):
-        raise HTTPException(status_code=403, detail="Access denied")
+    session = attachment.finding.session if attachment.finding else None
+    asset = session.asset if session else None
+    ensure_client_access(user, asset.client_id if asset else None)
 
     try:
         file_iterator, content_type = stream_evidence_file(attachment.storage_key)

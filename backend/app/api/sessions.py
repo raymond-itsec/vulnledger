@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import get_client_scope, get_current_user, paginate, require_role
+from app.api.deps import ensure_client_access, get_client_scope, get_current_user, paginate, require_role
 from app.database import get_db
 from app.models.review_session import ReviewSession
 from app.models.reviewed_asset import ReviewedAsset
@@ -122,9 +122,7 @@ async def get_session(
     session = result.unique().scalar_one_or_none()
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
-    scope = get_client_scope(user)
-    if scope and session.asset.client_id != scope:
-        raise HTTPException(status_code=403, detail="Access denied")
+    ensure_client_access(user, session.asset.client_id if session.asset else None)
     return _to_response(session)
 
 

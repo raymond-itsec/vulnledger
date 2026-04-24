@@ -7,7 +7,7 @@ _ALLOWED_RUNTIME_MODES = {"development", "production"}
 
 
 class Settings(BaseSettings):
-    app_version: str = "0.1.16"
+    app_version: str = "0.1.18"
     runtime_mode: str = "development"
     database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
     secret_key: str = ""

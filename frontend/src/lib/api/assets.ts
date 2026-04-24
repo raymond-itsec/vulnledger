@@ -12,15 +12,6 @@ export interface Asset {
   updated_at: string;
 }
 
-export const ASSET_TYPES = [
-  { value: 'repository', label: 'Source Code Repository' },
-  { value: 'browser_extension', label: 'Browser Extension' },
-  { value: 'web_application', label: 'Web Application' },
-  { value: 'api', label: 'API' },
-  { value: 'mobile_app', label: 'Mobile App' },
-  { value: 'other', label: 'Other' },
-];
-
 export const assetsApi = {
   list: (clientId?: string, page = 1, perPage = 25) => {
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });

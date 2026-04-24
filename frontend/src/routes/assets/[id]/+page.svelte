@@ -8,10 +8,7 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import Modal from '$lib/components/Modal.svelte';
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
+  import { fieldId } from '$lib/util/dom';
 
   let asset = $state<Asset | null>(null);
   let sessions = $state<Session[]>([]);

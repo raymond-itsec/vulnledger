@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     await seed_admin_user()
     await sync_builtin_templates()
     try:
-        ensure_buckets()
+        await asyncio.to_thread(ensure_buckets)
     except Exception:
         logger.warning("MinIO not available -- file attachments and report storage disabled")
     yield

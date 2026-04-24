@@ -33,10 +33,15 @@ Reason: current host-local builds increase drift risk between environments and s
 - Added CPU and memory limits (`deploy.resources.limits`) to every service in `docker-compose.yml` to prevent one service from exhausting the host under load or a runaway scan.
 - Extracted the inline `crypto.randomUUID` fallback polyfill from `app.html` to a static asset (`frontend/static/crypto-polyfill.js`) so it is covered by `script-src 'self'` under the new CSP.
 - Updated stack version default to `0.1.18`.
+- Centralized client-scope authorization in a single `ensure_client_access()` helper in `backend/app/api/deps.py` and refactored assets, sessions, attachments, and findings endpoints to use it, eliminating ad-hoc scope checks.
+- Wrapped the blocking `ensure_buckets()` S3 bootstrap call in `asyncio.to_thread(...)` inside the FastAPI lifespan so startup no longer blocks the event loop.
+- Wired `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES`, `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS`, and `FINDINGS_MAILJET_FROM_NAME` through `docker-compose.yml` as explicit env passthroughs, and converted `MAILJET_*` vars to `${VAR:-default}` form.
+- Removed unused frontend constants (`ASSET_TYPES`, `RISK_LEVELS`, `REMEDIATION_STATUSES`, `SESSION_STATUSES`) from `frontend/src/lib/api/{assets,findings,sessions}.ts`; taxonomy-driven lookups supersede them.
 
 ### Added
 - Added a runbook for migrating JWT signing from HS256 to RS256 (generate keypair → dual-verify → wait access-token TTL → disable legacy HS256) to `README.md`.
 - Added a one-shot backend test runner script (`backend/scripts/run-tests.sh`) that provisions the test database, copies tests into the backend container, runs `pytest`, and cleans up on exit.
+- Added shared frontend DOM helpers (`frontend/src/lib/util/dom.ts`): `fieldId()` to replace per-page inline field-id generators across 10 Svelte routes, and `downloadBlob()` / `downloadResponseAsFile()` which dedupe the blob-download pattern across session report exports, stored export downloads, and attachment downloads.
 
 ## [v0.1.17] - 2026-04-23
 

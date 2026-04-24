@@ -14,8 +14,6 @@ export interface Session {
   updated_at: string;
 }
 
-export const SESSION_STATUSES = ['planned', 'in_progress', 'completed', 'cancelled'];
-
 export const sessionsApi = {
   list: (assetId?: string, page = 1, perPage = 25) => {
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });

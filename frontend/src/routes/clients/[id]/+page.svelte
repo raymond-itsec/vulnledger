@@ -6,6 +6,7 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let client = $state<Client | null>(null);
   let assets = $state<Asset[]>([]);
@@ -16,10 +17,6 @@
 
   let showAssetModal = $state(false);
   let assetForm = $state({ asset_name: '', asset_type: 'web_application', description: '' });
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const companyNameFieldId = fieldId('client-company-name');
   const primaryContactFieldId = fieldId('client-primary-contact');

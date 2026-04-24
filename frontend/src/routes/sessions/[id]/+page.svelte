@@ -10,6 +10,7 @@
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
+  import { fieldId, downloadResponseAsFile } from '$lib/util/dom';
 
   let session = $state<Session | null>(null);
   let findings = $state<Finding[]>([]);
@@ -19,10 +20,6 @@
   let exporting = $state('');
   let storedExports = $state<ReportExport[]>([]);
   let form = $state({ review_name: '', status: 'planned', notes: '' });
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const reviewNameFieldId = fieldId('session-review-name');
   const sessionStatusFieldId = fieldId('session-status');
@@ -64,15 +61,7 @@
     try {
       const res = await authorizedFetch(`/api/reports/sessions/${session.session_id}/${format}`);
       if (!res.ok) throw new Error('Export failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const disposition = res.headers.get('content-disposition') || '';
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      a.download = match?.[1] || `report.${format}`;
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadResponseAsFile(res, `report.${format}`);
       storedExports = await reportsApi.list(session.session_id);
     } catch {
       toast.error('Could not export this report.');
@@ -85,15 +74,7 @@
     try {
       const res = await reportsApi.downloadStored(exportId);
       if (!res.ok) throw new Error('Download failed');
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      const disposition = res.headers.get('content-disposition') || '';
-      const match = disposition.match(/filename="?([^"]+)"?/);
-      a.download = match?.[1] || 'report-export';
-      a.click();
-      URL.revokeObjectURL(url);
+      await downloadResponseAsFile(res, 'report-export');
     } catch {
       toast.error('Could not download this stored export.');
     }

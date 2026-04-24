@@ -12,6 +12,7 @@
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let findings = $state<Finding[]>([]);
   let sessions = $state<Session[]>([]);
@@ -43,10 +44,6 @@
   const hasSessions = $derived(sessions.length > 0);
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const templateFieldId = fieldId('finding-template');
   const sessionFieldId = fieldId('finding-session');

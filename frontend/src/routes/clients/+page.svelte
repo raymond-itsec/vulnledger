@@ -6,6 +6,7 @@
   import { toast } from '$lib/stores/toast.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let clients = $state<Client[]>([]);
   let loading = $state(true);
@@ -15,10 +16,6 @@
   let showModal = $state(false);
   let form = $state({ company_name: '', primary_contact_name: '', primary_contact_email: '' });
   let saving = $state(false);
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const companyNameFieldId = fieldId('client-company-name');
   const contactNameFieldId = fieldId('client-contact-name');

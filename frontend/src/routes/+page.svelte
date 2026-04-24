@@ -8,6 +8,7 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let username = $state('');
   let password = $state('');
@@ -23,10 +24,6 @@
   let riskBreakdown = $state<Record<string, number>>({});
   let statusBreakdown = $state<Record<string, number>>({});
   let loading = $state(true);
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const usernameFieldId = fieldId('login-username');
   const passwordFieldId = fieldId('login-password');

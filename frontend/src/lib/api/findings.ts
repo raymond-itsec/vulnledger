@@ -26,9 +26,6 @@ export interface FindingHistory {
   new_value: string | null;
 }
 
-export const RISK_LEVELS = ['critical', 'high', 'medium', 'low', 'informational'];
-export const REMEDIATION_STATUSES = ['open', 'in_progress', 'resolved', 'accepted_risk', 'false_positive'];
-
 export const findingsApi = {
   list: (params?: {
     session_id?: string;

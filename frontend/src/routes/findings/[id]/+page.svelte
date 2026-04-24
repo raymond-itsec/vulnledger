@@ -8,6 +8,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let finding = $state<Finding | null>(null);
   let history = $state<FindingHistory[]>([]);
@@ -32,10 +33,6 @@
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const titleFieldId = fieldId('finding-title');
   const riskLevelFieldId = fieldId('finding-risk-level');

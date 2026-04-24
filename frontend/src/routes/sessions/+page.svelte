@@ -11,6 +11,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let sessions = $state<Session[]>([]);
   let assets = $state<Asset[]>([]);
@@ -34,10 +35,6 @@
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasAssets = $derived(assets.length > 0);
   const sessionStatuses = $derived(taxonomy.activeEntries('session_status'));
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const assetFieldId = fieldId('session-asset');
   const reviewNameFieldId = fieldId('session-review-name');

@@ -7,6 +7,7 @@
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import { fieldId } from '$lib/util/dom';
 
   let templates = $state<Template[]>([]);
   let loading = $state(true);
@@ -19,10 +20,6 @@
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const isAdmin = $derived(auth.user?.role === 'admin');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
-
-  function fieldId(name: string): string {
-    return `${name}-${crypto.randomUUID()}`;
-  }
 
   const stableIdFieldId = fieldId('template-stable-id');
   const nameFieldId = fieldId('template-name');

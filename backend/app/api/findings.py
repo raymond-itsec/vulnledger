@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import get_client_scope, get_current_user, paginate, require_role
+from app.api.deps import ensure_client_access, get_client_scope, get_current_user, paginate, require_role
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.finding_history import FindingHistory
@@ -32,8 +32,7 @@ TRACKED_FIELDS = [
 async def _check_finding_access(
     finding: Finding, user: User, db: AsyncSession
 ) -> None:
-    scope = get_client_scope(user)
-    if not scope:
+    if get_client_scope(user) is None:
         return
     result = await db.execute(
         select(ReviewSession)
@@ -41,8 +40,8 @@ async def _check_finding_access(
         .where(ReviewSession.session_id == finding.session_id)
     )
     session = result.unique().scalar_one_or_none()
-    if not session or session.asset.client_id != scope:
-        raise HTTPException(status_code=403, detail="Access denied")
+    asset = session.asset if session else None
+    ensure_client_access(user, asset.client_id if asset else None)
 
 
 @router.get("", response_model=PaginatedResponse[FindingResponse])
