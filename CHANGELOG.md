@@ -12,6 +12,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Reason: settings are still imported directly in many modules, which limits test isolation and makes runtime overrides harder. Finishing this migration is needed for reliable per-test/per-environment configuration without side effects.
 - Implement protected-route server-load enforcement (`+page.server.ts`) where applicable, instead of relying on client-only auth guards.
 Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
+- Move service images to a private container registry and deploy by immutable digest.
+Reason: current host-local builds increase drift risk between environments and slow rollouts. Registry-backed, digest-pinned deploys improve reproducibility, rollback safety, and multi-host operations.
 
 ## [v0.1.18] - 2026-04-24
 

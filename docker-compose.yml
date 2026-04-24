@@ -151,12 +151,31 @@ services:
     ports:
       - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
 
+  caddy-init:
+    build:
+      context: ./caddy
+    image: vulnledger-caddy:2.11.2-ratelimit
+    restart: "no"
+    logging: *default-logging
+    user: "0:0"
+    entrypoint: ["/usr/local/bin/volume-migrate.sh"]
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
   caddy:
     build:
       context: ./caddy
     image: vulnledger-caddy:2.11.2-ratelimit
     restart: unless-stopped
     logging: *default-logging
+    user: "10001:10001"
     cap_drop: ["ALL"]
     cap_add: ["NET_BIND_SERVICE"]
     read_only: true
@@ -168,6 +187,8 @@ services:
           memory: 256M
           cpus: "0.5"
     depends_on:
+      caddy-init:
+        condition: service_completed_successfully
       frontend:
         condition: service_started
       backend:
