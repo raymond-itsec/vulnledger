@@ -3,6 +3,8 @@ import {
   appAvailability,
   fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
+import { readPublicErrorMessage } from '$lib/api/errors';
+import { taxonomy } from '$lib/stores/taxonomy.svelte';
 import { toast } from '$lib/stores/toast.svelte';
 
 interface User {
@@ -18,31 +20,10 @@ interface User {
 
 async function parseJsonSafely<T>(res: Response): Promise<T | null> {
   try {
-    return await res.json() as T;
+    return (await res.json()) as T;
   } catch {
     return null;
   }
-}
-
-async function readErrorMessage(res: Response, fallback: string): Promise<string> {
-  if (res.status >= 500) return fallback;
-
-  const data = await parseJsonSafely<{ detail?: string }>(res.clone());
-  if (data?.detail) return data.detail;
-
-  const text = await res.text().catch(() => '');
-  const trimmed = text.trim();
-  if (!trimmed) return fallback;
-
-  // Avoid surfacing HTML error documents or giant stack traces verbatim in the UI.
-  if (trimmed.startsWith('<')) return fallback;
-  const technicalMarkers = ['traceback', 'exception', 'internal server error', 'attributeerror', 'valueerror'];
-  const normalized = trimmed.toLowerCase();
-  if (technicalMarkers.some((marker) => normalized.includes(marker))) {
-    return fallback;
-  }
-
-  return trimmed.length > 200 ? fallback : trimmed;
 }
 
 let token = $state<string | null>(null);
@@ -87,11 +68,7 @@ function clearBrowserStateOnLogout(): void {
   }
 
   appAvailability.resetAfterLogout();
-  void import('$lib/stores/taxonomy.svelte')
-    .then((module) => module.taxonomy.reset())
-    .catch(() => {
-      // Best effort.
-    });
+  taxonomy.reset();
 }
 
 function redirectToLoginShell(): void {
@@ -137,7 +114,7 @@ export async function login(username: string, password: string): Promise<void> {
     if (appAvailability.unavailable) {
       throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
     }
-    throw new Error(await readErrorMessage(res, 'Login failed. Please try again later.'));
+    throw new Error(await readPublicErrorMessage(res, 'Login failed. Please try again later.'));
   }
   const data = await parseJsonSafely<{ access_token?: string }>(res);
   if (!data?.access_token) {
@@ -244,7 +221,7 @@ export async function logout(notifyFailure = true): Promise<boolean> {
       true,
     );
     if (!res.ok) {
-      const detail = await readErrorMessage(res, 'Could not revoke server session during logout.');
+      const detail = await readPublicErrorMessage(res, 'Could not revoke server session during logout.');
       if (notifyFailure) {
         toast.error(detail);
       }

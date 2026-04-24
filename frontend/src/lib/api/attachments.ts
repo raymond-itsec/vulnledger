@@ -1,4 +1,5 @@
-import { authorizedFetch, readPublicErrorMessage } from './client';
+import { authorizedFetch } from './client';
+import { readPublicErrorMessage } from './errors';
 
 export interface Attachment {
   attachment_id: string;

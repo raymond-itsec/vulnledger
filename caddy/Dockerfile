@@ -8,15 +8,12 @@ FROM caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca7
 USER root
 RUN apk add --no-cache libcap
 COPY --from=builder /usr/bin/caddy /usr/bin/caddy
-COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY volume-migrate.sh /usr/local/bin/volume-migrate.sh
 RUN chmod 0755 /usr/bin/caddy \
-  && chmod 0755 /usr/local/bin/entrypoint.sh \
   && chmod 0755 /usr/local/bin/volume-migrate.sh \
   && setcap 'cap_net_bind_service=+ep' /usr/bin/caddy \
   && apk del libcap
 
 USER 10001:10001
 
-ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["caddy", "run", "--config", "/etc/caddy/Caddyfile", "--adapter", "caddyfile"]
