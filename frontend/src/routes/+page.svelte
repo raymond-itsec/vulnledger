@@ -286,6 +286,18 @@
   }
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }
+  .login-card .form-group input {
+    background: #f8fafc;
+    border-color: #cbd5e1;
+    color: #111827;
+  }
+  .login-card .form-group input::placeholder {
+    color: #6b7280;
+  }
+  .login-card .form-group input:focus {
+    border-color: #64748b;
+    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.18);
+  }
   .sso-divider {
     text-align: center;
     margin: 1rem 0;
