@@ -13,6 +13,29 @@ Reason: settings are still imported directly in many modules, which limits test 
 - Implement protected-route server-load enforcement (`+page.server.ts`) where applicable, instead of relying on client-only auth guards.
 Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
 
+## [v0.1.18] - 2026-04-24
+
+### Security
+- Hardened attachment and report downloads against Content-Disposition header injection via filename. CRLF and control characters are stripped; non-ASCII filenames are emitted with both ASCII `filename=` and RFC 5987 `filename*=UTF-8''…` encoding.
+- Blocked external-resource fetches during PDF report generation. Report markdown can no longer exfiltrate via `<img src="http://…">` or CSS `@import url(…)`; only inline `data:` URIs are permitted.
+- Added magic-byte MIME validation for attachment uploads. Files whose first 16 bytes do not match the declared Content-Type are rejected with 415.
+- Tightened Content-Security-Policy. Dropped `'unsafe-inline'` from `script-src`; SvelteKit now emits a hashed-script CSP via meta tag. Reduced the HTTP CSP header to `frame-ancestors 'none'`.
+- Removed OIDC email-based account auto-linking. Unknown `(issuer, subject)` identities now always auto-provision a fresh user, eliminating the "nOAuth" risk when a customer IdP does not verify email ownership.
+- Added per-username sliding-window login throttle that complements the existing per-IP limiter. Stops a distributed botnet from grinding a single account.
+- Added 10-second clock-skew tolerance to JWT decoding to prevent spurious 401s on small server-time drift.
+- Added size (≤ 4 KB serialized) and nesting-depth (≤ 4) caps on Client and Asset free-form `metadata_` fields.
+- Added `iss` / `aud` / `iat` claims to issued JWTs with strict issuer and audience enforcement at decode time. **Breaking**: access tokens issued before the upgrade lack these claims and will be rejected; users silently re-refresh once on the first request after deploy.
+- Added `umask 0077` to `backup/backup.sh` so backup archives are created mode 0600 and cannot be read by other users on a shared-UID host mount.
+
+### Changed
+- Added CPU and memory limits (`deploy.resources.limits`) to every service in `docker-compose.yml` to prevent one service from exhausting the host under load or a runaway scan.
+- Extracted the inline `crypto.randomUUID` fallback polyfill from `app.html` to a static asset (`frontend/static/crypto-polyfill.js`) so it is covered by `script-src 'self'` under the new CSP.
+- Updated stack version default to `0.1.18`.
+
+### Added
+- Added a runbook for migrating JWT signing from HS256 to RS256 (generate keypair → dual-verify → wait access-token TTL → disable legacy HS256) to `README.md`.
+- Added a one-shot backend test runner script (`backend/scripts/run-tests.sh`) that provisions the test database, copies tests into the backend container, runs `pytest`, and cleans up on exit.
+
 ## [v0.1.17] - 2026-04-23
 
 ### Changed

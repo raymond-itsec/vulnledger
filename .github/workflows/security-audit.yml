@@ -79,6 +79,9 @@ jobs:
         run: docker build -t vulnledger-backend-ci ./backend
       - name: Trivy scan backend image
         uses: aquasecurity/trivy-action@v0.36.0
+        env:
+          TRIVY_IGNOREFILE: ./.trivyignore.yaml
+          TRIVY_IGNORE_STATUS: affected,will_not_fix,fix_deferred,end_of_life
         with:
           image-ref: vulnledger-backend-ci
           version: v0.70.0

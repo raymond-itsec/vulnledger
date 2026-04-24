@@ -9,4 +9,6 @@ vulnerabilities:
 
   - id: CVE-2024-23342
     statement: "Accepted temporary risk: ecdsa is transitive metadata from python-jose; application JWT configuration only permits HS256/RS256."
+    purls:
+      - "pkg:pypi/ecdsa@0.19.2"
     expired_at: "2026-07-31T00:00:00Z"
