@@ -1,7 +1,9 @@
 from datetime import datetime, timedelta, timezone
+import base64
+import json
 from uuid import UUID
 
-from jose import JWTError, jwt
+from authlib.jose import jwt
 from passlib.context import CryptContext
 
 from app.config import settings
@@ -42,6 +44,30 @@ def _verification_keys() -> list[tuple[str, str]]:
     return keys
 
 
+def _jwt_alg_from_header(token: str) -> str | None:
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    header_segment = parts[0]
+    padding = "=" * (-len(header_segment) % 4)
+    try:
+        header_bytes = base64.urlsafe_b64decode(header_segment + padding)
+        header = json.loads(header_bytes.decode("utf-8"))
+    except (ValueError, json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    alg = header.get("alg")
+    if not isinstance(alg, str):
+        return None
+    return alg.upper()
+
+
+def _encode_jwt_token(header: dict, payload: dict, key: str) -> str:
+    encoded = jwt.encode(header, payload, key)
+    if isinstance(encoded, bytes):
+        return encoded.decode("utf-8")
+    return str(encoded)
+
+
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
@@ -56,7 +82,8 @@ def create_access_token(
     client_id: UUID | None = None,
     token_version: int = 0,
 ) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(
+    now = datetime.now(timezone.utc)
+    expire = now + timedelta(
         minutes=settings.access_token_expire_minutes
     )
     payload = {
@@ -64,27 +91,39 @@ def create_access_token(
         "role": role,
         "client_id": str(client_id) if client_id else None,
         "ver": token_version,
-        "exp": expire,
-        "iat": datetime.now(timezone.utc),
+        "exp": int(expire.timestamp()),
+        "iat": int(now.timestamp()),
         "iss": JWT_ISSUER,
         "aud": JWT_AUDIENCE,
         "type": "access",
     }
     algorithm = _signing_algorithm()
-    return jwt.encode(payload, _signing_key(), algorithm=algorithm)
+    header = {"alg": algorithm, "typ": "JWT"}
+    return _encode_jwt_token(header, payload, _signing_key())
 
 
 def decode_token(token: str) -> dict:
+    token_alg = _jwt_alg_from_header(token)
+    if not token_alg:
+        return {}
+
     for algorithm, key in _verification_keys():
+        if token_alg != algorithm:
+            continue
         try:
-            return jwt.decode(
-                token,
-                key,
-                algorithms=[algorithm],
-                audience=JWT_AUDIENCE,
-                issuer=JWT_ISSUER,
-                options={"leeway": _JWT_LEEWAY_SECONDS},
+            claims = jwt.decode(
+                token, key,
+                claims_options={
+                    "iss": {"essential": True, "value": JWT_ISSUER},
+                    "aud": {"essential": True, "value": JWT_AUDIENCE},
+                    "sub": {"essential": True},
+                    "exp": {"essential": True},
+                    "iat": {"essential": True},
+                    "type": {"essential": True, "value": "access"},
+                },
             )
-        except JWTError:
+            claims.validate(leeway=_JWT_LEEWAY_SECONDS)
+            return dict(claims)
+        except Exception:
             continue
     return {}

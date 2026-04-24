@@ -6,9 +6,3 @@ vulnerabilities:
   - id: CVE-2023-45853
     statement: "Accepted temporary risk: Debian package is marked will_not_fix in current base image stream; review again on next base image refresh."
     expired_at: "2026-07-31T00:00:00Z"
-
-  - id: CVE-2024-23342
-    statement: "Accepted temporary risk: ecdsa is transitive metadata from python-jose; application JWT configuration only permits HS256/RS256."
-    purls:
-      - "pkg:pypi/ecdsa@0.19.2"
-    expired_at: "2026-07-31T00:00:00Z"
