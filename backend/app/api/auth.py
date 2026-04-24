@@ -45,6 +45,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 limiter = Limiter(key_func=get_remote_address)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
+SESSION_HINT_COOKIE_NAME = "vl_session"
 
 
 def _parse_ip_candidate(value: str | None) -> str | None:
@@ -133,6 +134,28 @@ def _clear_refresh_cookie(response: Response) -> None:
     )
 
 
+def _set_session_hint_cookie(response: Response) -> None:
+    response.set_cookie(
+        key=SESSION_HINT_COOKIE_NAME,
+        value="1",
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        max_age=refresh_cookie_max_age_seconds(),
+        path="/",
+    )
+
+
+def _clear_session_hint_cookie(response: Response) -> None:
+    response.delete_cookie(
+        key=SESSION_HINT_COOKIE_NAME,
+        path="/",
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+
+
 def _refresh_failure_response(detail: str) -> JSONResponse:
     response = JSONResponse(
         status_code=status.HTTP_401_UNAUTHORIZED,
@@ -142,6 +165,7 @@ def _refresh_failure_response(detail: str) -> JSONResponse:
         ),
     )
     _clear_refresh_cookie(response)
+    _clear_session_hint_cookie(response)
     return response
 
 
@@ -196,6 +220,7 @@ async def login(
         created_user_agent=_request_user_agent(request),
     )
     _set_refresh_cookie(response, refresh_token)
+    _set_session_hint_cookie(response)
     return TokenResponse(access_token=access_token)
 
 
@@ -226,6 +251,7 @@ async def refresh(
         token_version=exchange_result.user.token_version,
     )
     _set_refresh_cookie(response, exchange_result.refresh_token)
+    _set_session_hint_cookie(response)
     return TokenResponse(access_token=access_token)
 
 
@@ -246,6 +272,7 @@ async def logout(
             actor_user_agent=_request_user_agent(request),
         )
     _clear_refresh_cookie(response)
+    _clear_session_hint_cookie(response)
     return {"detail": "Logged out"}
 
 
@@ -289,6 +316,7 @@ async def revoke_all_sessions(
         actor_user_agent=_request_user_agent(request),
     )
     _clear_refresh_cookie(response)
+    _clear_session_hint_cookie(response)
     return SessionRevokeAllResponse(revoked_count=revoked_count)
 
 

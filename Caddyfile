@@ -40,6 +40,14 @@
 			}
 		}
 
+		# Bridge for static SPA mode: avoid loading full protected routes when
+		# logged out. Full SSR auth-gating will replace this later.
+		@protected_without_session {
+			path /clients* /assets* /sessions* /findings* /admin* /templates* /profile*
+			not header Cookie *vl_session=1*
+		}
+		redir @protected_without_session / 302
+
 		handle /api/* {
 			reverse_proxy backend:8000
 		}

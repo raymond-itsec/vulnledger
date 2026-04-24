@@ -28,6 +28,7 @@ from app.services.refresh_sessions import (
 logger = logging.getLogger(__name__)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
 OIDC_TEMP_COOKIE_MAX_AGE = 600
+SESSION_HINT_COOKIE_NAME = "vl_session"
 
 router = APIRouter(prefix="/auth/oidc", tags=["oidc"])
 
@@ -171,6 +172,18 @@ def _clear_oidc_temp_cookies(response) -> None:
     response.delete_cookie("oidc_nonce", path="/api/auth/oidc")
 
 
+def _set_session_hint_cookie(response) -> None:
+    response.set_cookie(
+        key=SESSION_HINT_COOKIE_NAME,
+        value="1",
+        httponly=True,
+        secure=COOKIE_SECURE,
+        samesite="strict",
+        max_age=refresh_cookie_max_age_seconds(),
+        path="/",
+    )
+
+
 @router.get("/login")
 async def oidc_login(request: Request):
     redirect_uri = settings.oidc_redirect_uri or str(request.url_for("oidc_callback"))
@@ -267,4 +280,5 @@ async def oidc_callback(
         max_age=refresh_cookie_max_age_seconds(),
         path="/api/auth",
     )
+    _set_session_hint_cookie(redirect)
     return redirect
