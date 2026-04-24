@@ -9,7 +9,7 @@ from app.models import Base
 TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL")
 
 
-@pytest_asyncio.fixture(scope="session")
+@pytest_asyncio.fixture()
 async def test_engine():
     if not TEST_DATABASE_URL:
         pytest.skip("TEST_DATABASE_URL is required for backend integration tests.")
