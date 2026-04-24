@@ -22,6 +22,7 @@ _BCRYPT_SHA256_V1_RE = re.compile(
     r"^\$bcrypt-sha256\$(2[aby]),(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
 )
 _BCRYPT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{53})$")
+_BCRYPT_SALT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{22})$")
 
 
 def _password_bytes(password: str) -> bytes:
@@ -91,8 +92,8 @@ def _encode_jwt_token(header: dict, payload: dict, key: Any, algorithm: str) -> 
 
 
 def hash_password(password: str) -> str:
-    salt_spec = bcrypt.gensalt(rounds=12, prefix=b"2b")
-    match = _BCRYPT_RE.match(salt_spec.decode("ascii"))
+    salt_spec = bcrypt.gensalt(rounds=12, prefix=b"2b").decode("ascii")
+    match = _BCRYPT_SALT_RE.match(salt_spec)
     if not match:
         raise ValueError("Could not generate bcrypt salt")
     variant = match.group(1)
@@ -100,7 +101,7 @@ def hash_password(password: str) -> str:
     salt = match.group(3)[:22]
 
     prehashed = _bcrypt_sha256_prehash_v2(password, salt)
-    bcrypt_hash = bcrypt.hashpw(prehashed, salt_spec).decode("ascii")
+    bcrypt_hash = bcrypt.hashpw(prehashed, salt_spec.encode("ascii")).decode("ascii")
     bcrypt_match = _BCRYPT_RE.match(bcrypt_hash)
     if not bcrypt_match:
         raise ValueError("Unexpected bcrypt hash format")
