@@ -27,6 +27,7 @@ from app.services.auth import (
     create_access_token,
     verify_password,
 )
+from app.services.login_throttle import check_login_allowed
 from app.services.refresh_sessions import (
     describe_refresh_session,
     exchange_refresh_token,
@@ -165,6 +166,11 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ):
     client_ip = _request_ip(request)
+    if not await check_login_allowed(body.username):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many login attempts for this account. Please try again later.",
+        )
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
     if not user or not verify_password(body.password, user.password_hash):

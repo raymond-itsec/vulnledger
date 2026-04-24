@@ -1,7 +1,9 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
+
+from app.schemas._metadata import validate_metadata
 
 
 VALID_ASSET_TYPES = [
@@ -17,12 +19,22 @@ class AssetCreate(BaseModel):
     description: str | None = None
     metadata_: dict | None = None
 
+    @field_validator("metadata_")
+    @classmethod
+    def _check_metadata(cls, value):
+        return validate_metadata(value)
+
 
 class AssetUpdate(BaseModel):
     asset_name: str | None = None
     asset_type: str | None = None
     description: str | None = None
     metadata_: dict | None = None
+
+    @field_validator("metadata_")
+    @classmethod
+    def _check_metadata(cls, value):
+        return validate_metadata(value)
 
 
 class AssetResponse(BaseModel):

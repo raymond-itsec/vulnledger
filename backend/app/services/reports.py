@@ -6,6 +6,7 @@ import json
 from datetime import datetime
 
 from weasyprint import HTML
+from weasyprint import default_url_fetcher
 
 from app.config import settings
 from app.models.finding import Finding
@@ -14,6 +15,14 @@ from app.services.html_safety import escape_html, sanitize_hex_color, sanitize_m
 from app.services.taxonomy import TaxonomyBundle
 
 MAX_REPORT_OUTPUT_SIZE = settings.report_max_output_size_mb * 1024 * 1024
+
+
+def _blocking_url_fetcher(url: str, *args, **kwargs):
+    # Refuse every scheme except data: URIs. Prevents SSRF / external leaks
+    # from user-controlled markdown that could produce <img src="..."> nodes.
+    if url.startswith("data:"):
+        return default_url_fetcher(url, *args, **kwargs)
+    raise ValueError(f"External resources are not allowed in PDF reports: {url!r}")
 
 
 class ReportLimitError(ValueError):
@@ -308,6 +317,6 @@ def generate_pdf(
 </body>
 </html>"""
 
-    pdf = HTML(string=html_content).write_pdf()
+    pdf = HTML(string=html_content, url_fetcher=_blocking_url_fetcher).write_pdf()
     validate_report_output_size(pdf)
     return pdf

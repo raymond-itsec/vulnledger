@@ -30,6 +30,48 @@ ALLOWED_CONTENT_TYPES = {
 MAX_FILE_SIZE = settings.attachment_max_file_size_mb * 1024 * 1024
 
 
+def content_type_matches_magic(declared: str, prefix: bytes) -> bool:
+    """Verify that the first bytes of an upload are consistent with the
+    client-declared Content-Type. Rejects the common trick of renaming a
+    binary to a text MIME type (or vice versa) to slip past allowlists.
+    """
+    if not prefix:
+        # Empty files aren't useful evidence; reject.
+        return False
+
+    if declared == "image/png":
+        return prefix.startswith(b"\x89PNG\r\n\x1a\n")
+    if declared == "image/jpeg":
+        return prefix.startswith(b"\xff\xd8\xff")
+    if declared == "image/gif":
+        return prefix.startswith(b"GIF87a") or prefix.startswith(b"GIF89a")
+    if declared == "image/webp":
+        return prefix.startswith(b"RIFF") and len(prefix) >= 12 and prefix[8:12] == b"WEBP"
+    if declared == "application/pdf":
+        return prefix.startswith(b"%PDF-")
+    if declared == "application/zip":
+        return (
+            prefix.startswith(b"PK\x03\x04")
+            or prefix.startswith(b"PK\x05\x06")
+            or prefix.startswith(b"PK\x07\x08")
+        )
+    if declared in {"text/plain", "text/markdown", "text/csv", "application/json"}:
+        # Text-family: reject anything containing NULs or that fails to decode as UTF-8.
+        if b"\x00" in prefix:
+            return False
+        try:
+            prefix.decode("utf-8")
+        except UnicodeDecodeError:
+            # Truncation mid-codepoint is allowed; other decode errors are not.
+            try:
+                prefix[:-3].decode("utf-8")
+            except UnicodeDecodeError:
+                return False
+        return True
+
+    return False
+
+
 def get_minio_client() -> Minio:
     return Minio(
         settings.minio_endpoint,

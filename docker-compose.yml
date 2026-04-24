@@ -10,6 +10,11 @@ services:
     restart: unless-stopped
     logging: *default-logging
     security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
     tmpfs:
       - /tmp
       - /var/run/postgresql
@@ -37,6 +42,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
     command: server /data --console-address ":9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
@@ -60,6 +70,11 @@ services:
     logging: *default-logging
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
     depends_on:
       db:
         condition: service_healthy
@@ -123,6 +138,11 @@ services:
     logging: *default-logging
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     depends_on:
       backend:
         condition: service_healthy
@@ -142,6 +162,11 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
     depends_on:
       frontend:
         condition: service_started
@@ -172,6 +197,11 @@ services:
     user: "postgres"
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
     depends_on:
       db:
         condition: service_healthy
@@ -203,6 +233,11 @@ services:
       - /run/clamav
       - /var/lock
       - /var/log/clamav
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
     ports:
       - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
     volumes:
@@ -219,6 +254,11 @@ services:
     profiles: ["monitoring"]
     restart: unless-stopped
     logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-findings}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}

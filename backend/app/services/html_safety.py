@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from html import escape
+from urllib.parse import quote
 
 import mistune
 
@@ -31,3 +32,23 @@ def sanitize_header_text(value: object | None) -> str:
     if value is None:
         return ""
     return str(value).replace("\r", " ").replace("\n", " ").strip()
+
+
+_DISPOSITION_UNSAFE_RE = re.compile(r"[\x00-\x1f\x7f\"\\]")
+
+
+def content_disposition_attachment(filename: str | None, fallback: str = "download") -> str:
+    """Build a safe Content-Disposition: attachment header value.
+
+    Strips control characters, quotes, and backslashes from the filename,
+    and emits both an ASCII-safe filename= and an RFC 5987 filename*= for
+    non-ASCII names. Prevents header injection (CRLF) and quote escape.
+    """
+    raw = (filename or "").replace("\r", "").replace("\n", "")
+    sanitized = _DISPOSITION_UNSAFE_RE.sub("_", raw).strip().strip(".")
+    if not sanitized:
+        sanitized = fallback
+
+    ascii_name = sanitized.encode("ascii", "replace").decode("ascii").replace("?", "_")
+    encoded = quote(sanitized.encode("utf-8"), safe="")
+    return f'attachment; filename="{ascii_name}"; filename*=UTF-8\'\'{encoded}'

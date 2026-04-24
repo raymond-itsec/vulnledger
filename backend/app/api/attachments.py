@@ -16,9 +16,11 @@ from app.models.review_session import ReviewSession
 from app.models.user import User
 from app.schemas.attachment import AttachmentResponse
 from app.services.antivirus import scan_file_stream
+from app.services.html_safety import content_disposition_attachment
 from app.services.storage import (
     ALLOWED_CONTENT_TYPES,
     MAX_FILE_SIZE,
+    content_type_matches_magic,
     delete_evidence_file,
     stream_evidence_file,
     upload_evidence_file_stream,
@@ -115,6 +117,18 @@ async def upload_attachment(
     finally:
         await file.close()
 
+    # Magic-byte validation: reject if the declared content type does not
+    # match the actual file prefix (prevents a .txt / text-mime bypass of the
+    # ALLOWED_CONTENT_TYPES allowlist).
+    prefix = temp_file.read(16)
+    temp_file.seek(0)
+    if not content_type_matches_magic(content_type, prefix):
+        temp_file.close()
+        raise HTTPException(
+            status_code=415,
+            detail=f"File contents do not match declared type '{content_type}'",
+        )
+
     # Virus scan
     is_clean, scan_message = scan_file_stream(temp_file, file.filename or "unnamed")
     if not is_clean:
@@ -193,7 +207,7 @@ async def download_attachment(
         file_iterator,
         media_type=content_type,
         headers={
-            "Content-Disposition": f'attachment; filename="{attachment.file_name}"',
+            "Content-Disposition": content_disposition_attachment(attachment.file_name),
         },
     )
 

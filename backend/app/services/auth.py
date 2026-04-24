@@ -6,6 +6,10 @@ from passlib.context import CryptContext
 
 from app.config import settings
 
+JWT_ISSUER = "vulnledger-backend"
+JWT_AUDIENCE = "vulnledger-api"
+_JWT_LEEWAY_SECONDS = 10
+
 # Use bcrypt_sha256 by default so long passwords don't fail at 72 bytes.
 # Keep plain bcrypt in the context so existing hashes continue to verify.
 pwd_context = CryptContext(
@@ -61,6 +65,9 @@ def create_access_token(
         "client_id": str(client_id) if client_id else None,
         "ver": token_version,
         "exp": expire,
+        "iat": datetime.now(timezone.utc),
+        "iss": JWT_ISSUER,
+        "aud": JWT_AUDIENCE,
         "type": "access",
     }
     algorithm = _signing_algorithm()
@@ -70,7 +77,14 @@ def create_access_token(
 def decode_token(token: str) -> dict:
     for algorithm, key in _verification_keys():
         try:
-            return jwt.decode(token, key, algorithms=[algorithm])
+            return jwt.decode(
+                token,
+                key,
+                algorithms=[algorithm],
+                audience=JWT_AUDIENCE,
+                issuer=JWT_ISSUER,
+                options={"leeway": _JWT_LEEWAY_SECONDS},
+            )
         except JWTError:
             continue
     return {}

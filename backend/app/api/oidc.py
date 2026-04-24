@@ -10,7 +10,7 @@ import logging
 import secrets
 
 from authlib.integrations.starlette_client import OAuth
-from fastapi import APIRouter, Cookie, Depends, HTTPException, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -111,21 +111,13 @@ async def _resolve_or_create_user(
     if existing:
         return existing
 
-    # One-time fallback linking by email for existing local accounts.
-    result = await db.execute(select(User).where(User.email == email))
-    by_email = result.scalar_one_or_none()
-    if by_email:
-        if by_email.oidc_issuer and by_email.oidc_subject:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="This account is already linked to a different OIDC identity.",
-            )
-        by_email.oidc_issuer = issuer
-        by_email.oidc_subject = subject
-        await db.commit()
-        await db.refresh(by_email)
-        return by_email
-
+    # Email-based auto-linking intentionally removed: we do not trust the
+    # email claim from arbitrary customer IdPs, and linking on email enables
+    # the nOAuth class of attacks where an attacker who controls an email
+    # claim can take over a local account. Unknown (issuer, subject) pairs
+    # always auto-provision a fresh user. Existing local accounts that want
+    # SSO must be linked via an authenticated self-service flow (not part of
+    # this sweep).
     username = _seed_username_from_subject(subject)
     suffix = 0
     while True:

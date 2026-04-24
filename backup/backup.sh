@@ -4,6 +4,11 @@
 
 set -e
 
+# Ensure new backup files are created with 0600 perms (owner read/write only).
+# Prevents "group/other" readable backups if the container's UID maps to a
+# shared host user.
+umask 0077
+
 BACKUP_DIR="/backups"
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
 BACKUP_ENCRYPTION_SECRET_FILE="${BACKUP_ENCRYPTION_SECRET_FILE:-/run/secrets/backup_encryption_passphrase}"

@@ -624,6 +624,31 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `CADDY_ATTACHMENT_MAX_SIZE` | `30MB` | Reverse-proxy upload body limit; keep this at or slightly above `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` |
 | `GATUS_PORT` | `8080` | Host port published for the optional Gatus monitoring dashboard (only when started with `--profile monitoring`) |
 
+### Migrating JWT signing from HS256 to RS256
+
+Access tokens are signed with `HS256` by default (shared-secret `FINDINGS_SECRET_KEY`). To rotate to asymmetric `RS256` without logging every user out, follow these steps in order:
+
+1. **Generate an RS256 key pair** (keep the private key secret; 2048-bit RSA minimum):
+   ```bash
+   openssl genrsa -out jwt-private.pem 2048
+   openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
+   ```
+2. **Load both keys and enable dual-verify** -- deploy with these env vars. The backend keeps accepting old HS256 tokens while issuing new RS256 tokens:
+   ```bash
+   FINDINGS_JWT_PRIVATE_KEY_PEM="$(cat jwt-private.pem)"
+   FINDINGS_JWT_PUBLIC_KEY_PEM="$(cat jwt-public.pem)"
+   FINDINGS_JWT_PRIMARY_ALGORITHM=RS256
+   FINDINGS_JWT_ALLOW_LEGACY_HS256=true   # keep HS256 verify on during cutover
+   ```
+3. **Wait out the access-token TTL** -- all HS256 tokens issued before the switch expire within `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` (default 5 min). Refresh cookies continue to work; users silently receive RS256 tokens on the next refresh.
+4. **Disable HS256 verification** -- once the TTL has elapsed (err on the side of 2x):
+   ```bash
+   FINDINGS_JWT_ALLOW_LEGACY_HS256=false
+   ```
+   Redeploy. The backend will now reject any remaining HS256 tokens. The HS256 secret can be rotated or removed on a later deploy.
+
+Do not skip step 3: flipping `FINDINGS_JWT_ALLOW_LEGACY_HS256=false` immediately after step 2 invalidates every outstanding access token and forces all users to refresh.
+
 ### Backup Configuration
 
 Set on the `backup` service (not `FINDINGS_` prefix):

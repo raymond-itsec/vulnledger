@@ -14,6 +14,7 @@ from app.models.report_export import ReportExport
 from app.models.review_session import ReviewSession
 from app.models.reviewed_asset import ReviewedAsset
 from app.models.user import User
+from app.services.html_safety import content_disposition_attachment
 from app.services.reports import (
     ReportLimitError,
     generate_csv,
@@ -156,7 +157,7 @@ async def download_export(
     return StreamingResponse(
         file_iterator,
         media_type=content_type,
-        headers={"Content-Disposition": f'attachment; filename="{export.file_name}"'},
+        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
     )
 
 
@@ -187,7 +188,7 @@ async def export_pdf(
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",
-        headers={"Content-Disposition": f'attachment; filename="{export.file_name}"'},
+        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
     )
 
 
@@ -218,7 +219,7 @@ async def export_csv(
     return Response(
         content=csv_bytes,
         media_type="text/csv",
-        headers={"Content-Disposition": f'attachment; filename="{export.file_name}"'},
+        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
     )
 
 
@@ -249,5 +250,5 @@ async def export_json(
     return Response(
         content=json_bytes,
         media_type="application/json",
-        headers={"Content-Disposition": f'attachment; filename="{export.file_name}"'},
+        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
     )

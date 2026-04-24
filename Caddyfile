@@ -6,7 +6,11 @@
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
-		Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; frame-ancestors 'none'"
+		# Script/style/img/etc. directives are set via SvelteKit's hash-mode
+		# CSP meta tag (configured in frontend/svelte.config.js). Only
+		# directives that are ignored inside <meta> are emitted here so we
+		# don't intersect with and block Kit's inline-script hashes.
+		Content-Security-Policy "frame-ancestors 'none'"
 	}
 
 	@https protocol https
