@@ -9,3 +9,7 @@ void appAvailability;
 void auth;
 void taxonomy;
 void toast;
+
+// SvelteKit expects hook modules to export known hook functions when present.
+// Keep eager module initialization above and provide a no-op init hook.
+export async function init() {}
