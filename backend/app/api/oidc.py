@@ -28,7 +28,7 @@ from app.services.refresh_sessions import (
 logger = logging.getLogger(__name__)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
 OIDC_TEMP_COOKIE_MAX_AGE = 600
-SESSION_HINT_COOKIE_NAME = "vl_session"
+SESSION_HINT_COOKIE_NAME = settings.session_hint_cookie_name
 
 router = APIRouter(prefix="/auth/oidc", tags=["oidc"])
 

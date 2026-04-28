@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.api.deps import ensure_client_access, get_client_scope, get_current_user, paginate, require_role
+from app.api.utils import apply_update_fields, taxonomy_http_error
 from app.database import get_db
 from app.models.review_session import ReviewSession
 from app.models.reviewed_asset import ReviewedAsset
@@ -87,7 +88,7 @@ async def create_session(
     try:
         await require_taxonomy_value(db, "session_status", body.status)
     except TaxonomyError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise taxonomy_http_error(exc) from exc
     await _validate_session_relations(db, body.asset_id, body.reviewer_id)
     session = ReviewSession(
         asset_id=body.asset_id,
@@ -146,23 +147,16 @@ async def update_session(
         try:
             await require_taxonomy_value(db, "session_status", update_data["status"])
         except TaxonomyError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise taxonomy_http_error(exc) from exc
     reviewer_id = update_data.get("reviewer_id", session.reviewer_id)
     asset_id = update_data.get("asset_id", session.asset_id)
     if "reviewer_id" in update_data:
         await _validate_session_relations(db, asset_id, reviewer_id)
-    if "asset_id" in update_data:
-        session.asset_id = update_data["asset_id"]
-    if "review_name" in update_data:
-        session.review_name = update_data["review_name"]
-    if "review_date" in update_data:
-        session.review_date = update_data["review_date"]
-    if "reviewer_id" in update_data:
-        session.reviewer_id = update_data["reviewer_id"]
-    if "status" in update_data:
-        session.status = update_data["status"]
-    if "notes" in update_data:
-        session.notes = update_data["notes"]
+    apply_update_fields(
+        session,
+        update_data,
+        ("asset_id", "review_name", "review_date", "reviewer_id", "status", "notes"),
+    )
     await db.commit()
     result = await db.execute(
         select(ReviewSession)

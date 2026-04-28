@@ -5,15 +5,13 @@ import hashlib
 import hmac
 import json
 import re
+from pathlib import Path
 from typing import Any
 from uuid import UUID
 
 from joserfc import jwt, jwk
 
 from app.config import settings
-
-JWT_ISSUER = "vulnledger-backend"
-JWT_AUDIENCE = "vulnledger-api"
 _JWT_LEEWAY_SECONDS = 10
 _BCRYPT_SHA256_V2_RE = re.compile(
     r"^\$bcrypt-sha256\$v=2,t=(2[aby]),r=(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
@@ -23,6 +21,24 @@ _BCRYPT_SHA256_V1_RE = re.compile(
 )
 _BCRYPT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{53})$")
 _BCRYPT_SALT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{22})$")
+
+
+def _read_configured_file(path: str) -> str:
+    configured_path = path.strip()
+    if not configured_path:
+        return ""
+    try:
+        return Path(configured_path).read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return ""
+
+
+def _jwt_private_key_pem() -> str:
+    return _read_configured_file(settings.jwt_private_key_file) or settings.jwt_private_key_pem.strip()
+
+
+def _jwt_public_key_pem() -> str:
+    return _read_configured_file(settings.jwt_public_key_file) or settings.jwt_public_key_pem.strip()
 
 
 def _password_bytes(password: str) -> bytes:
@@ -43,25 +59,30 @@ def _build_bcrypt_hash(variant: str, rounds: int, salt: str, checksum: str) -> s
     return f"${variant}${rounds:02d}${salt}{checksum}"
 
 def _rs256_keys_configured() -> bool:
-    return bool(settings.jwt_private_key_pem.strip() and settings.jwt_public_key_pem.strip())
+    return bool(_jwt_private_key_pem() and _jwt_public_key_pem())
 
 
 def _signing_algorithm() -> str:
-    if settings.jwt_primary_algorithm == "RS256" and _rs256_keys_configured():
-        return "RS256"
+    if settings.jwt_primary_algorithm == "RS256":
+        if _rs256_keys_configured():
+            return "RS256"
+        raise RuntimeError(
+            "RS256 signing requires FINDINGS_JWT_PRIVATE_KEY_FILE and "
+            "FINDINGS_JWT_PUBLIC_KEY_FILE, or the matching *_PEM settings."
+        )
     return "HS256"
 
 
 def _signing_jwk() -> Any:
     if _signing_algorithm() == "RS256":
-        return jwk.import_key(settings.jwt_private_key_pem, "RSA")
+        return jwk.import_key(_jwt_private_key_pem(), "RSA")
     return jwk.import_key(settings.secret_key, "oct")
 
 
 def _verification_keys() -> list[tuple[str, Any]]:
     keys: list[tuple[str, Any]] = []
     if _rs256_keys_configured():
-        keys.append(("RS256", jwk.import_key(settings.jwt_public_key_pem, "RSA")))
+        keys.append(("RS256", jwk.import_key(_jwt_public_key_pem(), "RSA")))
     if settings.jwt_allow_legacy_hs256 or not keys:
         keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
     return keys
@@ -157,8 +178,8 @@ def create_access_token(
         "ver": token_version,
         "exp": int(expire.timestamp()),
         "iat": int(now.timestamp()),
-        "iss": JWT_ISSUER,
-        "aud": JWT_AUDIENCE,
+        "iss": settings.jwt_issuer,
+        "aud": settings.jwt_audience,
         "type": "access",
     }
     algorithm = _signing_algorithm()
@@ -182,8 +203,8 @@ def decode_token(token: str) -> dict:
             )
             claims_registry = jwt.JWTClaimsRegistry(
                 leeway=_JWT_LEEWAY_SECONDS,
-                iss={"essential": True, "value": JWT_ISSUER},
-                aud={"essential": True, "value": JWT_AUDIENCE},
+                iss={"essential": True, "value": settings.jwt_issuer},
+                aud={"essential": True, "value": settings.jwt_audience},
                 sub={"essential": True},
                 exp={"essential": True},
                 iat={"essential": True},

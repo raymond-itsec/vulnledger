@@ -1,5 +1,4 @@
 from uuid import UUID
-import ipaddress
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
@@ -27,6 +26,7 @@ from app.services.auth import (
     create_access_token,
     verify_password,
 )
+from app.services.ip_utils import extract_forwarded_ips, is_public_ip, parse_ip_candidate
 from app.services.login_throttle import check_login_allowed
 from app.services.refresh_sessions import (
     describe_refresh_session,
@@ -45,62 +45,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 limiter = Limiter(key_func=get_remote_address)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
-SESSION_HINT_COOKIE_NAME = "vl_session"
-
-
-def _parse_ip_candidate(value: str | None) -> str | None:
-    if not value:
-        return None
-    candidate = value.strip()
-    if not candidate:
-        return None
-    # Handle potential "IP:port" form from some proxies.
-    if candidate.count(":") == 1 and "." in candidate:
-        host, _, _ = candidate.partition(":")
-        candidate = host.strip()
-    try:
-        return str(ipaddress.ip_address(candidate))
-    except ValueError:
-        return None
-
-
-def _is_public_ip(value: str | None) -> bool:
-    parsed_value = _parse_ip_candidate(value)
-    if not parsed_value:
-        return False
-    parsed = ipaddress.ip_address(parsed_value)
-    return not (
-        parsed.is_private
-        or parsed.is_loopback
-        or parsed.is_link_local
-        or parsed.is_reserved
-        or parsed.is_unspecified
-        or parsed.is_multicast
-    )
-
-
-def _extract_forwarded_ips(request: Request) -> list[str]:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if not forwarded_for:
-        return []
-    values = []
-    for part in forwarded_for.split(","):
-        normalized = _parse_ip_candidate(part)
-        if normalized:
-            values.append(normalized)
-    return values
+SESSION_HINT_COOKIE_NAME = settings.session_hint_cookie_name
 
 
 def _request_ip(request: Request) -> str | None:
-    direct_ip = _parse_ip_candidate(request.client.host if request.client else None)
+    direct_ip = parse_ip_candidate(request.client.host if request.client else None)
     if not settings.trust_proxy_headers:
         return direct_ip
 
-    x_real_ip = _parse_ip_candidate(request.headers.get("x-real-ip"))
-    forwarded_ips = _extract_forwarded_ips(request)
+    x_real_ip = parse_ip_candidate(request.headers.get("x-real-ip"))
+    forwarded_ips = extract_forwarded_ips(request)
     candidates = [x_real_ip, *forwarded_ips, direct_ip]
     for candidate in candidates:
-        if _is_public_ip(candidate):
+        if is_public_ip(candidate):
             return candidate
     for candidate in candidates:
         if candidate:

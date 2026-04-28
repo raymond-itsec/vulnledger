@@ -86,6 +86,14 @@
     return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
   }
 
+  function formatDateTime(value?: string | null) {
+    return value ? new Date(value).toLocaleString() : '--';
+  }
+
+  function shortSha256(value?: string | null) {
+    return value ? `${value.slice(0, 12)}...${value.slice(-8)}` : '--';
+  }
+
   async function handleSave() {
     if (!session) return;
     saving = true;
@@ -191,7 +199,15 @@
       {:else}
         <table>
           <thead>
-            <tr><th>Date</th><th>Name</th><th>Created By</th><th>Size</th><th></th></tr>
+            <tr>
+              <th>Date</th>
+              <th>Name</th>
+              <th>Created By</th>
+              <th>Size</th>
+              <th>SHA256</th>
+              <th>Locked Until</th>
+              <th></th>
+            </tr>
           </thead>
           <tbody>
             {#each storedExports as exportItem}
@@ -200,6 +216,8 @@
                 <td>{exportItem.file_name}</td>
                 <td>{exportItem.created_by_name || exportItem.created_by}</td>
                 <td>{formatFileSize(exportItem.size_bytes)}</td>
+                <td><code title={exportItem.sha256 || ''}>{shortSha256(exportItem.sha256)}</code></td>
+                <td>{formatDateTime(exportItem.locked_until)}</td>
                 <td>
                   <button
                     class="btn btn-secondary btn-sm"
@@ -238,9 +256,3 @@
     {/if}
   </div>
 {/if}
-
-<style>
-  .detail-grid { display: grid; grid-template-columns: 150px 1fr; gap: 0.5rem 1rem; }
-  .detail-grid dt { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); }
-  .detail-grid dd { font-size: 0.875rem; }
-</style>

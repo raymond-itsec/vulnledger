@@ -7,6 +7,9 @@ export type ReportExport = {
   report_format: string;
   content_type: string;
   size_bytes: number;
+  sha256?: string | null;
+  locked_until?: string | null;
+  retention_expires_at?: string | null;
   created_by: string;
   created_by_name?: string | null;
   exported_at: string;

@@ -1,4 +1,7 @@
+import hashlib
 import logging
+from collections.abc import Callable
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -8,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.api.deps import get_client_scope, get_current_user
+from app.config import settings
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.report_export import ReportExport
@@ -70,6 +74,9 @@ def _to_export_response(export: ReportExport) -> ReportExportResponse:
         report_format=export.report_format,
         content_type=export.content_type,
         size_bytes=export.size_bytes,
+        sha256=export.sha256,
+        locked_until=export.locked_until,
+        retention_expires_at=export.retention_expires_at,
         created_by=export.created_by,
         created_by_name=export.creator.full_name if export.creator else None,
         exported_at=export.exported_at,
@@ -86,11 +93,16 @@ async def _record_export(
     data: bytes,
 ) -> ReportExport:
     file_name = _safe_file_name(session.review_name, report_format)
+    sha256 = hashlib.sha256(data).hexdigest()
+    retention_expires_at = datetime.now(timezone.utc) + timedelta(
+        days=settings.report_retention_days
+    )
     storage_key = upload_report_file(
         str(session.session_id),
         file_name,
         content_type,
         data,
+        retain_until=retention_expires_at,
     )
     export = ReportExport(
         session_id=session.session_id,
@@ -99,6 +111,9 @@ async def _record_export(
         report_format=report_format,
         content_type=content_type,
         size_bytes=len(data),
+        sha256=sha256,
+        locked_until=retention_expires_at,
+        retention_expires_at=retention_expires_at,
         created_by=user.user_id,
         taxonomy_version_id=taxonomy_version_id,
     )
@@ -106,6 +121,47 @@ async def _record_export(
     await db.commit()
     await db.refresh(export)
     return export
+
+
+async def _export_report(
+    session_id: UUID,
+    db: AsyncSession,
+    user: User,
+    report_format: str,
+    content_type: str,
+    generator: Callable,
+    error_label: str,
+) -> Response:
+    session, findings = await _get_session_with_findings(session_id, db, user)
+    try:
+        taxonomy = await get_current_taxonomy(db)
+        report_bytes = generator(session, findings, taxonomy)
+        export = await _record_export(
+            db,
+            session,
+            user,
+            taxonomy.version.taxonomy_version_id,
+            report_format,
+            content_type,
+            report_bytes,
+        )
+    except ReportLimitError as e:
+        raise HTTPException(status_code=413, detail=str(e))
+    except Exception as e:
+        logger.exception(
+            "Could not generate or store %s report for session %s",
+            error_label,
+            session_id,
+        )
+        raise HTTPException(
+            status_code=502,
+            detail=f"Could not generate the {error_label} report",
+        ) from e
+    return Response(
+        content=report_bytes,
+        media_type=content_type,
+        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
+    )
 
 
 @router.get("/sessions/{session_id}/exports", response_model=list[ReportExportResponse])
@@ -167,28 +223,14 @@ async def export_pdf(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    session, findings = await _get_session_with_findings(session_id, db, user)
-    try:
-        taxonomy = await get_current_taxonomy(db)
-        pdf_bytes = generate_pdf(session, findings, taxonomy)
-        export = await _record_export(
-            db,
-            session,
-            user,
-            taxonomy.version.taxonomy_version_id,
-            "pdf",
-            "application/pdf",
-            pdf_bytes,
-        )
-    except ReportLimitError as e:
-        raise HTTPException(status_code=413, detail=str(e))
-    except Exception as e:
-        logger.exception("Could not generate or store PDF report for session %s", session_id)
-        raise HTTPException(status_code=502, detail="Could not generate the PDF report") from e
-    return Response(
-        content=pdf_bytes,
-        media_type="application/pdf",
-        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
+    return await _export_report(
+        session_id,
+        db,
+        user,
+        "pdf",
+        "application/pdf",
+        generate_pdf,
+        "PDF",
     )
 
 
@@ -198,28 +240,14 @@ async def export_csv(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    session, findings = await _get_session_with_findings(session_id, db, user)
-    try:
-        taxonomy = await get_current_taxonomy(db)
-        csv_bytes = generate_csv(session, findings, taxonomy)
-        export = await _record_export(
-            db,
-            session,
-            user,
-            taxonomy.version.taxonomy_version_id,
-            "csv",
-            "text/csv",
-            csv_bytes,
-        )
-    except ReportLimitError as e:
-        raise HTTPException(status_code=413, detail=str(e))
-    except Exception as e:
-        logger.exception("Could not generate or store CSV report for session %s", session_id)
-        raise HTTPException(status_code=502, detail="Could not generate the CSV report") from e
-    return Response(
-        content=csv_bytes,
-        media_type="text/csv",
-        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
+    return await _export_report(
+        session_id,
+        db,
+        user,
+        "csv",
+        "text/csv",
+        generate_csv,
+        "CSV",
     )
 
 
@@ -229,26 +257,12 @@ async def export_json(
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
-    session, findings = await _get_session_with_findings(session_id, db, user)
-    try:
-        taxonomy = await get_current_taxonomy(db)
-        json_bytes = generate_json(session, findings, taxonomy)
-        export = await _record_export(
-            db,
-            session,
-            user,
-            taxonomy.version.taxonomy_version_id,
-            "json",
-            "application/json",
-            json_bytes,
-        )
-    except ReportLimitError as e:
-        raise HTTPException(status_code=413, detail=str(e))
-    except Exception as e:
-        logger.exception("Could not generate or store JSON report for session %s", session_id)
-        raise HTTPException(status_code=502, detail="Could not generate the JSON report") from e
-    return Response(
-        content=json_bytes,
-        media_type="application/json",
-        headers={"Content-Disposition": content_disposition_attachment(export.file_name)},
+    return await _export_report(
+        session_id,
+        db,
+        user,
+        "json",
+        "application/json",
+        generate_json,
+        "JSON",
     )

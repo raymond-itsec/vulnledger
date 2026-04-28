@@ -1,6 +1,6 @@
 """ClamAV virus scanning for file attachments.
 
-Scans files before they are stored in MinIO. Gracefully degrades
+Scans files before they are stored in object storage. Gracefully degrades
 when ClamAV is not available (logs a warning, allows upload).
 """
 

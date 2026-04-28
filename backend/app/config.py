@@ -7,9 +7,9 @@ _ALLOWED_RUNTIME_MODES = {"development", "production"}
 
 
 class Settings(BaseSettings):
-    app_version: str = "0.1.18"
+    app_version: str = "0.2.0"
     runtime_mode: str = "development"
-    database_url: str = "postgresql+asyncpg://findings:findings@db:5432/findings"
+    database_url: str
     secret_key: str = ""
     log_level: str = "INFO"
 
@@ -32,16 +32,17 @@ class Settings(BaseSettings):
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     allowed_methods: list[str] = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
     allowed_headers: list[str] = ["Authorization", "Content-Type", "Accept", "If-None-Match"]
-    minio_endpoint: str = "minio:9000"
-    minio_access_key: str = ""
-    minio_secret_key: str = ""
-    minio_secure: bool = False
-    minio_evidence_bucket: str = "finding-attachments"
-    minio_reports_bucket: str = "generated-reports"
+    object_storage_endpoint: str = "seaweedfs:8333"
+    object_storage_access_key: str = ""
+    object_storage_secret_key: str = ""
+    object_storage_secure: bool = False
+    object_storage_evidence_bucket: str = "finding-attachments"
+    object_storage_reports_bucket: str = "generated-reports"
     attachment_max_file_size_mb: int = 25
     report_max_findings: int = 250
     report_max_input_chars: int = 200000
     report_max_output_size_mb: int = 25
+    report_retention_days: int = 365
     mailjet_api_key: str = ""
     mailjet_api_secret: str = ""
     mailjet_from_email: str = "noreply@findings.local"
@@ -69,8 +70,13 @@ class Settings(BaseSettings):
     # JWT migration controls. Default stays HS256-compatible until RS256 keys are configured.
     jwt_primary_algorithm: str = "HS256"
     jwt_allow_legacy_hs256: bool = True
+    jwt_issuer: str
+    jwt_audience: str
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
+    jwt_private_key_file: str = ""
+    jwt_public_key_file: str = ""
+    session_hint_cookie_name: str
 
     model_config = {
         "env_prefix": "FINDINGS_",
@@ -81,6 +87,7 @@ class Settings(BaseSettings):
     @field_validator(
         "access_token_expire_minutes",
         "refresh_token_expire_days",
+        "report_retention_days",
     )
     @classmethod
     def _require_positive(cls, value: int, info) -> int:
@@ -89,6 +96,20 @@ class Settings(BaseSettings):
                 f"FINDINGS_{info.field_name.upper()} must be > 0 (got {value})"
             )
         return value
+
+    @field_validator(
+        "database_url",
+        "jwt_issuer",
+        "jwt_audience",
+        "session_hint_cookie_name",
+        mode="before",
+    )
+    @classmethod
+    def _require_non_empty_string(cls, value: object, info) -> str:
+        text = str(value or "").strip()
+        if not text:
+            raise ValueError(f"FINDINGS_{info.field_name.upper()} must be set")
+        return text
 
     @field_validator("jwt_primary_algorithm", mode="before")
     @classmethod

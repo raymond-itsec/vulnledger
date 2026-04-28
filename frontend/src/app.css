@@ -210,3 +210,19 @@ tr:hover { background: #f9fafb; }
   font-weight: 700;
   margin-top: 0.25rem;
 }
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 0.5rem 1rem;
+}
+
+.detail-grid dt {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.detail-grid dd {
+  font-size: 0.875rem;
+}

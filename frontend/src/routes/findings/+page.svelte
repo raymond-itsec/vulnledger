@@ -9,10 +9,13 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { linesToList, optionalString } from '$lib/util/forms';
+  import { shouldOpenFromNewParam } from '$lib/util/new-param';
 
   let findings = $state<Finding[]>([]);
   let sessions = $state<Session[]>([]);
@@ -103,7 +106,7 @@
     if (sessionId && form.session_id !== sessionId) {
       form.session_id = sessionId;
     }
-    const wantsNew = params.get('new') === '1';
+    const wantsNew = shouldOpenFromNewParam(params);
     if (!wantsNew) {
       handledNewParam = false;
       return;
@@ -137,14 +140,14 @@
     if (!hasSessions) return;
     saving = true;
     try {
-      const refs = form.references.split('\n').map((r) => r.trim()).filter(Boolean);
+      const refs = linesToList(form.references);
       await findingsApi.create({
         session_id: form.session_id,
         title: form.title,
         description: form.description,
         risk_level: form.risk_level,
-        impact: form.impact || undefined,
-        recommendation: form.recommendation || undefined,
+        impact: optionalString(form.impact),
+        recommendation: optionalString(form.recommendation),
         remediation_status: form.remediation_status,
         references: refs.length > 0 ? refs : undefined,
       });
@@ -273,12 +276,12 @@
         <label for={referencesFieldId}>References (one per line)</label>
         <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
       </div>
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-        <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-        <button class="btn btn-primary" type="submit" disabled={saving}>
-          {saving ? 'Creating...' : 'Create Finding'}
-        </button>
-      </div>
+      <FormActions
+        {saving}
+        saveLabel="Create Finding"
+        savingLabel="Creating..."
+        oncancel={() => (showModal = false)}
+      />
     </form>
   {/if}
 </Modal>

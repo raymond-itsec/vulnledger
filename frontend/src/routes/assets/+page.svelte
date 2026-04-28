@@ -7,9 +7,11 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { shouldOpenFromNewParam } from '$lib/util/new-param';
 
   let assets = $state<Asset[]>([]);
   let clients = $state<Client[]>([]);
@@ -60,7 +62,7 @@
   let handledNewParam = $state(false);
 
   $effect(() => {
-    const wantsNew = pageState.url.searchParams.get('new') === '1';
+    const wantsNew = shouldOpenFromNewParam(pageState.url.searchParams);
     if (!wantsNew) {
       handledNewParam = false;
       return;
@@ -155,9 +157,6 @@
       <label for={assetDescriptionFieldId}>Description</label>
       <textarea id={assetDescriptionFieldId} bind:value={form.description}></textarea>
     </div>
-    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-      <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-      <button class="btn btn-primary" type="submit" disabled={saving}>Create</button>
-    </div>
+    <FormActions {saving} saveLabel="Create" savingLabel="Creating..." oncancel={() => (showModal = false)} />
   </form>
 </Modal>

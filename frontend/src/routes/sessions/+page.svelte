@@ -9,9 +9,11 @@
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { shouldOpenFromNewParam } from '$lib/util/new-param';
 
   let sessions = $state<Session[]>([]);
   let assets = $state<Asset[]>([]);
@@ -98,7 +100,7 @@
   let handledNewParam = $state(false);
 
   $effect(() => {
-    const wantsNew = pageState.url.searchParams.get('new') === '1';
+    const wantsNew = shouldOpenFromNewParam(pageState.url.searchParams);
     if (!wantsNew) {
       handledNewParam = false;
       return;
@@ -222,12 +224,12 @@
         <label for={notesFieldId}>Notes</label>
         <textarea id={notesFieldId} bind:value={form.notes}></textarea>
       </div>
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-        <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-        <button class="btn btn-primary" type="submit" disabled={saving}>
-          {saving ? 'Creating...' : 'Create Session'}
-        </button>
-      </div>
+      <FormActions
+        {saving}
+        saveLabel="Create Session"
+        savingLabel="Creating..."
+        oncancel={() => (showModal = false)}
+      />
     </form>
   {/if}
 </Modal>

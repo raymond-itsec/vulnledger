@@ -35,12 +35,12 @@ endpoints:
     conditions:
       - "[CONNECTED] == true"
 
-  - name: minio
+  - name: seaweedfs-s3
     group: infra
-    url: "http://minio:9000/minio/health/live"
+    url: "tcp://seaweedfs:8333"
     interval: 30s
     conditions:
-      - "[STATUS] == 200"
+      - "[CONNECTED] == true"
 
   - name: clamav
     group: infra

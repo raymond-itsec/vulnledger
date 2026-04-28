@@ -4,7 +4,6 @@ import time
 import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
-import ipaddress
 
 from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
@@ -27,8 +26,9 @@ from app.services.storage import (
     EVIDENCE_BUCKET_NAME,
     REPORTS_BUCKET_NAME,
     ensure_buckets,
-    get_minio_client,
+    get_object_storage_client,
 )
+from app.services.ip_utils import extract_forwarded_ips, is_rfc1918_or_loopback, parse_ip_candidate
 from app.services.taxonomy import ensure_default_taxonomy_version
 
 configure_logging()
@@ -58,7 +58,7 @@ async def lifespan(app: FastAPI):
     try:
         await asyncio.to_thread(ensure_buckets)
     except Exception:
-        logger.warning("MinIO not available -- file attachments and report storage disabled")
+        logger.warning("Object storage not available -- file attachments and report storage disabled")
     yield
     await engine.dispose()
 
@@ -166,60 +166,17 @@ if settings.oidc_enabled:
     app.include_router(oidc.router, prefix="/api")
 
 
-def _parse_ip_candidate(value: str | None) -> str | None:
-    if not value:
-        return None
-    candidate = value.strip()
-    if not candidate:
-        return None
-    # Handle potential "IP:port" form from some proxies.
-    if candidate.count(":") == 1 and "." in candidate:
-        host, _, _ = candidate.partition(":")
-        candidate = host.strip()
-    try:
-        return str(ipaddress.ip_address(candidate))
-    except ValueError:
-        return None
-
-
-def _extract_forwarded_ips(request: Request) -> list[str]:
-    forwarded_for = request.headers.get("x-forwarded-for", "")
-    if not forwarded_for:
-        return []
-    values: list[str] = []
-    for part in forwarded_for.split(","):
-        normalized = _parse_ip_candidate(part)
-        if normalized:
-            values.append(normalized)
-    return values
-
-
 def _effective_probe_ip(request: Request) -> str | None:
     """Resolve the probe source IP, preferring forwarded client IP over proxy IP."""
     if settings.trust_proxy_headers:
-        forwarded_ips = _extract_forwarded_ips(request)
+        forwarded_ips = extract_forwarded_ips(request)
         if forwarded_ips:
             # X-Forwarded-For is client, proxy1, proxy2... -> left-most is origin.
             return forwarded_ips[0]
-        x_real_ip = _parse_ip_candidate(request.headers.get("x-real-ip"))
+        x_real_ip = parse_ip_candidate(request.headers.get("x-real-ip"))
         if x_real_ip:
             return x_real_ip
-    return _parse_ip_candidate(request.client.host if request.client else None)
-
-
-def _is_rfc1918_or_loopback(value: str | None) -> bool:
-    parsed_value = _parse_ip_candidate(value)
-    if not parsed_value:
-        return False
-    ip = ipaddress.ip_address(parsed_value)
-    if ip.version == 4:
-        return (
-            ip in ipaddress.ip_network("10.0.0.0/8")
-            or ip in ipaddress.ip_network("172.16.0.0/12")
-            or ip in ipaddress.ip_network("192.168.0.0/16")
-            or ip in ipaddress.ip_network("127.0.0.0/8")
-        )
-    return ip.is_loopback
+    return parse_ip_candidate(request.client.host if request.client else None)
 
 
 async def _check_database_health() -> dict[str, object]:
@@ -240,8 +197,8 @@ async def _check_database_health() -> dict[str, object]:
         }
 
 
-def _check_minio_health_sync() -> dict[str, object]:
-    client = get_minio_client()
+def _check_object_storage_health_sync() -> dict[str, object]:
+    client = get_object_storage_client()
     evidence_exists = client.bucket_exists(EVIDENCE_BUCKET_NAME)
     reports_exists = client.bucket_exists(REPORTS_BUCKET_NAME)
     return {
@@ -250,10 +207,10 @@ def _check_minio_health_sync() -> dict[str, object]:
     }
 
 
-async def _check_minio_health() -> dict[str, object]:
+async def _check_object_storage_health() -> dict[str, object]:
     started = time.perf_counter()
     try:
-        details = await asyncio.to_thread(_check_minio_health_sync)
+        details = await asyncio.to_thread(_check_object_storage_health_sync)
         status_value = (
             "ok"
             if details["evidence_bucket_exists"] and details["reports_bucket_exists"]
@@ -265,7 +222,7 @@ async def _check_minio_health() -> dict[str, object]:
             **details,
         }
     except Exception as exc:
-        logger.warning("Health debug MinIO check failed (%s)", exc.__class__.__name__)
+        logger.warning("Health debug object storage check failed (%s)", exc.__class__.__name__)
         return {
             "status": "down",
             "reason": "unreachable",
@@ -293,7 +250,7 @@ async def health():
 @app.get("/api/health/live")
 async def health_live(request: Request):
     source_ip = _effective_probe_ip(request)
-    if not _is_rfc1918_or_loopback(source_ip):
+    if not is_rfc1918_or_loopback(source_ip):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Probe endpoint is restricted to internal networks.",
@@ -304,21 +261,24 @@ async def health_live(request: Request):
 @app.get("/api/health/debug")
 async def health_debug(request: Request):
     source_ip = _effective_probe_ip(request)
-    if not _is_rfc1918_or_loopback(source_ip):
+    if not is_rfc1918_or_loopback(source_ip):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Probe endpoint is restricted to internal networks.",
         )
 
-    database_check, minio_check, clamav_check = await asyncio.gather(
+    database_check, object_storage_check, clamav_check = await asyncio.gather(
         _check_database_health(),
-        _check_minio_health(),
+        _check_object_storage_health(),
         _check_clamav_health(),
     )
 
-    critical_checks = (database_check, minio_check)
+    critical_checks = (database_check, object_storage_check)
     critical_down = any(check.get("status") == "down" for check in critical_checks)
-    degraded = any(check.get("status") in {"down", "degraded"} for check in (minio_check, clamav_check))
+    degraded = any(
+        check.get("status") in {"down", "degraded"}
+        for check in (object_storage_check, clamav_check)
+    )
 
     overall_status = "down" if critical_down else ("degraded" if degraded else "ok")
     http_status = status.HTTP_503_SERVICE_UNAVAILABLE if critical_down else status.HTTP_200_OK
@@ -334,7 +294,7 @@ async def health_debug(request: Request):
         "source_ip": source_ip or "unknown",
         "checks": {
             "database": database_check,
-            "minio": minio_check,
+            "object_storage": object_storage_check,
             "clamav": clamav_check,
         },
     }

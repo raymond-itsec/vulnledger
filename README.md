@@ -30,7 +30,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 - **Review Sessions** -- Organize findings per engagement with reviewer assignment and status tracking
 - **Finding Management** -- Full CRUD with risk levels (critical → informational), remediation statuses, markdown-rich descriptions, and file attachments
 - **Change History** -- Per-field audit trail on every finding edit (who changed what, when)
-- **File Attachments** -- Upload screenshots, evidence, and documents (stored in MinIO)
+- **File Attachments** -- Upload screenshots, evidence, and documents (stored in SeaweedFS S3-compatible object storage)
 
 ### Templates
 - **25 Built-in Finding Templates** -- Covering OWASP Top 10 categories: injection, authentication, access control, cryptography, misconfiguration, and more
@@ -73,7 +73,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 | **Migrations** | Alembic | Database schema versioning |
 | **Frontend** | SvelteKit 5, TypeScript | Single-page application |
 | **Styling** | Custom CSS (CSS variables) | Theming, responsive design |
-| **Object Storage** | MinIO | S3-compatible file attachment storage |
+| **Object Storage** | SeaweedFS | S3-compatible file attachment and report export storage |
 | **Reverse Proxy** | Caddy 2 | Auto-TLS, routing, compression |
 | **PDF Generation** | WeasyPrint | HTML → PDF report rendering |
 | **Email** | Mailjet (REST API) | Transactional email notifications |
@@ -105,8 +105,8 @@ VulnLedger is a self-hosted web application for managing security code review fi
                            │              │              │              │
                            ▼              └──────┬───────┘              ▼
                      ┌──────────┐                │                ┌──────────┐
-                     │ PostgreSQL│                │                │  MinIO   │
-                     │  :5432   │                │                │  :9000   │
+                     │ PostgreSQL│                │                │SeaweedFS │
+                     │  :5432   │                │                │  :8333   │
                      └──────────┘                │                └──────────┘
                            ▲                     │
                            │                     ▼
@@ -120,13 +120,17 @@ VulnLedger is a self-hosted web application for managing security code review fi
 1. All requests enter through **Caddy** (ports 80/443)
 2. Requests to `/api/*` are proxied to the **FastAPI backend**
 3. All other requests are proxied to the **SvelteKit frontend**
-4. The backend communicates with **PostgreSQL** for data, **MinIO** for files, **ClamAV** for scanning, and **Mailjet** for email
+4. The backend communicates with **PostgreSQL** for data, **SeaweedFS** for files, **ClamAV** for scanning, and **Mailjet** for email
 5. The **backup service** independently dumps PostgreSQL on a cron schedule
 
 ### Storage Layout
-- **Evidence bucket** -- Uploaded finding attachments are stored in the configured MinIO evidence bucket
-- **Reports bucket** -- Generated PDF, CSV, and JSON exports are stored in a separate MinIO reports bucket
+- **Evidence bucket** -- Uploaded finding attachments are stored in the configured object-storage evidence bucket
+- **Reports bucket** -- Generated PDF, CSV, and JSON exports are stored in a separate object-storage reports bucket
+- **Report retention** -- Newly generated reports are uploaded with one-year object-lock retention and recorded with SHA256 integrity metadata
 - **Stored export downloads** -- Session detail pages can list and download previously generated exports through the backend
+
+### v0.2.0 Breaking Storage Change
+VulnLedger `v0.2.0` starts object storage from SeaweedFS. The default deployment no longer starts MinIO and does not automatically migrate old MinIO buckets or objects. Fresh deployments only need the SeaweedFS settings in `.env`; existing deployments must either accept a fresh object store or manually copy existing MinIO objects into SeaweedFS before old attachment/report downloads are expected to work.
 
 ### Authentication Flow
 1. User submits credentials → `POST /api/auth/login`
@@ -163,9 +167,9 @@ Findings ── FindingHistory (per-field change log)               │
   │                                                              │
   │ finding_id                                      Users.linked_client_id
   ▼                                    (client_user sees only their client's data)
-FindingAttachments (MinIO)
+FindingAttachments (object storage)
 
-ReviewSessions ── ReportExports (stored export metadata + MinIO object key + taxonomy version)
+ReviewSessions ── ReportExports (stored export metadata + object key + taxonomy version)
 
 TaxonomyVersions ── TaxonomyEntries
        ▲
@@ -228,7 +232,7 @@ open http://localhost
 That's it. The app will be available at `http://localhost` with:
 - Your configured initial admin account from `.env`
 - 25 finding templates auto-synced on startup
-- PostgreSQL, MinIO, and all services running
+- PostgreSQL, SeaweedFS, and all services running
 
 ### First-Run Helper
 
@@ -312,8 +316,8 @@ The frontend dev server runs on `http://localhost:5173` and proxies `/api/*` to 
 You can run just the infrastructure services via Docker while developing locally:
 
 ```bash
-# Start only PostgreSQL and MinIO
-docker compose up -d db minio
+# Start only PostgreSQL and SeaweedFS
+docker compose up -d db seaweedfs
 
 # Optional: Start ClamAV for virus scanning
 docker compose up -d clamav
@@ -325,19 +329,20 @@ Create a `.env` file in the project root (or set environment variables):
 
 ```env
 # Required
-FINDINGS_DATABASE_URL=postgresql+asyncpg://findings:findings@localhost:5432/findings
+FINDINGS_DATABASE_URL=postgresql+asyncpg://change_this_db_user:<strong-db-password>@localhost:5432/change_this_db_name
 FINDINGS_SECRET_KEY=change-this-jwt-signing-key
 FINDINGS_INITIAL_ADMIN_USERNAME=admin
 FINDINGS_INITIAL_ADMIN_PASSWORD=change-this-admin-password
 FINDINGS_INITIAL_ADMIN_EMAIL=admin@example.com
 
-# MinIO (file attachments)
-FINDINGS_MINIO_ENDPOINT=localhost:9000
-FINDINGS_MINIO_ACCESS_KEY=findings-storage
-FINDINGS_MINIO_SECRET_KEY=change-this-minio-secret
-FINDINGS_MINIO_SECURE=false
-FINDINGS_MINIO_EVIDENCE_BUCKET=finding-attachments
-FINDINGS_MINIO_REPORTS_BUCKET=generated-reports
+# SeaweedFS S3-compatible object storage
+FINDINGS_OBJECT_STORAGE_ENDPOINT=localhost:8333
+FINDINGS_OBJECT_STORAGE_ACCESS_KEY=findings-storage
+FINDINGS_OBJECT_STORAGE_SECRET_KEY=change-this-object-storage-secret
+FINDINGS_OBJECT_STORAGE_SECURE=false
+FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET=finding-attachments
+FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET=generated-reports
+FINDINGS_REPORT_RETENTION_DAYS=365
 
 # Optional: Upload / report guardrails
 # The backend value is the authoritative attachment limit.
@@ -363,6 +368,11 @@ FINDINGS_OIDC_CLIENT_SECRET=
 FINDINGS_OIDC_DISCOVERY_URL=
 FINDINGS_OIDC_REDIRECT_URI=
 
+# JWT / session identity
+FINDINGS_JWT_ISSUER=vulnledger-backend
+FINDINGS_JWT_AUDIENCE=vulnledger-api
+FINDINGS_SESSION_HINT_COOKIE_NAME=vl_session
+
 # Optional: ClamAV
 FINDINGS_CLAMAV_HOST=localhost
 FINDINGS_CLAMAV_PORT=3310
@@ -371,7 +381,7 @@ FINDINGS_CLAMAV_PORT=3310
 CADDY_ATTACHMENT_MAX_SIZE=30MB
 
 # Optional: Unified app version shown in UI and backend metadata
-APP_VERSION=0.1.16
+APP_VERSION=0.2.0
 ```
 
 ---
@@ -432,15 +442,17 @@ These **must** be changed from defaults:
 ```env
 # CRITICAL -- change these!
 FINDINGS_SECRET_KEY=<random-64-char-string>
-MINIO_ROOT_USER=<strong-access-key>
-MINIO_ROOT_PASSWORD=<strong-secret-key>
+SEAWEEDFS_S3_ACCESS_KEY=<strong-access-key>
+SEAWEEDFS_S3_SECRET_KEY=<strong-secret-key>
 FINDINGS_INITIAL_ADMIN_USERNAME=<admin-username>
 FINDINGS_INITIAL_ADMIN_PASSWORD=<strong-admin-password>
 FINDINGS_INITIAL_ADMIN_EMAIL=<admin-email>
 
 # Database (use strong password)
+POSTGRES_USER=change_this_db_user
 POSTGRES_PASSWORD=<strong-db-password>
-FINDINGS_DATABASE_URL=postgresql+asyncpg://findings:<strong-db-password>@db:5432/findings
+POSTGRES_DB=change_this_db_name
+FINDINGS_DATABASE_URL=postgresql+asyncpg://change_this_db_user:<strong-db-password>@db:5432/change_this_db_name
 
 # Your public URL (used in emails and OIDC redirects)
 FINDINGS_APP_BASE_URL=https://yourdomain.com
@@ -464,9 +476,9 @@ For larger teams or high-availability requirements, you can split services acros
 docker run -d \
   --name findings-db \
   --restart unless-stopped \
-  -e POSTGRES_USER=findings \
+  -e POSTGRES_USER=<db-user> \
   -e POSTGRES_PASSWORD=<strong-password> \
-  -e POSTGRES_DB=findings \
+  -e POSTGRES_DB=<db-name> \
   -v pgdata:/var/lib/postgresql/data \
   -p 5432:5432 \
   postgres:16-alpine \
@@ -475,18 +487,18 @@ docker run -d \
   -c max_connections=100
 ```
 
-#### Storage Server (MinIO)
+#### Storage Server (SeaweedFS)
 ```bash
-# Run MinIO with encryption at rest
+# Run SeaweedFS with its S3 gateway enabled
 docker run -d \
-  --name findings-minio \
+  --name findings-seaweedfs \
   --restart unless-stopped \
-  -e MINIO_ROOT_USER=<access-key> \
-  -e MINIO_ROOT_PASSWORD=<secret-key> \
-  -v minio_data:/data \
-  -p 9000:9000 \
-  -p 9001:9001 \
-  minio/minio server /data --console-address ":9001"
+  -e AWS_ACCESS_KEY_ID=<access-key> \
+  -e AWS_SECRET_ACCESS_KEY=<secret-key> \
+  -v seaweedfs_data:/data \
+  -p 8333:8333 \
+  chrislusf/seaweedfs:4.20 \
+  server -dir=/data -s3 -s3.port=8333
 ```
 
 #### Application Server
@@ -495,11 +507,11 @@ docker run -d \
 docker run -d \
   --name findings-backend \
   --restart unless-stopped \
-  -e FINDINGS_DATABASE_URL=postgresql+asyncpg://findings:<pw>@<db-host>:5432/findings \
+  -e FINDINGS_DATABASE_URL=postgresql+asyncpg://<db-user>:<pw>@<db-host>:5432/<db-name> \
   -e FINDINGS_SECRET_KEY=<secret> \
-  -e FINDINGS_MINIO_ENDPOINT=<minio-host>:9000 \
-  -e FINDINGS_MINIO_ACCESS_KEY=<key> \
-  -e FINDINGS_MINIO_SECRET_KEY=<secret> \
+  -e FINDINGS_OBJECT_STORAGE_ENDPOINT=<seaweedfs-host>:8333 \
+  -e FINDINGS_OBJECT_STORAGE_ACCESS_KEY=<key> \
+  -e FINDINGS_OBJECT_STORAGE_SECRET_KEY=<secret> \
   -e FINDINGS_CLAMAV_HOST=<clamav-host> \
   -p 8000:8000 \
   findings-backend
@@ -522,9 +534,9 @@ docker run -d \
   --name findings-backup \
   --restart unless-stopped \
   -e POSTGRES_HOST=<db-host> \
-  -e POSTGRES_USER=findings \
+  -e POSTGRES_USER=<db-user> \
   -e POSTGRES_PASSWORD=<pw> \
-  -e POSTGRES_DB=findings \
+  -e POSTGRES_DB=<db-name> \
   -e BACKUP_RETENTION_DAYS=90 \
   -e BACKUP_CRON="0 2 * * *" \
   -v /mnt/backup-storage:/backups \
@@ -538,21 +550,21 @@ The default `docker-compose.yml` runs all 7 services:
 | Service | Image | Port | Purpose |
 |---------|-------|------|---------|
 | `db` | postgres:16.13-alpine3.23@sha256:... | `127.0.0.1:5432` | Primary database |
-| `minio` | minio/minio:RELEASE.2025-09-07T16-13-09Z@sha256:... | `127.0.0.1:9000`, `127.0.0.1:9001` | Object storage for evidence and generated exports |
+| `seaweedfs` | chrislusf/seaweedfs:4.20 | `127.0.0.1:8333` | S3-compatible object storage for evidence and generated exports |
 | `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
 | `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
 | `caddy` | Custom (Caddy + ratelimit module) | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
 | `backup` | Custom (postgres + cron) | -- | Scheduled database backups |
 | `clamav` | clamav/clamav:1.4.3@sha256:... | `127.0.0.1:3310` | Antivirus scanning |
 
-> Runtime image references in `docker-compose.yml` are pinned by immutable digest.
+> Most runtime image references in `docker-compose.yml` are pinned by immutable digest. SeaweedFS is pinned to release tag `4.20`; pinning its multi-arch digest is a deployment hardening follow-up.
 
 ### Volumes
 
 | Volume | Data | Backup? |
 |--------|------|---------|
 | `pgdata` | PostgreSQL data |  Auto-backed up by backup service |
-| `minio_data` | Evidence files and generated report exports |  Back up separately or use MinIO replication |
+| `seaweedfs_data` | Evidence files and generated report exports |  Back up separately or use SeaweedFS replication |
 | `backups` | SQL dump files |  Mount to host or NFS for off-server storage |
 | `caddy_data` | TLS certificates |  Auto-managed by Caddy |
 | `clamav_data` | Virus definitions |  Auto-updated by ClamAV |
@@ -565,7 +577,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FINDINGS_DATABASE_URL` | `postgresql+asyncpg://findings:findings@db:5432/findings` | PostgreSQL connection string |
+| `FINDINGS_DATABASE_URL` | See `.env.example` | PostgreSQL connection string. Must be set explicitly; the backend no longer carries a built-in username/password fallback. |
 | `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required). Must be at least 32 bytes; the backend logs a CRITICAL message and refuses to start otherwise. |
 | `FINDINGS_LOG_LEVEL` | `INFO` | Backend log verbosity (`DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL`, case-insensitive). Invalid values refuse startup. |
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |
@@ -576,16 +588,17 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_ALLOWED_METHODS` | `["GET","POST","PATCH","DELETE","OPTIONS"]` | CORS allowed methods |
 | `FINDINGS_ALLOWED_HEADERS` | `["Authorization","Content-Type","Accept","If-None-Match"]` | CORS allowed request headers |
-| `FINDINGS_MINIO_ENDPOINT` | `minio:9000` | MinIO server address |
-| `FINDINGS_MINIO_ACCESS_KEY` | _(empty)_ | MinIO access key |
-| `FINDINGS_MINIO_SECRET_KEY` | _(empty)_ | MinIO secret key |
-| `FINDINGS_MINIO_SECURE` | `false` | Use HTTPS for MinIO |
-| `FINDINGS_MINIO_EVIDENCE_BUCKET` | `finding-attachments` | MinIO bucket for uploaded finding evidence |
-| `FINDINGS_MINIO_REPORTS_BUCKET` | `generated-reports` | MinIO bucket for generated PDF/CSV/JSON exports |
+| `FINDINGS_OBJECT_STORAGE_ENDPOINT` | `seaweedfs:8333` | S3-compatible object-storage endpoint |
+| `FINDINGS_OBJECT_STORAGE_ACCESS_KEY` | _(empty)_ | Object-storage access key |
+| `FINDINGS_OBJECT_STORAGE_SECRET_KEY` | _(empty)_ | Object-storage secret key |
+| `FINDINGS_OBJECT_STORAGE_SECURE` | `false` | Use HTTPS for object storage |
+| `FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET` | `finding-attachments` | Bucket for uploaded finding evidence |
+| `FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET` | `generated-reports` | Bucket for generated PDF/CSV/JSON exports |
 | `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` | `25` | Authoritative attachment size limit enforced by the backend |
 | `FINDINGS_REPORT_MAX_FINDINGS` | `250` | Maximum number of findings allowed in a single export |
 | `FINDINGS_REPORT_MAX_INPUT_CHARS` | `200000` | Maximum combined text size allowed before report generation |
 | `FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB` | `25` | Maximum generated report size before the backend rejects the export |
+| `FINDINGS_REPORT_RETENTION_DAYS` | `365` | Object-lock retention window applied to newly generated stored reports |
 | `FINDINGS_MAILJET_API_KEY` | _(empty)_ | Mailjet API key (empty = emails disabled) |
 | `FINDINGS_MAILJET_API_SECRET` | _(empty)_ | Mailjet API secret |
 | `FINDINGS_MAILJET_FROM_EMAIL` | `noreply@findings.local` | Sender email address |
@@ -609,13 +622,17 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
 | `FINDINGS_JWT_PRIMARY_ALGORITHM` | `HS256` | Access-token signing algorithm (`HS256` or `RS256`) |
 | `FINDINGS_JWT_ALLOW_LEGACY_HS256` | `true` | When enabled, token verification still accepts HS256 during RS256 migration |
+| `FINDINGS_JWT_ISSUER` | See `.env.example` | Expected JWT issuer claim |
+| `FINDINGS_JWT_AUDIENCE` | See `.env.example` | Expected JWT audience claim |
 | `FINDINGS_JWT_PRIVATE_KEY_PEM` | _(empty)_ | RS256 private key PEM (required when RS256 signing is enabled) |
 | `FINDINGS_JWT_PUBLIC_KEY_PEM` | _(empty)_ | RS256 public key PEM |
+| `FINDINGS_JWT_PRIVATE_KEY_FILE` | See `.env.example` | Path to an RS256 private key PEM file mounted in the backend container |
+| `FINDINGS_JWT_PUBLIC_KEY_FILE` | See `.env.example` | Path to an RS256 public key PEM file mounted in the backend container |
+| `FINDINGS_SESSION_HINT_COOKIE_NAME` | See `.env.example` | Non-sensitive session-hint cookie name used for OIDC/logout cleanup |
 | `FINDINGS_RUNTIME_MODE` | `development` | Runtime mode used by backup encryption policy (`production` enforces secret presence) |
-| `APP_VERSION` | `0.1.16` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
+| `APP_VERSION` | `0.2.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
-| `MINIO_PORT` | `9000` | Host port published for MinIO |
-| `MINIO_CONSOLE_PORT` | `9001` | Host port published for the MinIO console |
+| `SEAWEEDFS_S3_PORT` | `8333` | Host port published for the SeaweedFS S3 gateway |
 | `BACKEND_PORT` | `8000` | Host port published for the FastAPI backend |
 | `FRONTEND_PORT` | `5173` | Host port published for the Svelte frontend |
 | `CLAMAV_PORT` | `3310` | Host port published for ClamAV |
@@ -797,12 +814,12 @@ All list endpoints support pagination (`?page=1&per_page=25`) and return:
 - **Content-Type Validation** -- Only allowed MIME types accepted (images, PDF, text, CSV, JSON, ZIP)
 - **Size Limits** -- Attachment uploads are limited in both Caddy and the backend; the backend is authoritative, and the Caddy cap should be set at or slightly above it to reject oversized uploads early
 - **Virus Scanning** -- ClamAV scans every upload before storage (when enabled)
-- **Separated Storage Buckets** -- Evidence and generated exports are stored in different MinIO buckets
-- **Proxied Downloads** -- Evidence files and stored exports are served through the backend (MinIO not exposed to the internet)
+- **Separated Storage Buckets** -- Evidence and generated exports are stored in different object-storage buckets
+- **Proxied Downloads** -- Evidence files and stored exports are served through the backend (object storage is not exposed to the internet)
 
 ### Reporting Controls
 - **Export Guardrails** -- The backend rejects oversized exports based on finding count, total input size, and generated output size
-- **Stored Export Metadata** -- Each export records the export date, file name, creating user, format, size, and taxonomy version used at generation time
+- **Stored Export Metadata** -- Each export records the export date, file name, creating user, format, size, SHA256, lock expiry, and taxonomy version used at generation time
 - **Historical Taxonomy Reference** -- Stored exports are linked to the taxonomy version that was active when they were created
 
 ### Operational
@@ -849,17 +866,14 @@ gunzip -c backup_20260415.sql.gz | docker compose exec -T db psql -U findings fi
 docker compose start backend
 ```
 
-### MinIO Backup
+### Object Storage Backup
 
-File attachments are stored in MinIO. Back up the `minio_data` volume separately:
+File attachments and generated reports are stored in SeaweedFS. Back up the `seaweedfs_data` volume separately:
 
 ```bash
-# Copy MinIO data
-docker compose exec minio mc mirror /data /backup-destination
-
-# Or back up the Docker volume directly
-docker run --rm -v findings_minio_data:/data -v /host/backup:/backup alpine \
-  tar czf /backup/minio_$(date +%Y%m%d).tar.gz /data
+# Back up the Docker volume directly
+docker run --rm -v findings_seaweedfs_data:/data -v /host/backup:/backup alpine \
+  tar czf /backup/seaweedfs_$(date +%Y%m%d).tar.gz /data
 ```
 
 ---
@@ -880,7 +894,7 @@ Every service uses the `json-file` driver with rotation at 10MB × 5 files to ke
 
 ### Healthchecks and startup order
 
-`docker-compose.yml` defines healthchecks for `db` (`pg_isready`), `minio`, `clamav`, and `caddy`. The `backend` and `backup` services declare `depends_on` with `condition: service_healthy` against `db` and `minio`, so the backend does not attempt migrations or accept traffic until its dependencies are actually ready. `docker compose ps` reflects per-service health, and crashed containers restart via `restart: unless-stopped`.
+`docker-compose.yml` defines healthchecks for `db` (`pg_isready`), `seaweedfs`, `clamav`, and `caddy`. The backend declares `depends_on` with `condition: service_healthy` against `db` and `seaweedfs`, so it does not attempt migrations or accept traffic until its dependencies are ready. `docker compose ps` reflects per-service health, and crashed containers restart via `restart: unless-stopped`.
 
 ### Optional health dashboard (Gatus)
 

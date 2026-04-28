@@ -4,10 +4,12 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { linesToList, optionalString } from '$lib/util/forms';
 
   let templates = $state<Template[]>([]);
   let loading = $state(true);
@@ -97,15 +99,15 @@
   async function handleSave() {
     saving = true;
     try {
-      const refs = form.references.split('\n').map((r) => r.trim()).filter(Boolean);
+      const refs = linesToList(form.references);
       const payload = {
         name: form.name,
-        category: form.category || undefined,
-        title: form.title || undefined,
-        description: form.description || undefined,
-        risk_level: form.risk_level || undefined,
-        impact: form.impact || undefined,
-        recommendation: form.recommendation || undefined,
+        category: optionalString(form.category),
+        title: optionalString(form.title),
+        description: optionalString(form.description),
+        risk_level: optionalString(form.risk_level),
+        impact: optionalString(form.impact),
+        recommendation: optionalString(form.recommendation),
         references: refs.length > 0 ? refs : undefined,
       };
 
@@ -286,12 +288,12 @@
       <label for={referencesFieldId}>References (one per line)</label>
       <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
     </div>
-    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-      <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-      <button class="btn btn-primary" type="submit" disabled={saving}>
-        {saving ? 'Saving...' : editingTemplate ? 'Save Changes' : 'Create Template'}
-      </button>
-    </div>
+    <FormActions
+      {saving}
+      saveLabel={editingTemplate ? 'Save Changes' : 'Create Template'}
+      savingLabel="Saving..."
+      oncancel={() => (showModal = false)}
+    />
   </form>
 </Modal>
 

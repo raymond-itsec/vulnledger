@@ -9,6 +9,7 @@
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { linesToList, optionalString } from '$lib/util/forms';
 
   let finding = $state<Finding | null>(null);
   let history = $state<FindingHistory[]>([]);
@@ -72,13 +73,13 @@
     if (!finding) return;
     saving = true;
     try {
-      const refs = form.references.split('\n').map((r) => r.trim()).filter(Boolean);
+      const refs = linesToList(form.references);
       finding = await findingsApi.update(finding.finding_id, {
         title: form.title,
         description: form.description,
         risk_level: form.risk_level,
-        impact: form.impact || undefined,
-        recommendation: form.recommendation || undefined,
+        impact: optionalString(form.impact),
+        recommendation: optionalString(form.recommendation),
         remediation_status: form.remediation_status,
         references: refs.length > 0 ? refs : undefined,
       });

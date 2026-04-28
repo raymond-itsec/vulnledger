@@ -155,7 +155,7 @@ require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
 build_service backend
 
 info "Starting required infrastructure services"
-compose up -d db minio clamav
+compose up -d db seaweedfs clamav
 
 info "Running DB migrations first"
 compose run --rm --no-deps backend alembic upgrade head

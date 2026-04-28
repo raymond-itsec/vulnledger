@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
 from app.api.deps import ensure_client_access, get_client_scope, get_current_user, paginate, require_role
+from app.api.utils import apply_update_fields, taxonomy_http_error
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.finding_history import FindingHistory
@@ -90,7 +91,7 @@ async def create_finding(
         risk_entry = await require_taxonomy_value(db, "risk_level", body.risk_level)
         await require_taxonomy_value(db, "remediation_status", body.remediation_status)
     except TaxonomyError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise taxonomy_http_error(exc) from exc
     async with db.begin():
         finding = Finding(
             session_id=body.session_id,
@@ -171,7 +172,7 @@ async def update_finding(
                 db, "remediation_status", update_data["remediation_status"]
             )
     except TaxonomyError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise taxonomy_http_error(exc) from exc
 
     async with db.begin():
         # Track changes
@@ -191,20 +192,7 @@ async def update_finding(
                     new_value=new_str,
                 ))
 
-        if "title" in update_data:
-            finding.title = update_data["title"]
-        if "description" in update_data:
-            finding.description = update_data["description"]
-        if "risk_level" in update_data:
-            finding.risk_level = update_data["risk_level"]
-        if "impact" in update_data:
-            finding.impact = update_data["impact"]
-        if "recommendation" in update_data:
-            finding.recommendation = update_data["recommendation"]
-        if "remediation_status" in update_data:
-            finding.remediation_status = update_data["remediation_status"]
-        if "references" in update_data:
-            finding.references = update_data["references"]
+        apply_update_fields(finding, update_data, TRACKED_FIELDS)
 
     await db.refresh(finding)
 

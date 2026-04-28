@@ -4,9 +4,11 @@
   import { clientsApi, type Client } from '$lib/api/clients';
   import { auth } from '$lib/stores/auth.svelte';
   import { toast } from '$lib/stores/toast.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
   import { fieldId } from '$lib/util/dom';
+  import { shouldOpenFromNewParam } from '$lib/util/new-param';
 
   let clients = $state<Client[]>([]);
   let loading = $state(true);
@@ -37,7 +39,7 @@
   }
 
   onMount(() => {
-    if (pageState.url.searchParams.get('new') === '1') {
+    if (shouldOpenFromNewParam(pageState.url.searchParams)) {
       showModal = true;
     }
     load();
@@ -107,11 +109,11 @@
       <label for={contactEmailFieldId}>Primary Contact Email</label>
       <input id={contactEmailFieldId} type="email" bind:value={form.primary_contact_email} />
     </div>
-    <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-      <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Cancel</button>
-      <button class="btn btn-primary" type="submit" disabled={saving}>
-        {saving ? 'Creating...' : 'Create Client'}
-      </button>
-    </div>
+    <FormActions
+      {saving}
+      saveLabel="Create Client"
+      savingLabel="Creating..."
+      oncancel={() => (showModal = false)}
+    />
   </form>
 </Modal>

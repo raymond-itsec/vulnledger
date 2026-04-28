@@ -57,7 +57,7 @@ require_non_placeholder() {
   fi
 
   case "$value" in
-    change-this-*|your-*|example.com|admin@example.com)
+    change-this-*|change_this_*|your-*|example.com|admin@example.com)
       die "$var_name still uses the example placeholder in .env"
       ;;
   esac
@@ -141,15 +141,18 @@ doctor() {
   load_env
 
   require_non_placeholder "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-}"
+  require_non_placeholder "FINDINGS_DATABASE_URL" "${FINDINGS_DATABASE_URL:-}"
   require_non_placeholder "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}"
   require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
-  require_non_placeholder "MINIO_ROOT_PASSWORD" "${MINIO_ROOT_PASSWORD:-}"
+  require_non_placeholder "FINDINGS_JWT_ISSUER" "${FINDINGS_JWT_ISSUER:-}"
+  require_non_placeholder "FINDINGS_JWT_AUDIENCE" "${FINDINGS_JWT_AUDIENCE:-}"
+  require_non_placeholder "FINDINGS_SESSION_HINT_COOKIE_NAME" "${FINDINGS_SESSION_HINT_COOKIE_NAME:-}"
+  require_non_placeholder "SEAWEEDFS_S3_SECRET_KEY" "${SEAWEEDFS_S3_SECRET_KEY:-}"
   require_non_placeholder "FINDINGS_INITIAL_ADMIN_PASSWORD" "${FINDINGS_INITIAL_ADMIN_PASSWORD:-}"
   require_non_placeholder "FINDINGS_INITIAL_ADMIN_EMAIL" "${FINDINGS_INITIAL_ADMIN_EMAIL:-}"
 
   check_port "${POSTGRES_PORT:-5432}" "POSTGRES_PORT"
-  check_port "${MINIO_PORT:-9000}" "MINIO_PORT"
-  check_port "${MINIO_CONSOLE_PORT:-9001}" "MINIO_CONSOLE_PORT"
+  check_port "${SEAWEEDFS_S3_PORT:-8333}" "SEAWEEDFS_S3_PORT"
   check_port "${BACKEND_PORT:-8000}" "BACKEND_PORT"
   check_port "${FRONTEND_PORT:-5173}" "FRONTEND_PORT"
   check_port "${CLAMAV_PORT:-3310}" "CLAMAV_PORT"

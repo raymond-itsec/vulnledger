@@ -15,6 +15,36 @@ Reason: current frontend runs with `ssr = false`, so route protection is still p
 - Move service images to a private container registry and deploy by immutable digest.
 Reason: current host-local builds increase drift risk between environments and slow rollouts. Registry-backed, digest-pinned deploys improve reproducibility, rollback safety, and multi-host operations.
 
+## [v0.2.0] - Draft
+
+### Breaking
+- Replaced MinIO with a fresh SeaweedFS S3-compatible object-storage deployment. Existing MinIO buckets and object data are not migrated automatically; deployments upgrading to `v0.2.0` must start with SeaweedFS storage or perform a manual object migration before serving old attachment/report downloads.
+- Removed app-facing MinIO configuration from the default deployment path. Use `FINDINGS_OBJECT_STORAGE_*`, `SEAWEEDFS_S3_ACCESS_KEY`, and `SEAWEEDFS_S3_SECRET_KEY`; old `FINDINGS_MINIO_*`/`MINIO_*` values are no longer wired into Compose.
+
+### Changed
+- Updated stack version defaults to `0.2.0`.
+- Refactored repeated frontend form/action patterns into shared helpers and a reusable `FormActions` component, reducing duplication across create/edit flows without changing behavior.
+- Moved repeated detail-grid styling into global frontend CSS and removed identical local route styles.
+- Centralized frontend references parsing and optional-string payload helpers for findings and templates.
+- Centralized `?new=1` modal-opening checks behind a small route utility while keeping each page's prerequisite and redirect logic local.
+- Simplified frontend markdown inline-token rendering by reusing a Svelte snippet instead of repeating token markup across headings, paragraphs, and list items.
+- Added backend API helpers for simple update-field application and taxonomy validation HTTP errors, replacing repeated assignment and exception blocks.
+- Moved duplicated backend IP parsing and forwarded-header parsing into a shared IP utility while preserving auth and health-check behavior.
+- Collapsed repeated PDF/CSV/JSON report export endpoint internals into one private helper while keeping public routes and response behavior unchanged.
+- Replaced the default MinIO compose service with SeaweedFS S3-compatible object storage and renamed app-facing storage settings to `FINDINGS_OBJECT_STORAGE_*`.
+- Added one-year object-lock retention for newly generated stored reports and exposed SHA256 plus lock/retention metadata in the report export API and session export table.
+- Removed hardcoded runtime defaults for the database URL, JWT issuer/audience, and session-hint cookie name; these must now be supplied by `.env`.
+- Added file-based RS256 key configuration and mounted `./secrets` read-only into the backend for JWT keypair storage.
+
+### Added
+- Added an Alembic migration for report export integrity and retention metadata (`sha256`, `locked_until`, `retention_expires_at`).
+
+### Validation
+- Verified `npm --prefix frontend run build` passes.
+- Verified backend Python syntax with `PYTHONPYCACHEPREFIX=/private/tmp/vulnledger-pycache python3 -m compileall backend/app`.
+- `svelte-check` remains blocked by the existing `frontend/vite.config.ts` Node type configuration issue for `process`.
+- Backend container test script could not run in this environment because `docker compose` is unavailable/parsed incorrectly by the installed Docker command.
+
 ## [v0.1.18] - 2026-04-24
 
 ### Security

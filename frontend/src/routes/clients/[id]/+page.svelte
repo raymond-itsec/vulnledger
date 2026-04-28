@@ -5,6 +5,7 @@
   import { assetsApi, type Asset } from '$lib/api/assets';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
+  import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { fieldId } from '$lib/util/dom';
 
@@ -157,16 +158,7 @@
         <label for={assetDescriptionFieldId}>Description</label>
         <textarea id={assetDescriptionFieldId} bind:value={assetForm.description}></textarea>
       </div>
-      <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
-        <button class="btn btn-secondary" type="button" onclick={() => (showAssetModal = false)}>Cancel</button>
-        <button class="btn btn-primary" type="submit" disabled={saving}>Create</button>
-      </div>
+      <FormActions {saving} saveLabel="Create" savingLabel="Creating..." oncancel={() => (showAssetModal = false)} />
     </form>
   </Modal>
 {/if}
-
-<style>
-  .detail-grid { display: grid; grid-template-columns: 150px 1fr; gap: 0.5rem 1rem; }
-  .detail-grid dt { font-weight: 600; font-size: 0.875rem; color: var(--text-secondary); }
-  .detail-grid dd { font-size: 0.875rem; }
-</style>

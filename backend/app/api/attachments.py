@@ -133,7 +133,7 @@ async def upload_attachment(
             detail=f"File rejected: {scan_message}",
         )
 
-    # Upload to MinIO
+    # Upload to object storage
     try:
         temp_file.seek(0)
         storage_key = upload_evidence_file_stream(

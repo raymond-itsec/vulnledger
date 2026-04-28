@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import ensure_client_access, get_client_scope, get_current_user, paginate, require_role
+from app.api.utils import apply_update_fields, taxonomy_http_error
 from app.database import get_db
 from app.models.reviewed_asset import ReviewedAsset
 from app.models.user import User
@@ -43,7 +44,7 @@ async def create_asset(
     try:
         await require_taxonomy_value(db, "asset_type", body.asset_type)
     except TaxonomyError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
+        raise taxonomy_http_error(exc) from exc
     asset = ReviewedAsset(
         client_id=body.client_id,
         asset_name=body.asset_name,
@@ -91,17 +92,12 @@ async def update_asset(
         try:
             await require_taxonomy_value(db, "asset_type", update_data["asset_type"])
         except TaxonomyError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if "client_id" in update_data:
-        asset.client_id = update_data["client_id"]
-    if "asset_name" in update_data:
-        asset.asset_name = update_data["asset_name"]
-    if "asset_type" in update_data:
-        asset.asset_type = update_data["asset_type"]
-    if "description" in update_data:
-        asset.description = update_data["description"]
-    if "metadata_" in update_data:
-        asset.metadata_ = update_data["metadata_"]
+            raise taxonomy_http_error(exc) from exc
+    apply_update_fields(
+        asset,
+        update_data,
+        ("client_id", "asset_name", "asset_type", "description", "metadata_"),
+    )
     await db.commit()
     await db.refresh(asset)
     return asset

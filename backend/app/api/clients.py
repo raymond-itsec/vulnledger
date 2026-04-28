@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_client_scope, get_current_user, paginate, require_role
+from app.api.utils import apply_update_fields
 from app.database import get_db
 from app.models.client import Client
 from app.models.user import User
@@ -76,14 +77,11 @@ async def update_client(
     if not client:
         raise HTTPException(status_code=404, detail="Client not found")
     update_data = body.model_dump(exclude_unset=True)
-    if "company_name" in update_data:
-        client.company_name = update_data["company_name"]
-    if "primary_contact_name" in update_data:
-        client.primary_contact_name = update_data["primary_contact_name"]
-    if "primary_contact_email" in update_data:
-        client.primary_contact_email = update_data["primary_contact_email"]
-    if "metadata_" in update_data:
-        client.metadata_ = update_data["metadata_"]
+    apply_update_fields(
+        client,
+        update_data,
+        ("company_name", "primary_contact_name", "primary_contact_email", "metadata_"),
+    )
     await db.commit()
     await db.refresh(client)
     return client

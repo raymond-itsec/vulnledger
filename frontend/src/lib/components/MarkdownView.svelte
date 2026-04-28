@@ -150,6 +150,16 @@
   let blocks = $derived(parseBlocks(content));
 </script>
 
+{#snippet renderInline(tokens: InlineToken[])}
+  {#each tokens as token}
+    {#if token.type === 'text'}{token.value}{/if}
+    {#if token.type === 'code'}<code>{token.value}</code>{/if}
+    {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
+    {#if token.type === 'em'}<em>{token.value}</em>{/if}
+    {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
+  {/each}
+{/snippet}
+
 <div class="markdown-content">
   {#if blocks.length === 0}
     <p class="muted">No content.</p>
@@ -157,55 +167,25 @@
     {#each blocks as block}
       {#if block.type === 'h2'}
         <h2>
-          {#each block.tokens as token}
-            {#if token.type === 'text'}{token.value}{/if}
-            {#if token.type === 'code'}<code>{token.value}</code>{/if}
-            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
-            {#if token.type === 'em'}<em>{token.value}</em>{/if}
-            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
-          {/each}
+          {@render renderInline(block.tokens)}
         </h2>
       {:else if block.type === 'h3'}
         <h3>
-          {#each block.tokens as token}
-            {#if token.type === 'text'}{token.value}{/if}
-            {#if token.type === 'code'}<code>{token.value}</code>{/if}
-            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
-            {#if token.type === 'em'}<em>{token.value}</em>{/if}
-            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
-          {/each}
+          {@render renderInline(block.tokens)}
         </h3>
       {:else if block.type === 'h4'}
         <h4>
-          {#each block.tokens as token}
-            {#if token.type === 'text'}{token.value}{/if}
-            {#if token.type === 'code'}<code>{token.value}</code>{/if}
-            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
-            {#if token.type === 'em'}<em>{token.value}</em>{/if}
-            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
-          {/each}
+          {@render renderInline(block.tokens)}
         </h4>
       {:else if block.type === 'p'}
         <p>
-          {#each block.tokens as token}
-            {#if token.type === 'text'}{token.value}{/if}
-            {#if token.type === 'code'}<code>{token.value}</code>{/if}
-            {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
-            {#if token.type === 'em'}<em>{token.value}</em>{/if}
-            {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
-          {/each}
+          {@render renderInline(block.tokens)}
         </p>
       {:else if block.type === 'ul'}
         <ul>
           {#each block.items as itemTokens}
             <li>
-              {#each itemTokens as token}
-                {#if token.type === 'text'}{token.value}{/if}
-                {#if token.type === 'code'}<code>{token.value}</code>{/if}
-                {#if token.type === 'strong'}<strong>{token.value}</strong>{/if}
-                {#if token.type === 'em'}<em>{token.value}</em>{/if}
-                {#if token.type === 'link'}<a href={token.href} target="_blank" rel="noopener noreferrer">{token.value}</a>{/if}
-              {/each}
+              {@render renderInline(itemTokens)}
             </li>
           {/each}
         </ul>

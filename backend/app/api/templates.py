@@ -5,6 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, paginate, require_role
+from app.api.utils import apply_update_fields, taxonomy_http_error
 from app.database import get_db
 from app.models.finding_template import FindingTemplate
 from app.models.user import User
@@ -43,7 +44,7 @@ async def create_template(
         try:
             await require_taxonomy_value(db, "risk_level", body.risk_level)
         except TaxonomyError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
+            raise taxonomy_http_error(exc) from exc
     template = FindingTemplate(
         stable_id=body.stable_id,
         name=body.name,
@@ -98,25 +99,22 @@ async def update_template(
         try:
             await require_taxonomy_value(db, "risk_level", update_data["risk_level"])
         except TaxonomyError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-    if "stable_id" in update_data:
-        template.stable_id = update_data["stable_id"]
-    if "name" in update_data:
-        template.name = update_data["name"]
-    if "category" in update_data:
-        template.category = update_data["category"]
-    if "title" in update_data:
-        template.title = update_data["title"]
-    if "description" in update_data:
-        template.description = update_data["description"]
-    if "risk_level" in update_data:
-        template.risk_level = update_data["risk_level"]
-    if "impact" in update_data:
-        template.impact = update_data["impact"]
-    if "recommendation" in update_data:
-        template.recommendation = update_data["recommendation"]
-    if "references" in update_data:
-        template.references = update_data["references"]
+            raise taxonomy_http_error(exc) from exc
+    apply_update_fields(
+        template,
+        update_data,
+        (
+            "stable_id",
+            "name",
+            "category",
+            "title",
+            "description",
+            "risk_level",
+            "impact",
+            "recommendation",
+            "references",
+        ),
+    )
     await db.commit()
     await db.refresh(template)
     return template
