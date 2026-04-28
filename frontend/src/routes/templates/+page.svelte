@@ -323,11 +323,18 @@
     background: none;
     text-align: left;
     font-size: 0.875rem;
+    color: var(--text-primary);
     cursor: pointer;
     transition: background 0.1s;
   }
-  .template-item:hover { background: #f1f5f9; }
-  .template-item.active { background: #e0e7ff; }
+  .template-item:hover {
+    background: #f1f5f9;
+    color: var(--text-primary);
+  }
+  .template-item.active {
+    background: #e0e7ff;
+    color: var(--text-primary);
+  }
   .template-name { flex: 1; }
   .builtin-tag, .custom-tag {
     font-size: 0.65rem;
