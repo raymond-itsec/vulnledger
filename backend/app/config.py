@@ -1,4 +1,6 @@
-from pydantic import field_validator, model_validator
+from urllib.parse import quote
+
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings
 
 _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -9,7 +11,12 @@ _ALLOWED_RUNTIME_MODES = {"development", "production"}
 class Settings(BaseSettings):
     app_version: str = "0.2.0"
     runtime_mode: str = "development"
-    database_url: str
+    database_url: str = ""
+    postgres_host: str = Field(validation_alias="POSTGRES_HOST")
+    postgres_service_port: int = Field(validation_alias="POSTGRES_SERVICE_PORT")
+    postgres_user: str = Field(validation_alias="POSTGRES_USER")
+    postgres_password: str = Field(validation_alias="POSTGRES_PASSWORD")
+    postgres_db: str = Field(validation_alias="POSTGRES_DB")
     secret_key: str = ""
     log_level: str = "INFO"
 
@@ -88,6 +95,7 @@ class Settings(BaseSettings):
         "access_token_expire_minutes",
         "refresh_token_expire_days",
         "report_retention_days",
+        "postgres_service_port",
     )
     @classmethod
     def _require_positive(cls, value: int, info) -> int:
@@ -98,7 +106,10 @@ class Settings(BaseSettings):
         return value
 
     @field_validator(
-        "database_url",
+        "postgres_host",
+        "postgres_user",
+        "postgres_password",
+        "postgres_db",
         "jwt_issuer",
         "jwt_audience",
         "session_hint_cookie_name",
@@ -108,8 +119,19 @@ class Settings(BaseSettings):
     def _require_non_empty_string(cls, value: object, info) -> str:
         text = str(value or "").strip()
         if not text:
-            raise ValueError(f"FINDINGS_{info.field_name.upper()} must be set")
+            raise ValueError(f"{info.field_name.upper()} must be set")
         return text
+
+    @model_validator(mode="after")
+    def _resolve_database_url(self) -> "Settings":
+        username = quote(self.postgres_user, safe="")
+        password = quote(self.postgres_password, safe="")
+        database = quote(self.postgres_db, safe="")
+        self.database_url = (
+            f"postgresql+asyncpg://{username}:{password}"
+            f"@{self.postgres_host}:{self.postgres_service_port}/{database}"
+        )
+        return self
 
     @field_validator("jwt_primary_algorithm", mode="before")
     @classmethod

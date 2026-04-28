@@ -13,9 +13,11 @@ fi
 
 : "${POSTGRES_USER:?POSTGRES_USER must be set (check .env)}"
 : "${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set (check .env)}"
+: "${POSTGRES_HOST:?POSTGRES_HOST must be set (check .env)}"
+: "${POSTGRES_SERVICE_PORT:?POSTGRES_SERVICE_PORT must be set (check .env)}"
 
 TEST_DB="findings_test"
-TEST_DB_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${TEST_DB}"
+TEST_DB_URL="postgresql+asyncpg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@${POSTGRES_HOST}:${POSTGRES_SERVICE_PORT}/${TEST_DB}"
 
 compose() { docker compose "$@"; }
 

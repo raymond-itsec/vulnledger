@@ -281,7 +281,7 @@ pip install -r requirements.lock.txt
 ./scripts/lock-requirements.sh
 
 # Start PostgreSQL (if not using Docker)
-# Ensure FINDINGS_DATABASE_URL points to your local PostgreSQL
+# Ensure POSTGRES_HOST and POSTGRES_SERVICE_PORT point to your local PostgreSQL
 
 # Run migrations
 alembic upgrade head
@@ -329,7 +329,11 @@ Create a `.env` file in the project root (or set environment variables):
 
 ```env
 # Required
-FINDINGS_DATABASE_URL=postgresql+asyncpg://change_this_db_user:<strong-db-password>@localhost:5432/change_this_db_name
+POSTGRES_USER=change_this_db_user
+POSTGRES_PASSWORD=<strong-db-password>
+POSTGRES_DB=change_this_db_name
+POSTGRES_HOST=localhost
+POSTGRES_SERVICE_PORT=5432
 FINDINGS_SECRET_KEY=change-this-jwt-signing-key
 FINDINGS_INITIAL_ADMIN_USERNAME=admin
 FINDINGS_INITIAL_ADMIN_PASSWORD=change-this-admin-password
@@ -452,7 +456,8 @@ FINDINGS_INITIAL_ADMIN_EMAIL=<admin-email>
 POSTGRES_USER=change_this_db_user
 POSTGRES_PASSWORD=<strong-db-password>
 POSTGRES_DB=change_this_db_name
-FINDINGS_DATABASE_URL=postgresql+asyncpg://change_this_db_user:<strong-db-password>@db:5432/change_this_db_name
+POSTGRES_HOST=db
+POSTGRES_SERVICE_PORT=5432
 
 # Your public URL (used in emails and OIDC redirects)
 FINDINGS_APP_BASE_URL=https://yourdomain.com
@@ -507,7 +512,11 @@ docker run -d \
 docker run -d \
   --name findings-backend \
   --restart unless-stopped \
-  -e FINDINGS_DATABASE_URL=postgresql+asyncpg://<db-user>:<pw>@<db-host>:5432/<db-name> \
+  -e POSTGRES_HOST=<db-host> \
+  -e POSTGRES_SERVICE_PORT=5432 \
+  -e POSTGRES_USER=<db-user> \
+  -e POSTGRES_PASSWORD=<pw> \
+  -e POSTGRES_DB=<db-name> \
   -e FINDINGS_SECRET_KEY=<secret> \
   -e FINDINGS_OBJECT_STORAGE_ENDPOINT=<seaweedfs-host>:8333 \
   -e FINDINGS_OBJECT_STORAGE_ACCESS_KEY=<key> \
@@ -577,7 +586,11 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `FINDINGS_DATABASE_URL` | See `.env.example` | PostgreSQL connection string. Must be set explicitly; the backend no longer carries a built-in username/password fallback. |
+| `POSTGRES_HOST` | See `.env.example` | PostgreSQL host used by the backend to build its connection string |
+| `POSTGRES_SERVICE_PORT` | See `.env.example` | PostgreSQL container/service port used by the backend connection string |
+| `POSTGRES_USER` | See `.env.example` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | See `.env.example` | PostgreSQL password |
+| `POSTGRES_DB` | See `.env.example` | PostgreSQL database name |
 | `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required). Must be at least 32 bytes; the backend logs a CRITICAL message and refuses to start otherwise. |
 | `FINDINGS_LOG_LEVEL` | `INFO` | Backend log verbosity (`DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL`, case-insensitive). Invalid values refuse startup. |
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |

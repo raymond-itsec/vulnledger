@@ -140,8 +140,11 @@ warn_existing_pgdata() {
 doctor() {
   load_env
 
+  require_non_placeholder "POSTGRES_USER" "${POSTGRES_USER:-}"
   require_non_placeholder "POSTGRES_PASSWORD" "${POSTGRES_PASSWORD:-}"
-  require_non_placeholder "FINDINGS_DATABASE_URL" "${FINDINGS_DATABASE_URL:-}"
+  require_non_placeholder "POSTGRES_DB" "${POSTGRES_DB:-}"
+  require_non_placeholder "POSTGRES_HOST" "${POSTGRES_HOST:-}"
+  require_non_placeholder "POSTGRES_SERVICE_PORT" "${POSTGRES_SERVICE_PORT:-}"
   require_non_placeholder "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}"
   require_min_length "FINDINGS_SECRET_KEY" "${FINDINGS_SECRET_KEY:-}" 32
   require_non_placeholder "FINDINGS_JWT_ISSUER" "${FINDINGS_JWT_ISSUER:-}"

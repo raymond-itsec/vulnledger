@@ -33,7 +33,8 @@ Reason: current host-local builds increase drift risk between environments and s
 - Collapsed repeated PDF/CSV/JSON report export endpoint internals into one private helper while keeping public routes and response behavior unchanged.
 - Replaced the default MinIO compose service with SeaweedFS S3-compatible object storage and renamed app-facing storage settings to `FINDINGS_OBJECT_STORAGE_*`.
 - Added one-year object-lock retention for newly generated stored reports and exposed SHA256 plus lock/retention metadata in the report export API and session export table.
-- Removed hardcoded runtime defaults for the database URL, JWT issuer/audience, and session-hint cookie name; these must now be supplied by `.env`.
+- Removed hardcoded runtime defaults for database connection details, JWT issuer/audience, and session-hint cookie name; these must now be supplied by `.env`.
+- Replaced `FINDINGS_DATABASE_URL` with app-side construction from `POSTGRES_HOST`, `POSTGRES_SERVICE_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
 - Added file-based RS256 key configuration and mounted `./secrets` read-only into the backend for JWT keypair storage.
 
 ### Added
