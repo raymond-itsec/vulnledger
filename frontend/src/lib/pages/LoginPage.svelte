@@ -3,6 +3,7 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
+  import PublicShell from '$lib/components/PublicShell.svelte';
   import { login as doLogin } from '$lib/stores/auth.svelte';
   import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { APP_BASE_PATH, INVITE_PATH } from '$lib/config/routes';
@@ -48,7 +49,7 @@
   <title>Sign In - VulnLedger</title>
 </svelte:head>
 
-<div class="login-page">
+<PublicShell>
   <div class="login-card">
     <div class="login-brand">
       <BrandLockup href="/" size="lg" centered={true} spin sparkle />
@@ -80,21 +81,9 @@
       <a href="/">Back to waitlist</a>
     </div>
   </div>
-</div>
+</PublicShell>
 
 <style>
-  .login-page {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background:
-      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.4) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.3) 0%, transparent 60%),
-      radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.32) 0%, transparent 60%),
-      linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
-    padding: 1.5rem;
-  }
   .login-card {
     background: rgba(255, 255, 255, 0.82);
     backdrop-filter: blur(24px) saturate(160%);

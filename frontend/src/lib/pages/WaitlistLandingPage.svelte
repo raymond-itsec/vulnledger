@@ -1,7 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
-  import { INVITE_PATH, LOGIN_PATH } from '$lib/config/routes';
+  import PublicHeader from '$lib/components/PublicHeader.svelte';
+  import PublicFooter from '$lib/components/PublicFooter.svelte';
+  import { INVITE_PATH } from '$lib/config/routes';
 
   const WAITLIST_API_BASE = 'https://waitlist-api.vulnledger.app';
   const OG_IMAGE_PATH = '/branding/android-chrome-512x512.png';
@@ -175,12 +177,7 @@
 </svelte:head>
 
 <div class="landing-shell">
-  <nav class="nav">
-    <BrandLockup href="/" />
-    <div class="nav-right">
-      <a class="btn-ghost" href={LOGIN_PATH}>Already invited? Sign in →</a>
-    </div>
-  </nav>
+  <PublicHeader />
 
   <section class="hero">
     <svg class="hero-aurora" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -400,13 +397,7 @@
     </div>
   </div>
 
-  <footer class="footer">
-    <div class="footer-brand">
-      <BrandLockup href="/" spin sparkle />
-    </div>
-    <span>Built for security professionals who take their craft seriously.</span>
-    <span>© 2026 VulnLedger. All rights reserved.</span>
-  </footer>
+  <PublicFooter />
 </div>
 
 <style>
@@ -436,48 +427,6 @@
       radial-gradient(ellipse 70% 60% at 10% 95%, rgba(160, 180, 255, 0.35) 0%, transparent 55%),
       linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
     background-attachment: fixed;
-  }
-
-  .nav {
-    position: sticky;
-    top: 0;
-    z-index: 60;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.9rem clamp(1.25rem, 5vw, 3rem);
-    background: rgba(250, 228, 220, 0.62);
-    backdrop-filter: blur(24px) saturate(170%);
-    border-bottom: 1px solid rgba(255, 255, 255, 0.42);
-  }
-
-  .nav-right {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-  }
-
-  .btn-ghost {
-    font: inherit;
-    font-size: 0.88rem;
-    font-weight: 600;
-    padding: 0.45rem 0.9rem;
-    border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.55);
-    background: rgba(255,255,255,0.32);
-    color: var(--ink-soft);
-    text-decoration: none;
-    display: inline-flex;
-    align-items: center;
-    backdrop-filter: blur(8px);
-    transition: border-color 0.15s, color 0.15s, background 0.15s;
-  }
-
-  .btn-ghost:hover {
-    border-color: var(--accent-a);
-    color: var(--accent-a);
-    background: rgba(255,106,61,0.08);
-    text-decoration: none;
   }
 
   .hero {
@@ -858,24 +807,6 @@
     line-height: 1.6;
   }
 
-  .footer {
-    text-align: center;
-    padding: 2.5rem clamp(1.25rem, 5vw, 3rem) 3rem;
-    font-size: 0.8rem;
-    color: var(--muted);
-    border-top: 1px solid rgba(255,255,255,0.38);
-    display: flex;
-    flex-direction: column;
-    gap: 0.4rem;
-    align-items: center;
-  }
-
-  .footer-brand {
-    display: flex;
-    align-items: center;
-    margin-bottom: 0.25rem;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .hero-mascot,
     .dot {
@@ -888,7 +819,4 @@
     .hero-mascot { display: none; }
   }
 
-  @media (max-width: 520px) {
-    .nav-right .btn-ghost { display: none; }
-  }
 </style>

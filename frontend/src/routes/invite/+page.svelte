@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
+  import PublicShell from '$lib/components/PublicShell.svelte';
   import { LOGIN_PATH, ONBOARDING_PATH } from '$lib/config/routes';
   import { onboardingApi } from '$lib/api/onboarding';
   import { toast } from '$lib/stores/toast.svelte';
@@ -31,7 +32,7 @@
   <title>Invite Code - VulnLedger</title>
 </svelte:head>
 
-<div class="public-shell">
+<PublicShell>
   <div class="public-card">
     <BrandLockup href="/" size="lg" centered={true} spin sparkle />
     <h1>Enter your invite code</h1>
@@ -59,21 +60,9 @@
       <a href="/">Back to waitlist</a>
     </div>
   </div>
-</div>
+</PublicShell>
 
 <style>
-  .public-shell {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem;
-    background:
-      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.4) 0%, transparent 55%),
-      radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.3) 0%, transparent 60%),
-      radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.32) 0%, transparent 60%),
-      linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
-  }
   .public-card {
     width: 100%;
     max-width: 460px;

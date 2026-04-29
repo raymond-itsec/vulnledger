@@ -18,7 +18,10 @@
   let userMenuOpen = $state(false);
   let userMenuRoot = $state<HTMLDivElement | null>(null);
   const AUTH_BOOTSTRAP_TIMEOUT_MS = 10000;
-  const PUBLIC_PATH_PREFIXES = ['/login', '/invite', '/onboarding'];
+  const PUBLIC_PATH_PREFIXES = [
+    '/login', '/invite', '/onboarding',
+    '/about', '/help', '/trust', '/privacy', '/terms', '/guidelines', '/contact', '/support',
+  ];
 
   const navItems = [
     { href: APP_BASE_PATH, label: 'Dashboard', icon: '⊞' },

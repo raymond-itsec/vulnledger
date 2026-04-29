@@ -27,6 +27,9 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Added invite persistence with an `invites` table and onboarding cookie validation that binds account creation to the invited email address.
 - Added admin invite creation, listing, and revocation so clean installs can issue one-email invite codes without manual database edits.
 - Added public frontend routes for `/invite`, `/onboarding`, `/login`, and `/app`.
+- Added `PublicHeader`, `PublicFooter`, and `PublicShell` shared Svelte components for all public-facing pages.
+- Added footer navigation row with eight short-URL links: `/about`, `/help`, `/trust`, `/privacy`, `/terms`, `/guidelines`, `/contact`, `/support`.
+- Added stub pages for all eight footer links with placeholder content and consistent branding.
 
 ### Changed
 - Ported the Worker waitlist experience into the real frontend app for `/`, including waitlist signup and an invite-code CTA.
@@ -36,8 +39,12 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Changed the invite flow handoff to `/invite` -> `/onboarding` -> `/login` -> `/app`, with onboarding now creating the account and then returning the user to the standard sign-in flow.
 - Added `/app/...` route wrappers for the existing application pages while keeping the old top-level URLs working as compatibility routes during the transition.
 - Unified admin-issued invites and waitlist-approved invites on the same backend invite system so both flows can mint codes for onboarding.
+- Replaced inline nav and footer in `WaitlistLandingPage` with shared `PublicHeader` and `PublicFooter` components.
+- Refactored login, invite, and onboarding pages to use `PublicShell` instead of per-page background and centering styles.
+- Registered all new public routes in the layout auth guard so they bypass the authentication redirect.
+- Removed hardcoded version fallbacks from `frontend/Dockerfile` (stale `0.1.16`), `docker-compose.yml` (`:-0.2.0` defaults), and `backend/app/config.py` (`"0.2.0"` default); `package.json` is now the sole frontend version source of truth.
 
-## [v0.2.0] - Draft
+## [v0.2.0] - 2026-04-28
 
 ### Breaking
 - Replaced MinIO with a fresh SeaweedFS S3-compatible object-storage deployment. Existing MinIO object data is not migrated automatically; upgrades must start with SeaweedFS storage or migrate objects manually before old attachment/report downloads will work.
