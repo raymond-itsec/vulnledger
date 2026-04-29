@@ -35,36 +35,9 @@ def _generate_rsa_keypair_pem() -> tuple[str, str]:
         format=serialization.PublicFormat.SubjectPublicKeyInfo,
     ).decode("utf-8")
     return private_pem, public_pem
-
-
-def test_create_and_decode_access_token_hs256():
-    with _override_jwt_settings(
-        secret_key="0123456789abcdef0123456789abcdef",
-        jwt_primary_algorithm="HS256",
-        jwt_allow_legacy_hs256=True,
-        jwt_private_key_pem="",
-        jwt_public_key_pem="",
-    ):
-        token = create_access_token(
-            user_id=UUID("11111111-1111-1111-1111-111111111111"),
-            role="admin",
-            client_id=None,
-            token_version=7,
-        )
-        claims = decode_token(token)
-
-    assert claims["sub"] == "11111111-1111-1111-1111-111111111111"
-    assert claims["role"] == "admin"
-    assert claims["type"] == "access"
-    assert claims["ver"] == 7
-
-
 def test_create_and_decode_access_token_rs256():
     private_pem, public_pem = _generate_rsa_keypair_pem()
     with _override_jwt_settings(
-        secret_key="0123456789abcdef0123456789abcdef",
-        jwt_primary_algorithm="RS256",
-        jwt_allow_legacy_hs256=False,
         jwt_private_key_pem=private_pem,
         jwt_public_key_pem=public_pem,
     ):

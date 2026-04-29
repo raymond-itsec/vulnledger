@@ -62,35 +62,22 @@ def _rs256_keys_configured() -> bool:
     return bool(_jwt_private_key_pem() and _jwt_public_key_pem())
 
 
-def _signing_algorithm() -> str:
-    if settings.jwt_primary_algorithm == "RS256":
-        if _rs256_keys_configured():
-            return "RS256"
+def _signing_jwk() -> Any:
+    if not _rs256_keys_configured():
         raise RuntimeError(
             "RS256 signing requires FINDINGS_JWT_PRIVATE_KEY_FILE and "
             "FINDINGS_JWT_PUBLIC_KEY_FILE, or the matching *_PEM settings."
         )
-    return "HS256"
-
-
-def _signing_jwk() -> Any:
-    if _signing_algorithm() == "RS256":
-        return jwk.import_key(_jwt_private_key_pem(), "RSA")
-    return jwk.import_key(settings.secret_key, "oct")
+    return jwk.import_key(_jwt_private_key_pem(), "RSA")
 
 
 def _verification_keys() -> list[tuple[str, Any]]:
-    keys: list[tuple[str, Any]] = []
-    primary_algorithm = _signing_algorithm()
-
-    if primary_algorithm == "RS256":
-        keys.append(("RS256", jwk.import_key(_jwt_public_key_pem(), "RSA")))
-    else:
-        keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
-
-    if primary_algorithm != "HS256" and settings.jwt_allow_legacy_hs256:
-        keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
-    return keys
+    if not _rs256_keys_configured():
+        raise RuntimeError(
+            "RS256 signing requires FINDINGS_JWT_PRIVATE_KEY_FILE and "
+            "FINDINGS_JWT_PUBLIC_KEY_FILE, or the matching *_PEM settings."
+        )
+    return [("RS256", jwk.import_key(_jwt_public_key_pem(), "RSA"))]
 
 
 def _jwt_alg_from_header(token: str) -> str | None:
@@ -187,7 +174,7 @@ def create_access_token(
         "aud": settings.jwt_audience,
         "type": "access",
     }
-    algorithm = _signing_algorithm()
+    algorithm = "RS256"
     header = {"alg": algorithm, "typ": "JWT"}
     return _encode_jwt_token(header, payload, _signing_jwk(), algorithm)
 

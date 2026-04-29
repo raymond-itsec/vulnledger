@@ -51,9 +51,10 @@ jobs:
         run: docker build -t vulnledger-backend-openapi ./backend
       - name: Export backend OpenAPI schema
         run: |
+          openssl genrsa -out /tmp/jwt-private.pem 2048
+          openssl rsa -in /tmp/jwt-private.pem -pubout -out /tmp/jwt-public.pem
           docker run --rm \
             --user "$(id -u):$(id -g)" \
-            -e FINDINGS_SECRET_KEY=change-this-to-a-real-32-byte-secret-value \
             -e FINDINGS_RUNTIME_MODE=development \
             -e POSTGRES_HOST=db \
             -e POSTGRES_SERVICE_PORT=5432 \
@@ -66,10 +67,13 @@ jobs:
             -e FINDINGS_INITIAL_ADMIN_PASSWORD=ci-admin-password \
             -e FINDINGS_INITIAL_ADMIN_EMAIL=ci-admin@example.com \
             -e FINDINGS_INITIAL_ADMIN_FULL_NAME='CI Admin' \
-            -e FINDINGS_JWT_PRIMARY_ALGORITHM=HS256 \
             -e FINDINGS_JWT_ISSUER=ci-backend \
             -e FINDINGS_JWT_AUDIENCE=ci-api \
+            -e FINDINGS_JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key.pem \
+            -e FINDINGS_JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key.pem \
             -e FINDINGS_SESSION_HINT_COOKIE_NAME=vl_session \
+            -v /tmp/jwt-private.pem:/run/secrets/jwt_private_key.pem:ro \
+            -v /tmp/jwt-public.pem:/run/secrets/jwt_public_key.pem:ro \
             -v "$PWD:/workspace" \
             -w /workspace \
             vulnledger-backend-openapi \

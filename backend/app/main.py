@@ -56,16 +56,7 @@ if _startup_config_sources["python_default"]:
         ", ".join(_startup_config_sources["python_default"]),
     )
 
-MIN_SECRET_KEY_BYTES = 32
 APP_START_MONOTONIC = time.monotonic()
-
-_secret_key_bytes = len(settings.secret_key.encode("utf-8"))
-if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
-    if _secret_key_bytes == 0:
-        reason = "missing"
-    else:
-        reason = f"too short; must be at least {MIN_SECRET_KEY_BYTES} bytes"
-    raise RuntimeError(f"Refusing to start: invalid signing configuration ({reason}).")
 
 # Rate limiter
 limiter = Limiter(

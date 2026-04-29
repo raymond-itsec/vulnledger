@@ -10,7 +10,6 @@ from dotenv import dotenv_values
 import yaml
 
 _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
-_ALLOWED_JWT_ALGORITHMS = {"HS256", "RS256"}
 _ALLOWED_RUNTIME_MODES = {"development", "production"}
 _COMPOSE_FALLBACK_RE = re.compile(r"^\$\{([^}:]+):?-(.*)\}$")
 _RAW_ENV_PATH = Path("/run/config/vulnledger.env")
@@ -26,7 +25,6 @@ class Settings(BaseSettings):
     postgres_user: str = Field(validation_alias="POSTGRES_USER")
     postgres_password: str = Field(validation_alias="POSTGRES_PASSWORD")
     postgres_db: str = Field(validation_alias="POSTGRES_DB")
-    secret_key: str = ""
     log_level: str = "INFO"
 
     @field_validator("log_level", mode="before")
@@ -82,9 +80,6 @@ class Settings(BaseSettings):
     initial_admin_full_name: str
     clamav_host: str = "clamav"
     clamav_port: int = 3310
-    # JWT migration controls. Default stays HS256-compatible until RS256 keys are configured.
-    jwt_primary_algorithm: str
-    jwt_allow_legacy_hs256: bool = True
     jwt_issuer: str
     jwt_audience: str
     jwt_private_key_pem: str = ""
@@ -156,17 +151,6 @@ class Settings(BaseSettings):
         )
         return self
 
-    @field_validator("jwt_primary_algorithm", mode="before")
-    @classmethod
-    def _normalize_jwt_algorithm(cls, value: object) -> str:
-        normalized = str(value or "").strip().upper()
-        if normalized not in _ALLOWED_JWT_ALGORITHMS:
-            raise ValueError(
-                "FINDINGS_JWT_PRIMARY_ALGORITHM must be one of "
-                f"{sorted(_ALLOWED_JWT_ALGORITHMS)} (got {value!r})"
-            )
-        return normalized
-
     @field_validator("runtime_mode", mode="before")
     @classmethod
     def _normalize_runtime_mode(cls, value: object) -> str:
@@ -204,6 +188,17 @@ class Settings(BaseSettings):
                 f"({self.refresh_session_retention_days}) must be >= 2x "
                 "FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS "
                 f"({self.refresh_token_family_max_lifetime_days} -> {minimum})"
+            )
+        return self
+
+    @model_validator(mode="after")
+    def _require_rs256_keys(self) -> "Settings":
+        private_key_configured = bool(self.jwt_private_key_pem.strip() or self.jwt_private_key_file.strip())
+        public_key_configured = bool(self.jwt_public_key_pem.strip() or self.jwt_public_key_file.strip())
+        if not private_key_configured or not public_key_configured:
+            raise ValueError(
+                "RS256 signing requires both FINDINGS_JWT_PRIVATE_KEY_FILE / "
+                "FINDINGS_JWT_PUBLIC_KEY_FILE or the matching *_PEM settings."
             )
         return self
 

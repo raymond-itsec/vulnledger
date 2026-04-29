@@ -14,37 +14,49 @@ Reason: settings are still imported directly in many modules, which limits test 
 Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
 - Move service images to a private container registry and deploy by immutable digest.
 Reason: current host-local builds increase drift risk between environments and slow rollouts. Registry-backed, digest-pinned deploys improve reproducibility, rollback safety, and multi-host operations.
+- Add auth in front of the optional SeaweedFS admin UI when permanent exposure is needed.
+Reason: the admin UI is currently disabled by default and RFC1918-restricted when enabled, but it does not have its own login layer.
+- Finish harmonizing remaining config defaults so code fallback, Compose fallback, `.env.example`, and `README.md` always match one-for-one.
+Reason: most drift is fixed, but keeping all four sources aligned should remain an explicit maintenance goal.
 
 ## [v0.2.0] - Draft
 
 ### Breaking
-- Replaced MinIO with a fresh SeaweedFS S3-compatible object-storage deployment. Existing MinIO buckets and object data are not migrated automatically; deployments upgrading to `v0.2.0` must start with SeaweedFS storage or perform a manual object migration before serving old attachment/report downloads.
-- Removed app-facing MinIO configuration from the default deployment path. Use `FINDINGS_OBJECT_STORAGE_*`, `SEAWEEDFS_S3_ACCESS_KEY`, and `SEAWEEDFS_S3_SECRET_KEY`; old `FINDINGS_MINIO_*`/`MINIO_*` values are no longer wired into Compose.
+- Replaced MinIO with a fresh SeaweedFS S3-compatible object-storage deployment. Existing MinIO object data is not migrated automatically; upgrades must start with SeaweedFS storage or migrate objects manually before old attachment/report downloads will work.
+- Removed app-facing MinIO configuration from the default deployment path. Use `FINDINGS_OBJECT_STORAGE_*`, `SEAWEEDFS_S3_ACCESS_KEY`, and `SEAWEEDFS_S3_SECRET_KEY`; old `FINDINGS_MINIO_*` / `MINIO_*` values are no longer wired into Compose.
+- Removed `FINDINGS_DATABASE_URL` from the default deployment path. The backend now builds the connection string from `POSTGRES_HOST`, `POSTGRES_SERVICE_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
+- Made initial admin credentials and object-storage credentials mandatory in the default deployment path. Missing values now fail fast at startup.
 
 ### Changed
 - Updated stack version defaults to `0.2.0`.
-- Refactored repeated frontend form/action patterns into shared helpers and a reusable `FormActions` component, reducing duplication across create/edit flows without changing behavior.
+- Refactored repeated frontend form/action patterns into shared helpers and a reusable `FormActions` component without changing behavior.
 - Moved repeated detail-grid styling into global frontend CSS and removed identical local route styles.
-- Centralized frontend references parsing and optional-string payload helpers for findings and templates.
-- Centralized `?new=1` modal-opening checks behind a small route utility while keeping each page's prerequisite and redirect logic local.
-- Simplified frontend markdown inline-token rendering by reusing a Svelte snippet instead of repeating token markup across headings, paragraphs, and list items.
-- Added backend API helpers for simple update-field application and taxonomy validation HTTP errors, replacing repeated assignment and exception blocks.
-- Moved duplicated backend IP parsing and forwarded-header parsing into a shared IP utility while preserving auth and health-check behavior.
-- Collapsed repeated PDF/CSV/JSON report export endpoint internals into one private helper while keeping public routes and response behavior unchanged.
-- Replaced the default MinIO compose service with SeaweedFS S3-compatible object storage and renamed app-facing storage settings to `FINDINGS_OBJECT_STORAGE_*`.
+- Centralized frontend references parsing, optional-string payload helpers, and `?new=1` modal-opening checks.
+- Simplified frontend markdown inline-token rendering by reusing a shared Svelte snippet.
+- Added backend helpers for update-field application and taxonomy validation HTTP errors, replacing repeated assignment and exception blocks.
+- Moved duplicated backend IP / forwarded-header parsing into a shared utility while preserving auth and health-check behavior.
+- Collapsed repeated PDF / CSV / JSON report export internals into one private helper while keeping public routes unchanged.
+- Switched attachment and report storage defaults from MinIO to SeaweedFS and renamed app-facing storage settings to `FINDINGS_OBJECT_STORAGE_*`.
 - Added one-year object-lock retention for newly generated stored reports and exposed SHA256 plus lock/retention metadata in the report export API and session export table.
-- Removed hardcoded runtime defaults for database connection details, JWT issuer/audience, and session-hint cookie name; these must now be supplied by `.env`.
-- Replaced `FINDINGS_DATABASE_URL` with app-side construction from `POSTGRES_HOST`, `POSTGRES_SERVICE_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
 - Added file-based RS256 key configuration and mounted `./secrets` read-only into the backend for JWT keypair storage.
+- Removed hardcoded runtime defaults for database connection details, JWT issuer / audience, session-hint cookie name, and other deployment-critical settings; these must now be supplied by `.env`.
+- Standardized config defaults across code, Compose, `.env.example`, and `README.md` for proxy trust, ClamAV, object storage, OIDC, rate limits, and admin bootstrap settings.
+- Defaulted ClamAV on in the Docker deployment path and block uploads with clear user-facing errors whenever scanning is disabled, unreachable, or unhealthy.
+- Updated `/api/health` to include database, object storage, and OIDC capability status so the frontend can react to real dependency outages.
+- Changed the frontend availability banner to slide the page down instead of overlaying the app.
+- Removed the frontend OIDC route probe and now expose OIDC availability from backend startup state through `/api/health`.
+- Added startup logging that reports which settings were missing from `.env`, supplied by Compose fallback, or supplied by Python defaults.
+- Added an internal SeaweedFS admin UI proxy on a dedicated configurable port, disabled by default and restricted to RFC1918 / loopback clients when enabled.
 
 ### Added
 - Added an Alembic migration for report export integrity and retention metadata (`sha256`, `locked_until`, `retention_expires_at`).
 
-### Validation
-- Verified `npm --prefix frontend run build` passes.
-- Verified backend Python syntax with `PYTHONPYCACHEPREFIX=/private/tmp/vulnledger-pycache python3 -m compileall backend/app`.
-- `svelte-check` remains blocked by the existing `frontend/vite.config.ts` Node type configuration issue for `process`.
-- Backend container test script could not run in this environment because `docker compose` is unavailable/parsed incorrectly by the installed Docker command.
+### Fixed
+- Fixed JWT verification so the backend accepts tokens for the configured primary signing mode instead of rejecting fresh logins when RS256 key files are present but HS256 remains active.
+- Fixed proxy-aware rate limiting so deployments behind Caddy use the real client IP instead of collapsing requests onto the proxy address.
+- Fixed OpenAPI type-generation CI by supplying dummy required environment variables to the backend schema-export workflow.
+- Fixed blank optional integer env handling for `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` so empty values are treated as unset instead of crashing settings validation.
+- Fixed SeaweedFS startup / Compose integration issues in the default deployment path.
 
 ## [v0.1.18] - 2026-04-24
 

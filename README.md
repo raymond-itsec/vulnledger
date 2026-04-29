@@ -243,7 +243,7 @@ The VulnLedger repository includes a helper script for smoother installs:
 ./scripts/first-run.sh doctor  # validate ports, secrets, and common setup issues
 ./scripts/first-run.sh redeploy  # ff-only pull + ordered rollout: migrate DB, backend, frontend
 ./scripts/first-run.sh verify-backend  # local Python 3.12 backend smoke-check
-PYTHONPATH=backend FINDINGS_SECRET_KEY="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" python backend/scripts/export_openapi.py backend/openapi.generated.json
+PYTHONPATH=backend FINDINGS_JWT_PRIVATE_KEY_FILE=./secrets/jwt_private_key.pem FINDINGS_JWT_PUBLIC_KEY_FILE=./secrets/jwt_public_key.pem python backend/scripts/export_openapi.py backend/openapi.generated.json
 npm --prefix frontend run generate:types  # regenerate frontend API types from backend OpenAPI
 ./scripts/first-run.sh up      # ordered rollout (same as redeploy)
 ./scripts/first-run.sh logs    # follow caddy, frontend, and backend logs
@@ -334,10 +334,10 @@ POSTGRES_PASSWORD=<strong-db-password>
 POSTGRES_DB=change_this_db_name
 POSTGRES_HOST=localhost
 POSTGRES_SERVICE_PORT=5432
-FINDINGS_SECRET_KEY=change-this-jwt-signing-key
 FINDINGS_INITIAL_ADMIN_USERNAME=admin
 FINDINGS_INITIAL_ADMIN_PASSWORD=change-this-admin-password
 FINDINGS_INITIAL_ADMIN_EMAIL=admin@example.com
+FINDINGS_INITIAL_ADMIN_FULL_NAME=Administrator
 
 # SeaweedFS S3-compatible object storage
 FINDINGS_OBJECT_STORAGE_ENDPOINT=localhost:8333
@@ -347,6 +347,12 @@ FINDINGS_OBJECT_STORAGE_SECURE=false
 FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET=finding-attachments
 FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET=generated-reports
 FINDINGS_REPORT_RETENTION_DAYS=365
+
+# JWT signing (RS256)
+FINDINGS_JWT_ISSUER=vulnledger-backend
+FINDINGS_JWT_AUDIENCE=vulnledger-api
+FINDINGS_JWT_PRIVATE_KEY_FILE=./secrets/jwt_private_key.pem
+FINDINGS_JWT_PUBLIC_KEY_FILE=./secrets/jwt_public_key.pem
 
 # Optional: Upload / report guardrails
 # The backend value is the authoritative attachment limit.
@@ -445,12 +451,16 @@ These **must** be changed from defaults:
 
 ```env
 # CRITICAL -- change these!
-FINDINGS_SECRET_KEY=<random-64-char-string>
 SEAWEEDFS_S3_ACCESS_KEY=<strong-access-key>
 SEAWEEDFS_S3_SECRET_KEY=<strong-secret-key>
 FINDINGS_INITIAL_ADMIN_USERNAME=<admin-username>
 FINDINGS_INITIAL_ADMIN_PASSWORD=<strong-admin-password>
 FINDINGS_INITIAL_ADMIN_EMAIL=<admin-email>
+FINDINGS_INITIAL_ADMIN_FULL_NAME=<admin-full-name>
+FINDINGS_JWT_ISSUER=<jwt-issuer>
+FINDINGS_JWT_AUDIENCE=<jwt-audience>
+FINDINGS_JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key.pem
+FINDINGS_JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key.pem
 
 # Database (use strong password)
 POSTGRES_USER=change_this_db_user
@@ -517,11 +527,16 @@ docker run -d \
   -e POSTGRES_USER=<db-user> \
   -e POSTGRES_PASSWORD=<pw> \
   -e POSTGRES_DB=<db-name> \
-  -e FINDINGS_SECRET_KEY=<secret> \
   -e FINDINGS_OBJECT_STORAGE_ENDPOINT=<seaweedfs-host>:8333 \
   -e FINDINGS_OBJECT_STORAGE_ACCESS_KEY=<key> \
   -e FINDINGS_OBJECT_STORAGE_SECRET_KEY=<secret> \
+  -e FINDINGS_JWT_ISSUER=<jwt-issuer> \
+  -e FINDINGS_JWT_AUDIENCE=<jwt-audience> \
+  -e FINDINGS_JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key.pem \
+  -e FINDINGS_JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key.pem \
   -e FINDINGS_CLAMAV_HOST=<clamav-host> \
+  -v /host/secrets/jwt_private_key.pem:/run/secrets/jwt_private_key.pem:ro \
+  -v /host/secrets/jwt_public_key.pem:/run/secrets/jwt_public_key.pem:ro \
   -p 8000:8000 \
   findings-backend
 
@@ -591,7 +606,6 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `POSTGRES_USER` | See `.env.example` | PostgreSQL username |
 | `POSTGRES_PASSWORD` | See `.env.example` | PostgreSQL password |
 | `POSTGRES_DB` | See `.env.example` | PostgreSQL database name |
-| `FINDINGS_SECRET_KEY` | _(empty)_ | JWT signing key (required). Must be at least 32 bytes; the backend logs a CRITICAL message and refuses to start otherwise. |
 | `FINDINGS_LOG_LEVEL` | `INFO` | Backend log verbosity (`DEBUG` \| `INFO` \| `WARNING` \| `ERROR` \| `CRITICAL`, case-insensitive). Invalid values refuse startup. |
 | `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` | `5` | Access token lifetime |
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Per-token refresh lifetime; each rotation issues a new token with this expiry (bounded by the family cap below) |
@@ -633,12 +647,10 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_INITIAL_ADMIN_FULL_NAME` | See `.env.example` | Required display name for the seeded admin account |
 | `FINDINGS_CLAMAV_HOST` | `clamav` | ClamAV host; uploads are blocked whenever scanning is disabled or the scanner is unavailable |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
-| `FINDINGS_JWT_PRIMARY_ALGORITHM` | `HS256` | Access-token signing algorithm (`HS256` or `RS256`) |
-| `FINDINGS_JWT_ALLOW_LEGACY_HS256` | `true` | When enabled, token verification still accepts HS256 during RS256 migration |
 | `FINDINGS_JWT_ISSUER` | See `.env.example` | Expected JWT issuer claim |
 | `FINDINGS_JWT_AUDIENCE` | See `.env.example` | Expected JWT audience claim |
-| `FINDINGS_JWT_PRIVATE_KEY_PEM` | _(empty)_ | RS256 private key PEM (required when RS256 signing is enabled) |
-| `FINDINGS_JWT_PUBLIC_KEY_PEM` | _(empty)_ | RS256 public key PEM |
+| `FINDINGS_JWT_PRIVATE_KEY_PEM` | _(empty)_ | RS256 private key PEM (use this or `FINDINGS_JWT_PRIVATE_KEY_FILE`) |
+| `FINDINGS_JWT_PUBLIC_KEY_PEM` | _(empty)_ | RS256 public key PEM (use this or `FINDINGS_JWT_PUBLIC_KEY_FILE`) |
 | `FINDINGS_JWT_PRIVATE_KEY_FILE` | See `.env.example` | Path to an RS256 private key PEM file mounted in the backend container |
 | `FINDINGS_JWT_PUBLIC_KEY_FILE` | See `.env.example` | Path to an RS256 public key PEM file mounted in the backend container |
 | `FINDINGS_SESSION_HINT_COOKIE_NAME` | See `.env.example` | Non-sensitive session-hint cookie name used for OIDC/logout cleanup |
@@ -656,30 +668,25 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `CADDY_ATTACHMENT_MAX_SIZE` | `30MB` | Reverse-proxy upload body limit; keep this at or slightly above `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` |
 | `GATUS_PORT` | `8080` | Host port published for the optional Gatus monitoring dashboard (only when started with `--profile monitoring`) |
 
-### Migrating JWT signing from HS256 to RS256
+### JWT Signing (RS256)
 
-Access tokens are signed with `HS256` by default (shared-secret `FINDINGS_SECRET_KEY`). To rotate to asymmetric `RS256` without logging every user out, follow these steps in order:
+Access tokens are signed and verified with RS256 only.
 
-1. **Generate an RS256 key pair** (keep the private key secret; 2048-bit RSA minimum):
+1. **Generate an RSA key pair** (keep the private key secret; 2048-bit RSA minimum):
    ```bash
    openssl genrsa -out jwt-private.pem 2048
    openssl rsa -in jwt-private.pem -pubout -out jwt-public.pem
    ```
-2. **Load both keys and enable dual-verify** -- deploy with these env vars. The backend keeps accepting old HS256 tokens while issuing new RS256 tokens:
+2. **Load the keys into the backend** using either mounted files or PEM env vars. The default Docker path is:
    ```bash
-   FINDINGS_JWT_PRIVATE_KEY_PEM="$(cat jwt-private.pem)"
-   FINDINGS_JWT_PUBLIC_KEY_PEM="$(cat jwt-public.pem)"
-   FINDINGS_JWT_PRIMARY_ALGORITHM=RS256
-   FINDINGS_JWT_ALLOW_LEGACY_HS256=true   # keep HS256 verify on during cutover
+   FINDINGS_JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key.pem
+   FINDINGS_JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key.pem
    ```
-3. **Wait out the access-token TTL** -- all HS256 tokens issued before the switch expire within `FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES` (default 5 min). Refresh cookies continue to work; users silently receive RS256 tokens on the next refresh.
-4. **Disable HS256 verification** -- once the TTL has elapsed (err on the side of 2x):
+3. **Set stable issuer and audience values**:
    ```bash
-   FINDINGS_JWT_ALLOW_LEGACY_HS256=false
+   FINDINGS_JWT_ISSUER=vulnledger-backend
+   FINDINGS_JWT_AUDIENCE=vulnledger-api
    ```
-   Redeploy. The backend will now reject any remaining HS256 tokens. The HS256 secret can be rotated or removed on a later deploy.
-
-Do not skip step 3: flipping `FINDINGS_JWT_ALLOW_LEGACY_HS256=false` immediately after step 2 invalidates every outstanding access token and forces all users to refresh.
 
 ### Backup Configuration
 
