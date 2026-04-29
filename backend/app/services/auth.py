@@ -16,9 +16,6 @@ _JWT_LEEWAY_SECONDS = 10
 _BCRYPT_SHA256_V2_RE = re.compile(
     r"^\$bcrypt-sha256\$v=2,t=(2[aby]),r=(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
 )
-_BCRYPT_SHA256_V1_RE = re.compile(
-    r"^\$bcrypt-sha256\$(2[aby]),(\d{2})\$([./A-Za-z0-9]{22})\$([./A-Za-z0-9]{31})$"
-)
 _BCRYPT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{53})$")
 _BCRYPT_SALT_RE = re.compile(r"^\$(2[aby])\$(\d{2})\$([./A-Za-z0-9]{22})$")
 
@@ -47,11 +44,6 @@ def _password_bytes(password: str) -> bytes:
 
 def _bcrypt_sha256_prehash_v2(password: str, salt: str) -> bytes:
     digest = hmac.new(salt.encode("ascii"), _password_bytes(password), hashlib.sha256).digest()
-    return base64.b64encode(digest)
-
-
-def _bcrypt_sha256_prehash_v1(password: str) -> bytes:
-    digest = hashlib.sha256(_password_bytes(password)).digest()
     return base64.b64encode(digest)
 
 
@@ -136,17 +128,6 @@ def verify_password(plain: str, hashed: str) -> bool:
             prehashed = _bcrypt_sha256_prehash_v2(plain, salt)
             bcrypt_hash = _build_bcrypt_hash(variant, rounds, salt, checksum).encode("ascii")
             return bcrypt.checkpw(prehashed, bcrypt_hash)
-
-        v1_match = _BCRYPT_SHA256_V1_RE.match(value)
-        if v1_match:
-            variant, rounds_raw, salt, checksum = v1_match.groups()
-            rounds = int(rounds_raw)
-            prehashed = _bcrypt_sha256_prehash_v1(plain)
-            bcrypt_hash = _build_bcrypt_hash(variant, rounds, salt, checksum).encode("ascii")
-            return bcrypt.checkpw(prehashed, bcrypt_hash)
-
-        if _BCRYPT_RE.match(value):
-            return bcrypt.checkpw(_password_bytes(plain), value.encode("ascii"))
     except ValueError:
         return False
 
