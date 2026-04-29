@@ -42,6 +42,12 @@ class Settings(BaseSettings):
     refresh_token_family_max_lifetime_days: int = 30
     # None = auto-derive as 2 * refresh_token_family_max_lifetime_days.
     refresh_session_retention_days: int | None = None
+    # Grace window for tolerating refresh-token rotation races (F5 spam,
+    # double-clicks, multi-tab page reloads). Within this many seconds of a
+    # rotation, the predecessor token is allowed to "retry" the rotation
+    # — provided its successor has not been further rotated, which would
+    # indicate genuine replay rather than a race. Set to 0 to disable.
+    refresh_token_rotation_grace_seconds: int = 30
     trust_proxy_headers: bool = True
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     allowed_methods: list[str] = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]

@@ -364,6 +364,89 @@ async def exchange_refresh_token(
         return RefreshExchangeResult(status="invalid")
 
     if session.replaced_by_session_id is not None or session.revoke_reason == "rotated":
+        # Tolerate refresh-token rotation races (F5 spam, double-click,
+        # multi-tab reloads) within a configurable grace window. The window
+        # only forgives reuse when the successor itself has NOT been further
+        # rotated or revoked — a successor that's been used means the client
+        # already received the new token successfully and any subsequent
+        # appearance of the old one looks like genuine replay, not a race.
+        grace_seconds = settings.refresh_token_rotation_grace_seconds
+        rotated_at = session.revoked_at
+        within_grace = (
+            grace_seconds > 0
+            and rotated_at is not None
+            and (_now() - rotated_at) <= timedelta(seconds=grace_seconds)
+        )
+
+        successor: RefreshSession | None = None
+        if within_grace and session.replaced_by_session_id is not None:
+            successor_result = await db.execute(
+                select(RefreshSession)
+                .where(RefreshSession.refresh_session_id == session.replaced_by_session_id)
+                .with_for_update()
+            )
+            successor = successor_result.scalar_one_or_none()
+
+        successor_clean = (
+            successor is not None
+            and successor.revoked_at is None
+            and successor.replaced_by_session_id is None
+        )
+
+        if within_grace and successor_clean:
+            # Race tolerance: revoke the orphaned successor (the one the
+            # client never saw) and mint a fresh successor for this retry.
+            assert successor is not None  # for type checkers
+            successor.revoked_at = _now()
+            successor.revoke_reason = "superseded_by_grace_retry"
+            await db.flush()
+
+            user_result = await db.execute(select(User).where(User.user_id == session.user_id))
+            user = user_result.scalar_one_or_none()
+            if not user or not user.is_active:
+                await _revoke_family(db, session.family_id, reason="user_inactive")
+                await _bump_user_token_version(db, session.user_id)
+                await _prune_stale_refresh_sessions(db)
+                await db.commit()
+                return RefreshExchangeResult(status="invalid")
+
+            replacement, new_raw_token = await _create_refresh_session(
+                db,
+                user_id=session.user_id,
+                family_id=session.family_id,
+                parent_session_id=session.refresh_session_id,
+                created_ip=current_ip,
+                created_user_agent=current_user_agent,
+                family_started_at=session.family_started_at,
+                family_expires_at=session.family_expires_at,
+            )
+            session.replaced_by_session_id = replacement.refresh_session_id
+
+            await _record_security_event(
+                db,
+                user_id=session.user_id,
+                event_type="refresh_token_grace_retry",
+                family_id=session.family_id,
+                refresh_session_id=session.refresh_session_id,
+                ip_address=current_ip,
+                user_agent=current_user_agent,
+                details={
+                    "rotated_at": rotated_at.isoformat() if rotated_at else None,
+                    "grace_seconds": grace_seconds,
+                    "superseded_session_id": str(successor.refresh_session_id),
+                },
+            )
+            await _prune_stale_refresh_sessions(db)
+            await db.commit()
+            return RefreshExchangeResult(
+                status="success",
+                user=user,
+                refresh_token=new_raw_token,
+            )
+
+        # Either outside the grace window, or successor has been further
+        # rotated/used — both indicate genuine replay rather than a race.
+        # Revoke the family (existing strict behavior).
         await _record_security_event(
             db,
             user_id=session.user_id,
@@ -372,7 +455,11 @@ async def exchange_refresh_token(
             refresh_session_id=session.refresh_session_id,
             ip_address=current_ip,
             user_agent=current_user_agent,
-            details={"reason": "rotated_token_reused"},
+            details={
+                "reason": "rotated_token_reused",
+                "outside_grace": not within_grace,
+                "successor_used": successor is not None and not successor_clean,
+            },
         )
         await _revoke_family(db, session.family_id, reason="reused_refresh_token")
         await _bump_user_token_version(db, session.user_id)
