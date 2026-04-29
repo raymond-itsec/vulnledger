@@ -134,6 +134,8 @@ services:
       FINDINGS_OIDC_REQUIRE_NONCE: ${FINDINGS_OIDC_REQUIRE_NONCE:-true}
     volumes:
       - ./secrets:/run/secrets:ro
+      - ./.env:/run/config/vulnledger.env:ro
+      - ./docker-compose.yml:/run/config/docker-compose.yml:ro
     healthcheck:
       test:
         [

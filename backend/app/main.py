@@ -15,7 +15,7 @@ from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
-from app.config import applied_default_env_vars, settings
+from app.config import settings, startup_config_source_report
 from app.database import engine
 from app.logging_config import configure_logging
 from app.schemas.error import make_error_payload
@@ -39,12 +39,21 @@ configure_logging()
 
 logger = logging.getLogger(__name__)
 
-_applied_default_env_vars = applied_default_env_vars()
-if _applied_default_env_vars:
-    print(
-        "[startup] Configuration defaults applied for unset environment variables: "
-        + ", ".join(_applied_default_env_vars),
-        flush=True,
+_startup_config_sources = startup_config_source_report()
+if _startup_config_sources["missing_from_env_file"]:
+    logger.info(
+        "Configuration variables missing from .env: %s",
+        ", ".join(_startup_config_sources["missing_from_env_file"]),
+    )
+if _startup_config_sources["compose_fallback"]:
+    logger.info(
+        "Configuration variables provided by Compose fallback: %s",
+        ", ".join(_startup_config_sources["compose_fallback"]),
+    )
+if _startup_config_sources["python_default"]:
+    logger.info(
+        "Configuration variables provided by Python defaults: %s",
+        ", ".join(_startup_config_sources["python_default"]),
     )
 
 MIN_SECRET_KEY_BYTES = 32

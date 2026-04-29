@@ -1,13 +1,20 @@
 import os
+import re
 from urllib.parse import quote
+from pathlib import Path
 
 from pydantic import Field, field_validator, model_validator
 from pydantic.fields import PydanticUndefined
 from pydantic_settings import BaseSettings
+from dotenv import dotenv_values
+import yaml
 
 _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
 _ALLOWED_JWT_ALGORITHMS = {"HS256", "RS256"}
 _ALLOWED_RUNTIME_MODES = {"development", "production"}
+_COMPOSE_FALLBACK_RE = re.compile(r"^\$\{([^}:]+):?-(.*)\}$")
+_RAW_ENV_PATH = Path("/run/config/vulnledger.env")
+_COMPOSE_PATH = Path("/run/config/docker-compose.yml")
 
 
 class Settings(BaseSettings):
@@ -200,6 +207,84 @@ def _env_name_for_field(field_name: str) -> str:
         return field.validation_alias
     env_prefix = Settings.model_config.get("env_prefix", "")
     return f"{env_prefix}{field_name.upper()}"
+
+
+def _settings_env_names() -> list[str]:
+    names: list[str] = []
+    for field_name in Settings.model_fields:
+        if field_name == "database_url":
+            continue
+        names.append(_env_name_for_field(field_name))
+    return sorted(names)
+
+
+def _raw_env_keys() -> set[str]:
+    if not _RAW_ENV_PATH.exists():
+        return set()
+    values = dotenv_values(_RAW_ENV_PATH)
+    return {key for key in values if key}
+
+
+def _backend_compose_environment() -> dict[str, str]:
+    if not _COMPOSE_PATH.exists():
+        return {}
+    try:
+        loaded = yaml.safe_load(_COMPOSE_PATH.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return {}
+    services = loaded.get("services") or {}
+    backend = services.get("backend") or {}
+    environment = backend.get("environment") or {}
+    if not isinstance(environment, dict):
+        return {}
+    normalized: dict[str, str] = {}
+    for key, value in environment.items():
+        if not isinstance(key, str):
+            continue
+        normalized[key] = "" if value is None else str(value)
+    return normalized
+
+
+def _has_python_default(env_name: str) -> bool:
+    for field_name, field in Settings.model_fields.items():
+        if field_name == "database_url":
+            continue
+        if _env_name_for_field(field_name) != env_name:
+            continue
+        if field.is_required():
+            return False
+        return not (field.default is PydanticUndefined and field.default_factory is None)
+    return False
+
+
+def startup_config_source_report() -> dict[str, list[str]]:
+    env_names = _settings_env_names()
+    raw_env_keys = _raw_env_keys()
+    compose_environment = _backend_compose_environment()
+
+    missing_from_env_file: list[str] = []
+    compose_fallback: list[str] = []
+    python_default: list[str] = []
+
+    for env_name in env_names:
+        if env_name in raw_env_keys:
+            continue
+
+        missing_from_env_file.append(env_name)
+
+        compose_value = compose_environment.get(env_name, "")
+        if env_name in os.environ and _COMPOSE_FALLBACK_RE.match(compose_value):
+            compose_fallback.append(env_name)
+            continue
+
+        if env_name not in os.environ and _has_python_default(env_name):
+            python_default.append(env_name)
+
+    return {
+        "missing_from_env_file": sorted(missing_from_env_file),
+        "compose_fallback": sorted(compose_fallback),
+        "python_default": sorted(python_default),
+    }
 
 
 def applied_default_env_vars() -> list[str]:
