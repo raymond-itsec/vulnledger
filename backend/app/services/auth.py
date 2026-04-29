@@ -81,9 +81,14 @@ def _signing_jwk() -> Any:
 
 def _verification_keys() -> list[tuple[str, Any]]:
     keys: list[tuple[str, Any]] = []
-    if _rs256_keys_configured():
+    primary_algorithm = _signing_algorithm()
+
+    if primary_algorithm == "RS256":
         keys.append(("RS256", jwk.import_key(_jwt_public_key_pem(), "RSA")))
-    if settings.jwt_allow_legacy_hs256 or not keys:
+    else:
+        keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
+
+    if primary_algorithm != "HS256" and settings.jwt_allow_legacy_hs256:
         keys.append(("HS256", jwk.import_key(settings.secret_key, "oct")))
     return keys
 
