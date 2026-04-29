@@ -50,6 +50,9 @@
 </header>
 
 <style>
+  /* Glass values mirror PublicHeader so /app and login feel like the
+     same visual family. Slightly less opaque + heavier blur than the old
+     cream tint so the underlying pastel gradient bleeds through. */
   .topbar {
     position: sticky;
     top: 0;
@@ -59,10 +62,10 @@
     justify-content: space-between;
     gap: 16px;
     padding: 18px 28px 14px;
-    background: rgba(242, 237, 230, 0.78);
-    backdrop-filter: blur(16px) saturate(140%);
-    -webkit-backdrop-filter: blur(16px) saturate(140%);
-    border-bottom: 1px solid rgba(200, 190, 178, 0.35);
+    background: rgba(250, 228, 220, 0.62);
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.42);
     font-family: var(--font-sans);
   }
   .topbar-left {

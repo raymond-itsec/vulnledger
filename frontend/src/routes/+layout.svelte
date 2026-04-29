@@ -9,6 +9,7 @@
   import AppSidebar from '$lib/components/AppSidebar.svelte';
   import type { NavItem } from '$lib/components/AppSidebar.svelte';
   import AppTopbar from '$lib/components/AppTopbar.svelte';
+  import PublicFooter from '$lib/components/PublicFooter.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { APP_VERSION } from '$lib/config/app-meta';
   import { APP_BASE_PATH, LOGIN_PATH } from '$lib/config/routes';
@@ -182,6 +183,7 @@
       <div class="content-inner">
         {@render children()}
       </div>
+      <PublicFooter />
     </main>
   </div>
 {/if}
@@ -189,20 +191,40 @@
 <ToastViewport />
 
 <style>
+  /* Same warm pastel-glass gradient as the public pages so the
+     visual transition between login/waitlist and /app feels seamless. */
   .app-layout {
     display: flex;
     min-height: 100vh;
-    background: var(--bg-page, #f2ede6);
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.32) 0%, transparent 60%),
+      linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
+    background-attachment: fixed;
   }
   .content {
     flex: 1;
     margin-left: 224px;
     min-height: 100vh;
+    display: flex;
+    flex-direction: column;
     background: transparent;
     transition: margin-left 240ms cubic-bezier(0.4, 0, 0.2, 1);
   }
   .app-layout.sidebar-collapsed .content {
     margin-left: 64px;
+  }
+  .content > :global(.content-inner) {
+    flex: 1;
+  }
+  /* Public footer needs a translucent surface here so the gradient
+     shows through, matching the rest of /app's glassy treatment. */
+  .content > :global(.public-footer) {
+    background: rgba(255, 255, 255, 0.45);
+    backdrop-filter: blur(18px) saturate(150%);
+    -webkit-backdrop-filter: blur(18px) saturate(150%);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
   }
   .topbar-cta {
     display: inline-flex;

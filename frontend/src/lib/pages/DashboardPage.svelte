@@ -373,10 +373,16 @@
     text-decoration: none;
     transition: transform 200ms, box-shadow 200ms;
   }
+  /* TODAY card stays dark for visual hierarchy, but becomes deep-glass
+     translucent so it sits within the pastel-gradient page rather than
+     punching out flatly against it. */
   .today-card {
-    background: #1e1e2e;
+    background: rgba(30, 30, 46, 0.92);
+    backdrop-filter: blur(24px) saturate(140%);
+    -webkit-backdrop-filter: blur(24px) saturate(140%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
     color: #fff;
-    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+    box-shadow: 0 18px 40px rgba(20, 12, 40, 0.28), 0 36px 70px rgba(20, 12, 40, 0.18);
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -385,7 +391,7 @@
   .today-card:hover {
     transform: translateY(-1px);
     text-decoration: none;
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+    box-shadow: 0 24px 48px rgba(20, 12, 40, 0.34), 0 44px 80px rgba(20, 12, 40, 0.22);
   }
   .eyebrow {
     font-size: 10px;
@@ -412,9 +418,11 @@
   }
 
   .queue-card {
-    background: rgba(255, 255, 255, 0.85);
-    border: 1px solid rgba(200, 190, 178, 0.35);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 12px 28px rgba(80, 40, 120, 0.10), 0 24px 50px rgba(80, 40, 120, 0.12);
     display: flex;
     flex-direction: column;
     gap: 12px;
@@ -461,18 +469,20 @@
     gap: 14px;
   }
   .stat-card {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(200, 190, 178, 0.35);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 16px;
     padding: 18px 20px;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 12px 28px rgba(80, 40, 120, 0.10), 0 24px 50px rgba(80, 40, 120, 0.12);
     text-decoration: none;
     color: inherit;
     transition: transform 200ms, box-shadow 200ms;
   }
   .stat-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 32px rgba(130, 95, 55, 0.16);
+    box-shadow: 0 20px 40px rgba(80, 40, 120, 0.16), 0 32px 70px rgba(80, 40, 120, 0.18);
     text-decoration: none;
   }
   .stat-head {
@@ -522,11 +532,13 @@
     gap: 16px;
   }
   .panel {
-    background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(200, 190, 178, 0.35);
+    background: rgba(255, 255, 255, 0.72);
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.6);
     border-radius: 16px;
     overflow: hidden;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    box-shadow: 0 12px 28px rgba(80, 40, 120, 0.10), 0 24px 50px rgba(80, 40, 120, 0.12);
   }
   .panel-head {
     display: flex;
