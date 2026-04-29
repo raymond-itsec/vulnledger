@@ -1,0 +1,253 @@
+/* ============================================================
+   VulnLedger Design System — Colors & Typography
+   ============================================================
+   NOTE: Inter and JetBrains Mono are loaded via <link> tags in
+   src/app.html (with preconnect) — no @import here so we don't
+   block render. */
+
+/* ============================================================
+   BASE COLOR PALETTE
+   ============================================================ */
+:root {
+  /* Brand primaries */
+  --color-orange-500:     #F07340;
+  --color-orange-400:     #F5905D;
+  --color-orange-300:     #F7AF8A;
+  --color-orange-200:     #FAD0BA;
+  --color-orange-100:     #FDEEE6;
+  --color-orange-50:      #FFF7F3;
+
+  /* Purple accent */
+  --color-purple-500:     #8B72E0;
+  --color-purple-400:     #A692E8;
+  --color-purple-300:     #C2B3EF;
+  --color-purple-200:     #DDD6F7;
+  --color-purple-100:     #F0EDFB;
+
+  /* Blue accent */
+  --color-blue-500:       #6B9BE8;
+  --color-blue-400:       #8BB3EE;
+  --color-blue-300:       #AECAF4;
+  --color-blue-200:       #D1E3FA;
+  --color-blue-100:       #EBF3FD;
+
+  /* Neutrals — warm */
+  --color-neutral-900:    #1E1E2E;
+  --color-neutral-800:    #2C2C3E;
+  --color-neutral-700:    #3F3F55;
+  --color-neutral-600:    #5A5A72;
+  --color-neutral-500:    #7A7A92;
+  --color-neutral-400:    #9F9FB8;
+  --color-neutral-300:    #C4C4D8;
+  --color-neutral-200:    #E2E0EC;
+  --color-neutral-100:    #F2EDE6;
+  --color-neutral-50:     #FAFAF8;
+
+  /* Semantic — severity */
+  --color-critical:       #D93B3B;
+  --color-critical-bg:    #FDEAEA;
+  --color-high:           #E8622A;
+  --color-high-bg:        #FEF0E8;
+  --color-medium:         #E8A82A;
+  --color-medium-bg:      #FEF7E8;
+  --color-low:            #3BA85A;
+  --color-low-bg:         #E9F8EE;
+  --color-info:           #6B9BE8;
+  --color-info-bg:        #EBF3FD;
+
+  /* Semantic — status */
+  --color-success:        #3BA85A;
+  --color-success-bg:     #E9F8EE;
+  --color-warning:        #E8A82A;
+  --color-warning-bg:     #FEF7E8;
+  --color-error:          #D93B3B;
+  --color-error-bg:       #FDEAEA;
+
+  /* ============================================================
+     SEMANTIC TOKENS
+     ============================================================ */
+
+  /* Foreground */
+  --fg1:                  var(--color-neutral-900);
+  --fg2:                  var(--color-neutral-600);
+  --fg3:                  var(--color-neutral-400);
+  --fg-inverse:           #FFFFFF;
+  --fg-accent:            var(--color-orange-500);
+  --fg-link:              var(--color-blue-500);
+
+  /* Background */
+  --bg-page:              var(--color-neutral-100);
+  --bg-surface:           #FFFFFF;
+  --bg-surface-2:         var(--color-neutral-50);
+  --bg-surface-hover:     #F7F4F0;
+  --bg-sidebar:           var(--color-neutral-900);
+  --bg-code:              #12121C;
+  --bg-accent:            var(--color-orange-500);
+  --bg-accent-subtle:     var(--color-orange-100);
+
+  /* Borders */
+  --border-default:       #E8E2DA;
+  --border-strong:        var(--color-neutral-300);
+  --border-accent:        var(--color-orange-500);
+
+  /* Shadows */
+  --shadow-sm:            0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-md:            0 1px 3px rgba(0,0,0,0.08), 0 4px 12px rgba(0,0,0,0.06);
+  --shadow-lg:            0 4px 6px rgba(0,0,0,0.07), 0 10px 30px rgba(0,0,0,0.10);
+  --shadow-xl:            0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.08);
+
+  /* Radius */
+  --radius-xs:            4px;
+  --radius-sm:            6px;
+  --radius-md:            8px;
+  --radius-lg:            12px;
+  --radius-xl:            16px;
+  --radius-pill:          999px;
+
+  /* Spacing */
+  --space-1:              4px;
+  --space-2:              8px;
+  --space-3:              12px;
+  --space-4:              16px;
+  --space-5:              20px;
+  --space-6:              24px;
+  --space-8:              32px;
+  --space-10:             40px;
+  --space-12:             48px;
+  --space-16:             64px;
+}
+
+/* ============================================================
+   TYPOGRAPHY SYSTEM
+   ============================================================ */
+:root {
+  /* Font families */
+  --font-sans:      'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono:      'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Font sizes */
+  --text-xs:        11px;
+  --text-sm:        13px;
+  --text-base:      15px;
+  --text-md:        16px;
+  --text-lg:        18px;
+  --text-xl:        20px;
+  --text-2xl:       24px;
+  --text-3xl:       30px;
+  --text-4xl:       36px;
+  --text-5xl:       48px;
+
+  /* Font weights */
+  --weight-regular:   400;
+  --weight-medium:    500;
+  --weight-semibold:  600;
+  --weight-bold:      700;
+  --weight-extrabold: 800;
+
+  /* Line heights */
+  --leading-tight:    1.2;
+  --leading-snug:     1.35;
+  --leading-normal:   1.5;
+  --leading-relaxed:  1.65;
+
+  /* Letter spacing */
+  --tracking-tight:   -0.02em;
+  --tracking-normal:  0;
+  --tracking-wide:    0.04em;
+  --tracking-widest:  0.10em;
+}
+
+/* ============================================================
+   SEMANTIC TYPE STYLES
+   ============================================================ */
+h1, .h1 {
+  font-family: var(--font-sans);
+  font-size: var(--text-4xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-tight);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg1);
+}
+
+h2, .h2 {
+  font-family: var(--font-sans);
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-bold);
+  line-height: var(--leading-snug);
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg1);
+}
+
+h3, .h3 {
+  font-family: var(--font-sans);
+  font-size: var(--text-xl);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-snug);
+  color: var(--fg1);
+}
+
+h4, .h4 {
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-normal);
+  color: var(--fg1);
+}
+
+p, .body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  color: var(--fg2);
+}
+
+.body-sm {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  color: var(--fg2);
+}
+
+.label {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-normal);
+  color: var(--fg1);
+}
+
+.label-xs {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  font-weight: var(--weight-semibold);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--fg3);
+}
+
+code, .code {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-relaxed);
+  color: var(--fg1);
+  background: var(--bg-code);
+  padding: 2px 6px;
+  border-radius: var(--radius-xs);
+}
+
+/* ============================================================
+   BASE RESETS
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  color: var(--fg1);
+  background: var(--bg-page);
+  -webkit-font-smoothing: antialiased;
+  margin: 0;
+}

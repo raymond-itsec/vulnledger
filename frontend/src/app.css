@@ -1,3 +1,13 @@
+/* Self-hosted webfonts (Inter, JetBrains Mono) under SIL Open Font License.
+   Loaded first so token references resolve to declared families. */
+@import './lib/styles/fonts.css';
+
+/* Design system tokens (colors, spacing, type, shadows). Namespaced under
+   --color-*, --fg*, --bg-*, --space-*, --radius-*, --shadow-*, --text-* (sizes),
+   --weight-*, --leading-*, --tracking-* — no collision with the legacy vars
+   below. Phase 1+ will progressively migrate components to these tokens. */
+@import './lib/styles/design-tokens.css';
+
 :root {
   --sidebar-bg: linear-gradient(180deg, rgba(57, 43, 86, 0.96) 0%, rgba(42, 35, 76, 0.98) 100%);
   --sidebar-hover: rgba(255, 255, 255, 0.12);

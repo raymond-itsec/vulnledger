@@ -45,3 +45,6 @@ backend/openapi.generated.json
 # Local backup vendor cache
 backup/vendor/*
 !backup/vendor/.gitkeep
+
+# Design system handoff bundle (kept locally as reference, not committed)
+design-system/

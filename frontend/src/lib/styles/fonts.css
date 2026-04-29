@@ -1,0 +1,30 @@
+/* ============================================================
+   VulnLedger — Self-hosted webfonts
+   ============================================================
+   Inter and JetBrains Mono are bundled with the app under SIL
+   Open Font License 1.1 (see /static/fonts/<family>/{LICENSE,OFL}.txt).
+
+   Both families ship as a single variable WOFF2 file covering the
+   full weight axis — one network round-trip, no third-party
+   origin, GDPR-clean.
+
+   Loaded BEFORE design-tokens.css so `var(--font-sans)` and
+   `var(--font-mono)` resolve to fonts that are already declared. */
+
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('/fonts/inter/InterVariable.woff2') format('woff2-variations'),
+       url('/fonts/inter/InterVariable.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'JetBrains Mono';
+  font-style: normal;
+  font-weight: 100 800;
+  font-display: swap;
+  src: url('/fonts/jetbrains-mono/JetBrainsMono-Variable.woff2') format('woff2-variations'),
+       url('/fonts/jetbrains-mono/JetBrainsMono-Variable.woff2') format('woff2');
+}

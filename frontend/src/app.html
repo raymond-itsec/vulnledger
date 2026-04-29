@@ -24,6 +24,12 @@
   <!-- Legacy Windows tile support -->
   <meta name="msapplication-TileColor" content="#0f172a" />
 
+  <!-- Self-hosted fonts: Inter + JetBrains Mono variable WOFF2.
+       Declared via @font-face in src/lib/styles/fonts.css.
+       Preload the upright variable file so first paint isn't FOUT. -->
+  <link rel="preload" as="font" type="font/woff2" crossorigin
+        href="%sveltekit.assets%/fonts/inter/InterVariable.woff2" />
+
   <script src="%sveltekit.assets%/crypto-polyfill.js"></script>
   %sveltekit.head%
 </head>
