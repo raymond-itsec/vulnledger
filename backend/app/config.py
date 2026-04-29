@@ -113,6 +113,15 @@ class Settings(BaseSettings):
             )
         return value
 
+    @field_validator("refresh_session_retention_days", mode="before")
+    @classmethod
+    def _empty_optional_int_as_none(cls, value: object) -> object:
+        if value is None:
+            return None
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
+
     @field_validator(
         "postgres_host",
         "postgres_user",
