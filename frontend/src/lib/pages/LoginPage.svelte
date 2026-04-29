@@ -51,7 +51,7 @@
 <div class="login-page">
   <div class="login-card">
     <div class="login-brand">
-      <BrandLockup href="/" size="lg" centered={true} />
+      <BrandLockup href="/" size="lg" centered={true} spin sparkle />
     </div>
     <p class="subtitle">Sign in to continue</p>
     <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>

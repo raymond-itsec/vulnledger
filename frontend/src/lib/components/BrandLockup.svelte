@@ -5,19 +5,31 @@
     size = 'md',
     light = false,
     centered = false,
+    spin = false,
+    sparkle = false,
   }: {
     href?: string;
     label?: string;
     size?: 'sm' | 'md' | 'lg';
     light?: boolean;
     centered?: boolean;
+    spin?: boolean;
+    sparkle?: boolean;
   } = $props();
+
+  // Trace path tuned for the literal label "VulnLedger" — dips into the V,
+  // climbs the l/L/d ascenders, glides across the x-height letters in between.
+  const VULN_LEDGER_TRACE =
+    'M0,1 L5,11 L10,1 L10,4 L18,4 L18,1 L22,1 L22,4 L30,4 L30,1 L30,11 L38,11 L38,4 L46,4 L51,1 L51,4 L62,4 L70,4 L76,4';
+  const traceActive = $derived(sparkle && label === 'VulnLedger');
 </script>
 
 <a
   class="brand-lockup"
   class:light
   class:centered
+  class:spin
+  class:sparkle={traceActive}
   data-size={size}
   href={href}
   aria-label={label}
@@ -26,7 +38,45 @@
     <span class="mark-glow"></span>
     <span class="mark-letter">V</span>
   </span>
-  <span class="label">{label}</span>
+  <span class="label">
+    {label}
+    {#if traceActive}
+      <svg class="brand-trace" viewBox="0 0 76 14" preserveAspectRatio="none" aria-hidden="true">
+        <g>
+          <g>
+            <path
+              class="spark-shape"
+              d="M0,-4 L1.2,-1.2 L4,0 L1.2,1.2 L0,4 L-1.2,1.2 L-4,0 L-1.2,-1.2 Z"
+            />
+            <animate
+              attributeName="opacity"
+              values="0;0;1;1;0;0"
+              keyTimes="0;0.01;0.03;0.20;0.30;1"
+              dur="8.5s"
+              repeatCount="indefinite"
+            />
+            <animateTransform
+              attributeName="transform"
+              type="scale"
+              values="1;1;3;3"
+              keyTimes="0;0.20;0.30;1"
+              dur="8.5s"
+              repeatCount="indefinite"
+            />
+          </g>
+          <animateMotion
+            dur="8.5s"
+            repeatCount="indefinite"
+            rotate="auto"
+            keyPoints="0;1;1"
+            keyTimes="0;0.20;1"
+            calcMode="linear"
+            path={VULN_LEDGER_TRACE}
+          />
+        </g>
+      </svg>
+    {/if}
+  </span>
 </a>
 
 <style>
@@ -106,5 +156,55 @@
   .label {
     line-height: 1;
     white-space: nowrap;
+  }
+
+  /* ── Spin: animated conic-gradient mark ────────────── */
+  @property --bl-mark-angle {
+    syntax: '<angle>';
+    initial-value: 210deg;
+    inherits: false;
+  }
+  .brand-lockup.spin .mark {
+    background: conic-gradient(
+      from var(--bl-mark-angle),
+      #ff6a3d,
+      #ffb266,
+      #7ab7ff,
+      #a78bfa,
+      #ff6a3d
+    );
+    animation: bl-mark-spin 5.5s linear infinite;
+  }
+  .brand-lockup.spin .mark-glow { display: none; }
+  @keyframes bl-mark-spin {
+    to { --bl-mark-angle: 570deg; }
+  }
+
+  /* ── Sparkle: SVG trace following letter contours ──── */
+  .brand-lockup.sparkle .label {
+    position: relative;
+    display: inline-block;
+  }
+  .brand-trace {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    overflow: visible;
+    pointer-events: none;
+  }
+  .spark-shape {
+    fill: #fff;
+    filter:
+      drop-shadow(0 0 2px rgba(255, 225, 180, 1))
+      drop-shadow(0 0 5px rgba(255, 180, 120, 0.9))
+      drop-shadow(0 0 9px rgba(255, 150, 90, 0.55));
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .brand-lockup.spin .mark { animation: none; }
+    .brand-lockup.sparkle .brand-trace { display: none; }
   }
 </style>

@@ -33,7 +33,7 @@
 
 <div class="public-shell">
   <div class="public-card">
-    <BrandLockup href="/" size="lg" centered={true} />
+    <BrandLockup href="/" size="lg" centered={true} spin sparkle />
     <h1>Enter your invite code</h1>
     <p class="intro">
       Your invite code unlocks onboarding for the email address attached to the invite.

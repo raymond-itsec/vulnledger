@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
   import { INVITE_PATH, LOGIN_PATH } from '$lib/config/routes';
 
@@ -9,6 +10,39 @@
   let submitting = $state(false);
   let statusMessage = $state('');
   let statusVariant = $state<'success' | 'error' | 'info' | null>(null);
+
+  let sparksLayer: HTMLDivElement | null = null;
+
+  onMount(() => {
+    if (!sparksLayer) return;
+    const palette = [
+      { core: 'rgba(255,245,215,1)', glow: 'rgba(255,200,140,0.9)' },
+      { core: 'rgba(255,240,255,1)', glow: 'rgba(220,185,255,0.9)' },
+      { core: 'rgba(255,235,245,1)', glow: 'rgba(255,175,210,0.9)' },
+      { core: 'rgba(240,245,255,1)', glow: 'rgba(180,210,255,0.9)' },
+      { core: 'rgba(255,245,220,1)', glow: 'rgba(255,215,160,0.9)' },
+    ];
+    const COUNT = 48;
+    for (let i = 0; i < COUNT; i++) {
+      const el = document.createElement('div');
+      el.className = 'spark';
+      const size = 1.5 + Math.random() * 3.2;
+      const c = palette[Math.floor(Math.random() * palette.length)];
+      const dur = 2.4 + Math.random() * 4;
+      const delay = (Math.random() * -6).toFixed(2);
+      el.style.cssText = [
+        `width:${size}px`,
+        `height:${size}px`,
+        `left:${2 + Math.random() * 96}%`,
+        `top:${2 + Math.random() * 96}%`,
+        `background:${c.core}`,
+        `box-shadow:0 0 ${size * 3}px ${size * 0.6}px ${c.glow}`,
+        `animation-duration:${dur}s`,
+        `animation-delay:${delay}s`,
+      ].join(';');
+      sparksLayer.appendChild(el);
+    }
+  });
 
   function showStatus(text: string, variant: 'success' | 'error' | 'info') {
     statusMessage = text;
@@ -57,7 +91,7 @@
 <svelte:head>
   <title>VulnLedger — Workspace for Security Professionals</title>
   <meta name="description" content="VulnLedger is the self-hosted workspace for security professionals — track findings, run review sessions, collaborate with clients, and deliver polished PDF, CSV, and JSON reports. Join the early-access waitlist." />
-  <meta name="keywords" content="security review platform, vulnerability tracking, pentest report tool, finding management, self-hosted security tool, OWASP review, security audit workflow, security reviewer software" />
+  <meta name="keywords" content="security review platform, vulnerability tracking, pentest report tool, finding management, self-hosted security tool, OWASP review, security audit workflow, security professional software" />
   <meta name="author" content="VulnLedger" />
   <meta name="application-name" content="VulnLedger" />
   <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
@@ -149,11 +183,53 @@
   </nav>
 
   <section class="hero">
-    <div class="hero-sparks" aria-hidden="true">
-      {#each Array.from({ length: 24 }, (_, i) => i) as index}
-        <span class="spark spark-{index % 6}"></span>
-      {/each}
-    </div>
+    <svg class="hero-aurora" viewBox="0 0 1600 1000" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+      <defs>
+        <filter id="glow-big" x="-30%" y="-30%" width="160%" height="160%">
+          <feGaussianBlur stdDeviation="12" />
+        </filter>
+        <filter id="glow-med" x="-20%" y="-20%" width="140%" height="140%">
+          <feGaussianBlur stdDeviation="4" />
+        </filter>
+        <filter id="glow-soft" x="-10%" y="-10%" width="120%" height="120%">
+          <feGaussianBlur stdDeviation="1.2" />
+        </filter>
+        <linearGradient id="aur-a" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="rgba(255,220,180,0)" />
+          <stop offset="50%" stop-color="rgba(255,200,160,0.85)" />
+          <stop offset="100%" stop-color="rgba(255,180,220,0)" />
+        </linearGradient>
+        <linearGradient id="aur-b" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(220,190,255,0)" />
+          <stop offset="50%" stop-color="rgba(210,180,255,0.75)" />
+          <stop offset="100%" stop-color="rgba(180,200,255,0)" />
+        </linearGradient>
+        <linearGradient id="aur-c" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="rgba(255,210,190,0)" />
+          <stop offset="50%" stop-color="rgba(255,195,175,0.55)" />
+          <stop offset="100%" stop-color="rgba(200,185,255,0)" />
+        </linearGradient>
+      </defs>
+      <g filter="url(#glow-big)">
+        <circle cx="200" cy="280" r="140" fill="rgba(255,170,130,0.28)" />
+        <circle cx="1250" cy="180" r="170" fill="rgba(190,150,255,0.25)" />
+        <circle cx="880" cy="800" r="210" fill="rgba(150,180,255,0.20)" />
+        <circle cx="1350" cy="620" r="150" fill="rgba(255,150,195,0.22)" />
+        <circle cx="100" cy="720" r="130" fill="rgba(255,180,150,0.20)" />
+      </g>
+      <g filter="url(#glow-med)" opacity="0.9">
+        <path d="M-200,450 C250,180 600,720 1000,380 S1500,80 1800,420" stroke="url(#aur-a)" stroke-width="10" fill="none" stroke-linecap="round" />
+        <path d="M-200,580 C180,340 560,780 960,470 S1480,140 1800,540" stroke="url(#aur-b)" stroke-width="8" fill="none" stroke-linecap="round" />
+        <path d="M-200,310 C300,80 680,560 1080,280 S1500,-40 1800,260" stroke="url(#aur-c)" stroke-width="7" fill="none" stroke-linecap="round" />
+      </g>
+      <g filter="url(#glow-soft)">
+        <path d="M-100,470 C260,210 620,720 1020,400 S1500,120 1750,430" stroke="rgba(255,240,220,0.55)" stroke-width="1.5" fill="none" stroke-linecap="round" />
+        <path d="M-100,595 C190,360 570,790 970,490 S1470,170 1750,550" stroke="rgba(245,230,255,0.45)" stroke-width="1.2" fill="none" stroke-linecap="round" />
+        <path d="M-100,330 C310,110 690,570 1090,300 S1500,-20 1750,280" stroke="rgba(255,235,215,0.45)" stroke-width="1" fill="none" stroke-linecap="round" />
+        <path d="M-100,700 C150,520 490,820 880,630 S1240,370 1600,640" stroke="rgba(255,215,230,0.35)" stroke-width="1" fill="none" stroke-linecap="round" />
+      </g>
+    </svg>
+    <div class="hero-sparks" bind:this={sparksLayer} aria-hidden="true"></div>
 
     <div class="hero-eyebrow">
       <span class="dot"></span>
@@ -207,41 +283,118 @@
     </div>
 
     <div class="trust">
-      <span class="trust-chip">EU-hosted option</span>
-      <span class="trust-chip">PDF &amp; CSV export</span>
-      <span class="trust-chip">SSO / OIDC</span>
+      <span class="trust-chip">
+        <span class="ico blue" aria-hidden="true">
+          <svg viewBox="0 0 14 14">
+            <circle cx="7" cy="7" r="5.5" fill="currentColor" fill-opacity="0.20" />
+            <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <path d="M1.5 7h11" stroke="currentColor" stroke-width="1.1" fill="none" />
+            <ellipse cx="7" cy="7" rx="2.5" ry="5.5" fill="none" stroke="currentColor" stroke-width="1.1" />
+          </svg>
+        </span>
+        EU-hosted option
+      </span>
+      <span class="trust-chip">
+        <span class="ico green" aria-hidden="true">
+          <svg viewBox="0 0 14 14">
+            <rect x="2" y="6" width="10" height="6.5" rx="1.5" fill="currentColor" fill-opacity="0.20" />
+            <rect x="2" y="6" width="10" height="6.5" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <path d="M7 1.5v5.5M5 3.5l2-2 2 2" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </span>
+        PDF &amp; CSV export
+      </span>
+      <span class="trust-chip">
+        <span class="ico purple" aria-hidden="true">
+          <svg viewBox="0 0 14 14">
+            <circle cx="4.7" cy="9.3" r="2.7" fill="currentColor" fill-opacity="0.22" />
+            <circle cx="4.7" cy="9.3" r="2.7" fill="none" stroke="currentColor" stroke-width="1.3" />
+            <circle cx="4.7" cy="9.3" r="0.9" fill="currentColor" />
+            <path d="M6.6 7.4 L12 2 M9.5 4.5 L11 6 M7.7 6.3 L8.7 7.3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" fill="none" />
+          </svg>
+        </span>
+        SSO / OIDC
+      </span>
     </div>
   </section>
 
   <p class="section-label">What you get</p>
   <div class="features">
     <div class="feature-card">
-      <div class="feature-icon orange">◫</div>
+      <div class="feature-icon orange" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="5" width="16" height="16" rx="3.5" fill="currentColor" fill-opacity="0.20" />
+          <rect x="4" y="5" width="16" height="16" rx="3.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <rect x="9" y="2.8" width="6" height="3.6" rx="1.4" fill="currentColor" />
+          <path d="M8 12h8M8 16h5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+        </svg>
+      </div>
       <h3>Session-driven reviews</h3>
       <p>Plan, scope, and execute security review sessions with a clear asset-to-finding chain. Every engagement lives in one place.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon purple">◎</div>
+      <div class="feature-icon purple" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <circle cx="10.5" cy="10.5" r="6.5" fill="currentColor" fill-opacity="0.20" />
+          <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <circle cx="10.5" cy="10.5" r="2" fill="currentColor" />
+          <path d="m20.5 20.5-4.7-4.7" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
+        </svg>
+      </div>
       <h3>Structured finding capture</h3>
       <p>Record vulnerabilities with severity, status, evidence attachments, and taxonomy tags — fast enough to keep pace with testing.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon green">↗</div>
+      <div class="feature-icon green" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="3.5" y="3" width="14" height="18" rx="3" fill="currentColor" fill-opacity="0.20" />
+          <rect x="3.5" y="3" width="14" height="18" rx="3" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <path d="M6.5 16l3-4 2.2 2.2 4.3-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" />
+          <circle cx="16" cy="9" r="1.6" fill="currentColor" />
+        </svg>
+      </div>
       <h3>Polished PDF reports</h3>
       <p>Generate client-ready PDF reports in seconds — with CSV and JSON exports on the side for spreadsheets and downstream tooling.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon blue">◌</div>
+      <div class="feature-icon blue" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M7 7l3.2 3.2M17 7l-3.2 3.2M7 17l3.2-3.2M17 17l-3.2-3.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.55" />
+          <circle cx="12" cy="12" r="3.2" fill="currentColor" />
+          <circle cx="5" cy="5" r="2.6" fill="currentColor" fill-opacity="0.45" />
+          <circle cx="19" cy="5" r="2.6" fill="currentColor" fill-opacity="0.45" />
+          <circle cx="5" cy="19" r="2.6" fill="currentColor" fill-opacity="0.45" />
+          <circle cx="19" cy="19" r="2.6" fill="currentColor" fill-opacity="0.45" />
+        </svg>
+      </div>
       <h3>Multi-client workspaces</h3>
       <p>Manage dozens of clients without context bleed. Role-based access keeps each client&apos;s data exactly where it belongs.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon rose">▤</div>
+      <div class="feature-icon rose" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="3" width="18" height="8" rx="2.5" fill="currentColor" fill-opacity="0.20" />
+          <rect x="3" y="3" width="18" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <rect x="3" y="13" width="18" height="8" rx="2.5" fill="currentColor" fill-opacity="0.20" />
+          <rect x="3" y="13" width="18" height="8" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+          <circle cx="7" cy="7" r="1.2" fill="currentColor" />
+          <circle cx="7" cy="17" r="1.2" fill="currentColor" />
+          <path d="M11 7h7M11 17h7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none" />
+        </svg>
+      </div>
       <h3>Self-hosted, data stays put</h3>
       <p>Runs on your own infrastructure with Docker — no third-party SaaS and no client data crossing your perimeter. Built for EU and regulated environments.</p>
     </div>
     <div class="feature-card">
-      <div class="feature-icon teal">⋮</div>
+      <div class="feature-icon teal" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M6 4 L6 20" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" opacity="0.4" />
+          <circle cx="6" cy="6" r="2.6" fill="currentColor" />
+          <circle cx="6" cy="12" r="2.6" fill="currentColor" fill-opacity="0.45" />
+          <circle cx="6" cy="18" r="2.6" fill="currentColor" fill-opacity="0.45" />
+          <path d="M11 6h9 M11 12h7 M11 18h8" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" fill="none" />
+        </svg>
+      </div>
       <h3>Full audit trail</h3>
       <p>Every login, finding edit, and session change is timestamped and recorded. Forensic-grade history without anyone having to remember to log it.</p>
     </div>
@@ -249,7 +402,7 @@
 
   <footer class="footer">
     <div class="footer-brand">
-      <BrandLockup href="/" />
+      <BrandLockup href="/" spin sparkle />
     </div>
     <span>Built for security professionals who take their craft seriously.</span>
     <span>© 2026 VulnLedger. All rights reserved.</span>
@@ -340,9 +493,18 @@
     gap: 1.85rem;
   }
 
-  .hero > *:not(.hero-sparks) {
+  .hero > *:not(.hero-aurora):not(.hero-sparks) {
     position: relative;
     z-index: 3;
+  }
+
+  .hero-aurora {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    width: 100%;
+    height: 100%;
+    z-index: 0;
   }
 
   .hero-sparks {
@@ -352,20 +514,14 @@
     z-index: 1;
   }
 
-  .spark {
+  .hero-sparks :global(.spark) {
     position: absolute;
-    border-radius: 999px;
-    opacity: 0.4;
-    animation: sparkle 4s ease-in-out infinite;
+    pointer-events: none;
+    border-radius: 50%;
+    animation: spark-twinkle ease-in-out infinite;
   }
-  .spark-0 { width: 4px; height: 4px; left: 12%; top: 18%; background: rgba(255,245,215,1); box-shadow: 0 0 14px rgba(255,200,140,0.9); }
-  .spark-1 { width: 3px; height: 3px; left: 76%; top: 22%; background: rgba(255,240,255,1); box-shadow: 0 0 10px rgba(220,185,255,0.9); animation-delay: -1s; }
-  .spark-2 { width: 5px; height: 5px; left: 84%; top: 58%; background: rgba(240,245,255,1); box-shadow: 0 0 12px rgba(180,210,255,0.9); animation-delay: -2s; }
-  .spark-3 { width: 4px; height: 4px; left: 22%; top: 78%; background: rgba(255,235,245,1); box-shadow: 0 0 12px rgba(255,175,210,0.9); animation-delay: -0.5s; }
-  .spark-4 { width: 3px; height: 3px; left: 56%; top: 16%; background: rgba(255,245,220,1); box-shadow: 0 0 10px rgba(255,215,160,0.9); animation-delay: -2.5s; }
-  .spark-5 { width: 5px; height: 5px; left: 64%; top: 82%; background: rgba(255,240,255,1); box-shadow: 0 0 14px rgba(220,185,255,0.9); animation-delay: -1.6s; }
 
-  @keyframes sparkle {
+  @keyframes spark-twinkle {
     0%,100% { opacity: 0.15; transform: scale(0.5); }
     50% { opacity: 1; transform: scale(1.15); }
   }
@@ -601,10 +757,36 @@
     font-size: 0.77rem;
     font-weight: 600;
     color: var(--ink-soft);
-    padding: 0.22rem 0.7rem;
+    padding: 0.22rem 0.7rem 0.22rem 0.32rem;
     border-radius: 999px;
     background: rgba(255,255,255,0.58);
     border: 1px solid rgba(255,255,255,0.75);
+  }
+
+  .trust-chip .ico {
+    display: inline-grid;
+    place-items: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 6px;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
+  }
+  .trust-chip .ico svg {
+    width: 12px;
+    height: 12px;
+    display: block;
+  }
+  .trust-chip .ico.blue {
+    background: linear-gradient(135deg, rgba(122,183,255,0.18), rgba(122,183,255,0.36));
+    color: #3878d6;
+  }
+  .trust-chip .ico.green {
+    background: linear-gradient(135deg, rgba(93,211,158,0.18), rgba(93,211,158,0.36));
+    color: #2fa46f;
+  }
+  .trust-chip .ico.purple {
+    background: linear-gradient(135deg, rgba(167,139,250,0.16), rgba(167,139,250,0.34));
+    color: #7e57e0;
   }
 
   .section-label {
@@ -649,7 +831,11 @@
     place-items: center;
     margin-bottom: 1rem;
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.55);
-    font-weight: 800;
+  }
+  .feature-icon svg {
+    width: 24px;
+    height: 24px;
+    display: block;
   }
   .orange { background: linear-gradient(135deg, rgba(255,106,61,0.14), rgba(255,106,61,0.30)); color: #d4521f; }
   .purple { background: linear-gradient(135deg, rgba(167,139,250,0.16), rgba(167,139,250,0.34)); color: #7e57e0; }
@@ -690,19 +876,12 @@
     margin-bottom: 0.25rem;
   }
 
-  .footer-brand :global(.label) {
-    background: linear-gradient(135deg, #ff6b3d 0%, #7b78f2 100%);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-
   @media (prefers-reduced-motion: reduce) {
     .hero-mascot,
-    .spark,
     .dot {
       animation: none;
     }
+    :global(.spark) { animation: none !important; }
   }
 
   @media (max-width: 880px) {

@@ -60,7 +60,7 @@
 
 <div class="public-shell">
   <div class="public-card">
-    <BrandLockup href="/" size="lg" centered={true} />
+    <BrandLockup href="/" size="lg" centered={true} spin sparkle />
     <h1>Complete your account</h1>
     {#if loading}
       <p class="intro">Checking your invite…</p>
