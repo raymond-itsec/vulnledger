@@ -1,0 +1,244 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 900" font-family="-apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif">
+  <defs>
+    <!-- Page background gradient -->
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fae2d8"/>
+      <stop offset="35%" stop-color="#f3d0e8"/>
+      <stop offset="70%" stop-color="#e0cdf5"/>
+      <stop offset="100%" stop-color="#dad5f0"/>
+    </linearGradient>
+
+    <!-- Brand mark gradient -->
+    <linearGradient id="markGrad" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffbb93"/>
+      <stop offset="35%" stop-color="#ff6b3d"/>
+      <stop offset="75%" stop-color="#8cb4ff"/>
+      <stop offset="100%" stop-color="#b069ff"/>
+    </linearGradient>
+
+    <!-- Title gradient -->
+    <linearGradient id="titleGrad" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#ff6a3d"/>
+      <stop offset="50%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#7ab7ff"/>
+    </linearGradient>
+
+    <!-- Service tier color palettes -->
+    <linearGradient id="edgeBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffe7d8" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="appBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#e8e0ff" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="dataBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#dde8ff" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="opsBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#f0eaf5" stop-opacity="0.95"/>
+    </linearGradient>
+    <linearGradient id="extBox" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fff" stop-opacity="0.85"/>
+      <stop offset="100%" stop-color="#fff0e6" stop-opacity="0.85"/>
+    </linearGradient>
+
+    <!-- Soft shadow -->
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.18"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <!-- Arrowheads -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a4878"/>
+    </marker>
+    <marker id="arrowOrange" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#ff6a3d"/>
+    </marker>
+    <marker id="arrowMuted" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#8a8dac"/>
+    </marker>
+    <marker id="arrowGreen" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#5dd39e"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="900" fill="url(#bg)"/>
+
+  <!-- Title -->
+  <g transform="translate(60, 50)">
+    <rect x="-4" y="-4" width="46" height="46" rx="12" fill="url(#markGrad)"/>
+    <text x="19" y="28" font-size="22" font-weight="900" fill="#fff" text-anchor="middle">V</text>
+    <text x="60" y="32" font-size="32" font-weight="800" fill="url(#titleGrad)">VulnLedger Architecture</text>
+    <text x="60" y="58" font-size="13" fill="#42455e">Self-hosted security review workspace · v0.2.1 · Docker Compose stack</text>
+  </g>
+
+  <!-- ===== Internet ===== -->
+  <g transform="translate(560, 110)">
+    <ellipse cx="80" cy="30" rx="100" ry="26" fill="#fff" fill-opacity="0.7" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="80" y="36" font-size="15" font-weight="700" fill="#42455e" text-anchor="middle">🌐 Internet · HTTPS :443</text>
+  </g>
+
+  <!-- arrow Internet -> Caddy -->
+  <line x1="640" y1="170" x2="640" y2="210" stroke="#5a4878" stroke-width="2" marker-end="url(#arrow)"/>
+
+  <!-- ===== Caddy (edge) ===== -->
+  <g transform="translate(440, 215)" filter="url(#softShadow)">
+    <rect width="400" height="80" rx="16" fill="url(#edgeBox)" stroke="#ff6a3d" stroke-width="1.5"/>
+    <text x="200" y="32" font-size="18" font-weight="800" fill="#1a1d2e" text-anchor="middle">Caddy</text>
+    <text x="200" y="54" font-size="12" fill="#42455e" text-anchor="middle">Reverse proxy · TLS termination · per-route rate limiting</text>
+    <text x="200" y="70" font-size="11" fill="#8a8dac" text-anchor="middle">vulnledger-caddy:2.11.2-ratelimit</text>
+  </g>
+
+  <!-- arrows Caddy -> Frontend / Backend -->
+  <g stroke="#ff6a3d" stroke-width="2" fill="none">
+    <path d="M 540 295 Q 540 330 320 360" marker-end="url(#arrowOrange)"/>
+    <path d="M 740 295 Q 740 330 960 360" marker-end="url(#arrowOrange)"/>
+  </g>
+  <text x="430" y="333" font-size="11" fill="#ff6a3d" font-weight="600">/ (static + SSR)</text>
+  <text x="780" y="333" font-size="11" fill="#ff6a3d" font-weight="600">/api/*</text>
+
+  <!-- ===== Frontend ===== -->
+  <g transform="translate(140, 360)" filter="url(#softShadow)">
+    <rect width="360" height="90" rx="16" fill="url(#appBox)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="180" y="34" font-size="18" font-weight="800" fill="#1a1d2e" text-anchor="middle">frontend</text>
+    <text x="180" y="56" font-size="12" fill="#42455e" text-anchor="middle">SvelteKit · vite preview · Node 22</text>
+    <text x="180" y="74" font-size="11" fill="#8a8dac" text-anchor="middle">port 5173</text>
+  </g>
+
+  <!-- ===== Backend ===== -->
+  <g transform="translate(780, 360)" filter="url(#softShadow)">
+    <rect width="360" height="90" rx="16" fill="url(#appBox)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text x="180" y="34" font-size="18" font-weight="800" fill="#1a1d2e" text-anchor="middle">backend</text>
+    <text x="180" y="56" font-size="12" fill="#42455e" text-anchor="middle">FastAPI · Python 3.12 · uvicorn · RS256 JWT</text>
+    <text x="180" y="74" font-size="11" fill="#8a8dac" text-anchor="middle">findings API · admin · invites · auth</text>
+  </g>
+
+  <!-- arrows Backend -> data tier -->
+  <g stroke="#5a4878" stroke-width="1.7" fill="none">
+    <path d="M 880 450 Q 880 490 280 530" marker-end="url(#arrow)"/>
+    <path d="M 960 450 L 720 530" marker-end="url(#arrow)"/>
+    <path d="M 1040 450 Q 1040 490 1140 530" marker-end="url(#arrow)"/>
+  </g>
+  <text x="540" y="495" font-size="11" fill="#5a4878">SQL</text>
+  <text x="850" y="495" font-size="11" fill="#5a4878">S3 API</text>
+  <text x="1090" y="495" font-size="11" fill="#5a4878">scan</text>
+
+  <!-- ===== Data tier ===== -->
+  <!-- Postgres -->
+  <g transform="translate(120, 530)" filter="url(#softShadow)">
+    <rect width="320" height="100" rx="16" fill="url(#dataBox)" stroke="#7ab7ff" stroke-width="1.5"/>
+    <text x="160" y="32" font-size="17" font-weight="800" fill="#1a1d2e" text-anchor="middle">PostgreSQL 16</text>
+    <text x="160" y="54" font-size="12" fill="#42455e" text-anchor="middle">users · clients · findings · sessions</text>
+    <text x="160" y="70" font-size="12" fill="#42455e" text-anchor="middle">invites · audit log</text>
+    <text x="160" y="88" font-size="11" fill="#8a8dac" text-anchor="middle">📦 pgdata</text>
+  </g>
+
+  <!-- SeaweedFS -->
+  <g transform="translate(560, 530)" filter="url(#softShadow)">
+    <rect width="320" height="100" rx="16" fill="url(#dataBox)" stroke="#7ab7ff" stroke-width="1.5"/>
+    <text x="160" y="32" font-size="17" font-weight="800" fill="#1a1d2e" text-anchor="middle">SeaweedFS</text>
+    <text x="160" y="54" font-size="12" fill="#42455e" text-anchor="middle">S3-compatible object store</text>
+    <text x="160" y="70" font-size="12" fill="#42455e" text-anchor="middle">attachments · PDF/CSV/JSON reports</text>
+    <text x="160" y="88" font-size="11" fill="#8a8dac" text-anchor="middle">📦 seaweedfs_data · object-lock</text>
+  </g>
+
+  <!-- ClamAV -->
+  <g transform="translate(1000, 530)" filter="url(#softShadow)">
+    <rect width="220" height="100" rx="16" fill="url(#dataBox)" stroke="#7ab7ff" stroke-width="1.5"/>
+    <text x="110" y="32" font-size="17" font-weight="800" fill="#1a1d2e" text-anchor="middle">ClamAV</text>
+    <text x="110" y="54" font-size="12" fill="#42455e" text-anchor="middle">attachment AV scan</text>
+    <text x="110" y="70" font-size="12" fill="#42455e" text-anchor="middle">pre-storage gate</text>
+    <text x="110" y="88" font-size="11" fill="#8a8dac" text-anchor="middle">📦 clamav_data</text>
+  </g>
+
+  <!-- ===== Backup ===== -->
+  <g transform="translate(120, 670)" filter="url(#softShadow)">
+    <rect width="320" height="80" rx="16" fill="url(#opsBox)" stroke="#a78bfa" stroke-width="1.2"/>
+    <text x="160" y="30" font-size="16" font-weight="800" fill="#1a1d2e" text-anchor="middle">backup</text>
+    <text x="160" y="50" font-size="12" fill="#42455e" text-anchor="middle">scheduled pg_dump · object snapshots</text>
+    <text x="160" y="68" font-size="11" fill="#8a8dac" text-anchor="middle">📦 backups</text>
+  </g>
+  <line x1="280" y1="630" x2="280" y2="670" stroke="#8a8dac" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowMuted)"/>
+  <line x1="600" y1="630" x2="370" y2="670" stroke="#8a8dac" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arrowMuted)"/>
+
+  <!-- ===== Gatus ===== -->
+  <g transform="translate(560, 670)" filter="url(#softShadow)">
+    <rect width="320" height="80" rx="16" fill="url(#opsBox)" stroke="#a78bfa" stroke-width="1.2"/>
+    <text x="160" y="28" font-size="16" font-weight="800" fill="#1a1d2e" text-anchor="middle">gatus</text>
+    <text x="160" y="48" font-size="12" fill="#42455e" text-anchor="middle">health/uptime dashboard · :8080</text>
+    <text x="160" y="66" font-size="11" fill="#8a8dac" text-anchor="middle">profile=monitoring · bind: GATUS_BIND_IP</text>
+  </g>
+
+  <!-- LAN cloud (RFC1918) — top-right, mirrors the Internet cloud -->
+  <g transform="translate(1060, 110)">
+    <ellipse cx="80" cy="30" rx="100" ry="26" fill="#fff" fill-opacity="0.7" stroke="#5dd39e" stroke-width="1.5" stroke-dasharray="5 3"/>
+    <text x="80" y="28" font-size="13" font-weight="700" fill="#1a1d2e" text-anchor="middle">🏢 LAN admin</text>
+    <text x="80" y="44" font-size="11" fill="#42455e" text-anchor="middle">RFC1918 only</text>
+  </g>
+
+  <!-- LAN -> Gatus (curves down the right edge, around all other tiers) -->
+  <path d="M 1140 170 Q 1240 400 1240 600 Q 1240 700 880 710"
+        stroke="#5dd39e" stroke-width="2" fill="none" stroke-dasharray="6 4"
+        marker-end="url(#arrowGreen)"/>
+  <text x="1185" y="445" font-size="11" font-weight="700" fill="#3aa37a" transform="rotate(-90 1185 445)">
+    direct LAN access · :8080
+  </text>
+  <!-- gatus probe lines (subtle) -->
+  <g stroke="#a78bfa" stroke-width="1" stroke-dasharray="2 4" opacity="0.55" fill="none">
+    <path d="M 720 670 Q 720 460 640 295"/>
+    <path d="M 720 670 Q 580 580 320 450"/>
+    <path d="M 720 670 Q 880 580 960 450"/>
+  </g>
+
+  <!-- ===== caddy-init ===== -->
+  <g transform="translate(1000, 670)" filter="url(#softShadow)">
+    <rect width="220" height="80" rx="16" fill="url(#opsBox)" stroke="#a78bfa" stroke-width="1.2"/>
+    <text x="110" y="30" font-size="16" font-weight="800" fill="#1a1d2e" text-anchor="middle">caddy-init</text>
+    <text x="110" y="50" font-size="12" fill="#42455e" text-anchor="middle">one-shot setup task</text>
+    <text x="110" y="68" font-size="11" fill="#8a8dac" text-anchor="middle">prepares caddy state</text>
+  </g>
+
+  <!-- ===== External waitlist API ===== -->
+  <g transform="translate(140, 790)" filter="url(#softShadow)">
+    <rect width="500" height="80" rx="16" fill="url(#extBox)" stroke="#ff6a3d" stroke-width="1.2" stroke-dasharray="6 4"/>
+    <text x="250" y="30" font-size="15" font-weight="800" fill="#1a1d2e" text-anchor="middle">Waitlist API · external (EU-hosted)</text>
+    <text x="250" y="52" font-size="12" fill="#42455e" text-anchor="middle">waitlist-api.vulnledger.app · POST /api/join</text>
+    <text x="250" y="68" font-size="11" fill="#8a8dac" text-anchor="middle">consumed by the public landing page only</text>
+  </g>
+  <!-- Frontend -> Waitlist API -->
+  <path d="M 320 450 Q 280 620 320 790" stroke="#ff6a3d" stroke-width="1.5" stroke-dasharray="4 3" fill="none" marker-end="url(#arrowOrange)"/>
+  <text x="245" y="620" font-size="11" fill="#ff6a3d" font-weight="600" transform="rotate(90 245 620)">waitlist signup</text>
+
+  <!-- ===== Legend ===== -->
+  <g transform="translate(820, 790)">
+    <rect width="320" height="80" rx="14" fill="#fff" fill-opacity="0.85" stroke="#cdbfe5" stroke-width="1"/>
+    <text x="16" y="22" font-size="12" font-weight="700" fill="#1a1d2e">Legend</text>
+
+    <rect x="16" y="32" width="14" height="10" fill="#ffe7d8" stroke="#ff6a3d"/>
+    <text x="36" y="42" font-size="11" fill="#42455e">edge / proxy</text>
+
+    <rect x="116" y="32" width="14" height="10" fill="#e8e0ff" stroke="#a78bfa"/>
+    <text x="136" y="42" font-size="11" fill="#42455e">application tier</text>
+
+    <rect x="226" y="32" width="14" height="10" fill="#dde8ff" stroke="#7ab7ff"/>
+    <text x="246" y="42" font-size="11" fill="#42455e">data tier</text>
+
+    <rect x="16" y="52" width="14" height="10" fill="#f0eaf5" stroke="#a78bfa"/>
+    <text x="36" y="62" font-size="11" fill="#42455e">ops / sidecar</text>
+
+    <line x1="116" y1="58" x2="140" y2="58" stroke="#8a8dac" stroke-width="1.5" stroke-dasharray="4 3"/>
+    <text x="146" y="62" font-size="11" fill="#42455e">async / scheduled</text>
+
+    <line x1="226" y1="58" x2="250" y2="58" stroke="#5dd39e" stroke-width="2" stroke-dasharray="6 4"/>
+    <text x="256" y="62" font-size="11" fill="#42455e">RFC1918 / LAN</text>
+
+    <text x="16" y="78" font-size="11" fill="#42455e">📦 named volume</text>
+  </g>
+</svg>

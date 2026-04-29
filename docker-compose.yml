@@ -315,7 +315,10 @@ services:
     volumes:
       - ./monitoring/gatus.yaml:/config/config.yaml:ro
     ports:
-      - "127.0.0.1:${GATUS_PORT:-8080}:8080"
+      # Default: loopback-only (host-local). Override via GATUS_BIND_IP in .env to
+      # expose to the LAN, e.g. GATUS_BIND_IP=0.0.0.0 (then restrict via host
+      # firewall) or GATUS_BIND_IP=192.168.1.50 to bind to a specific LAN NIC.
+      - "${GATUS_BIND_IP:-127.0.0.1}:${GATUS_PORT:-8080}:8080"
     depends_on:
       backend:
         condition: service_healthy
