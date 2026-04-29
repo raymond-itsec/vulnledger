@@ -46,15 +46,17 @@
 			}
 		}
 
-		# Tighter bucket specifically on auth endpoints to keep brute-force
-		# protection in place even though the general /api/* limit is more
-		# permissive. 30 events/min is plenty for legitimate login + token
-		# refresh activity.
-		@auth_limited {
-			path /api/auth/login /api/auth/refresh /api/auth/logout
+		# Tighter bucket specifically on /api/auth/login to keep brute-force
+		# protection in place. Only login needs this — /refresh and /logout
+		# require an existing valid session (cookie or token) so they can't
+		# be brute-forced and fall under the general /api/* limit. Keeping
+		# refresh under the broad 600/min limit is essential for active SPA
+		# use where every page reload triggers a refresh.
+		@login_brute {
+			path /api/auth/login
 		}
-		rate_limit @auth_limited {
-			zone auth_zone {
+		rate_limit @login_brute {
+			zone login_zone {
 				key {remote_host}
 				events 30
 				window 1m
