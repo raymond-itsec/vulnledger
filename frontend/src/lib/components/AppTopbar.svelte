@@ -43,17 +43,19 @@
   /* Fixed 67px height aligns the bottom border with the sidebar's brand
      divider on every page, regardless of breadcrumb depth.
 
-     Backdrop blur is graduated: 50px at the top → 24px at the bottom.
-     Implemented via two stacked, absolutely-positioned pseudo-elements,
-     each with its own backdrop-filter and a complementary linear-gradient
-     mask. The masks fade in/out so the two blur strengths blend smoothly
-     across the height. The cream tint also lives on the pseudos so we
-     don't get a doubled fill in overlapping regions. */
+     Frosted-glass dive-under effect: as text scrolls UP into the topbar,
+     it's crisp at the bottom edge (about to disappear) and progressively
+     blurred until completely obscured by the time it reaches the top edge
+     (just before leaving view). Implemented via a single absolutely
+     positioned pseudo-element holding the heavy blur + cream tint, with
+     a linear-gradient mask fading from fully opaque at the top to fully
+     transparent at the bottom. Where the mask is transparent, the raw
+     page content shows through unblurred and untinted. */
   .topbar {
     position: sticky;
     top: 0;
     z-index: 40;
-    isolation: isolate; /* keep the pseudos' z-index local to this element */
+    isolation: isolate; /* keep the pseudo's z-index local to this element */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -64,26 +66,17 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.42);
     font-family: var(--font-sans);
   }
-  .topbar::before,
-  .topbar::after {
+  .topbar::before {
     content: '';
     position: absolute;
     inset: 0;
     z-index: -1;
     pointer-events: none;
-    background: rgba(250, 228, 220, 0.62);
-  }
-  .topbar::before {
+    background: rgba(250, 228, 220, 0.7);
     backdrop-filter: blur(50px) saturate(170%);
     -webkit-backdrop-filter: blur(50px) saturate(170%);
     mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
     -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-  }
-  .topbar::after {
-    backdrop-filter: blur(24px) saturate(170%);
-    -webkit-backdrop-filter: blur(24px) saturate(170%);
-    mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
   }
   .topbar-left {
     display: flex;
