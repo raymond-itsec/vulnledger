@@ -18,7 +18,7 @@ export default {
         'style-src': ["'self'", "'unsafe-inline'"],
         'img-src': ["'self'", 'data:', 'blob:'],
         'font-src': ["'self'"],
-        'connect-src': ["'self'"],
+        'connect-src': ["'self'", 'https://waitlist-api.vulnledger.app'],
         'frame-ancestors': ["'none'"],
         'base-uri': ["'self'"],
         'form-action': ["'self'"],
