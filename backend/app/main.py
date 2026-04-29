@@ -15,7 +15,7 @@ from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
-from app.config import settings
+from app.config import applied_default_env_vars, settings
 from app.database import engine
 from app.logging_config import configure_logging
 from app.schemas.error import make_error_payload
@@ -38,6 +38,13 @@ from app.services.taxonomy import ensure_default_taxonomy_version
 configure_logging()
 
 logger = logging.getLogger(__name__)
+
+_applied_default_env_vars = applied_default_env_vars()
+if _applied_default_env_vars:
+    logger.info(
+        "Configuration defaults applied for unset environment variables: %s",
+        ", ".join(_applied_default_env_vars),
+    )
 
 MIN_SECRET_KEY_BYTES = 32
 APP_START_MONOTONIC = time.monotonic()

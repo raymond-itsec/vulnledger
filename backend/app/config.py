@@ -1,6 +1,8 @@
+import os
 from urllib.parse import quote
 
 from pydantic import Field, field_validator, model_validator
+from pydantic.fields import PydanticUndefined
 from pydantic_settings import BaseSettings
 
 _ALLOWED_LOG_LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}
@@ -75,7 +77,7 @@ class Settings(BaseSettings):
     clamav_host: str = ""
     clamav_port: int = 3310
     # JWT migration controls. Default stays HS256-compatible until RS256 keys are configured.
-    jwt_primary_algorithm: str = "HS256"
+    jwt_primary_algorithm: str
     jwt_allow_legacy_hs256: bool = True
     jwt_issuer: str
     jwt_audience: str
@@ -190,3 +192,26 @@ settings = Settings()
 
 def get_settings() -> Settings:
     return settings
+
+
+def _env_name_for_field(field_name: str) -> str:
+    field = Settings.model_fields[field_name]
+    if isinstance(field.validation_alias, str) and field.validation_alias:
+        return field.validation_alias
+    env_prefix = Settings.model_config.get("env_prefix", "")
+    return f"{env_prefix}{field_name.upper()}"
+
+
+def applied_default_env_vars() -> list[str]:
+    applied: list[str] = []
+    for field_name, field in Settings.model_fields.items():
+        if field_name == "database_url":
+            continue
+        if field.is_required():
+            continue
+        if field.default is PydanticUndefined and field.default_factory is None:
+            continue
+        env_name = _env_name_for_field(field_name)
+        if env_name not in os.environ:
+            applied.append(env_name)
+    return sorted(applied)
