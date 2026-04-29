@@ -10,6 +10,7 @@
   import Modal from '$lib/components/Modal.svelte';
   import { fieldId } from '$lib/util/dom';
   import { linesToList, optionalString } from '$lib/util/forms';
+  import { sanitizeUrl } from '$lib/util/url';
 
   let templates = $state<Template[]>([]);
   let loading = $state(true);
@@ -145,6 +146,10 @@
       // ignore
     }
   }
+
+  function safeReferenceHref(ref: string): string | null {
+    return sanitizeUrl(ref);
+  }
 </script>
 
 <div class="page-header">
@@ -233,8 +238,9 @@
               <ul>
                 {#each selected.references as ref}
                   <li>
-                    {#if ref.startsWith('http')}
-                      <a href={ref} target="_blank" rel="noopener">{ref}</a>
+                    {@const href = safeReferenceHref(ref)}
+                    {#if href}
+                      <a href={href} target="_blank" rel="noopener noreferrer">{ref}</a>
                     {:else}
                       {ref}
                     {/if}

@@ -10,6 +10,7 @@
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId } from '$lib/util/dom';
   import { linesToList, optionalString } from '$lib/util/forms';
+  import { sanitizeUrl } from '$lib/util/url';
 
   let finding = $state<Finding | null>(null);
   let history = $state<FindingHistory[]>([]);
@@ -67,6 +68,10 @@
       remediation_status: f.remediation_status,
       references: (f.references || []).join('\n'),
     };
+  }
+
+  function safeReferenceHref(ref: string): string | null {
+    return sanitizeUrl(ref);
   }
 
   async function handleSave() {
@@ -205,8 +210,9 @@
         <ul class="ref-list">
           {#each finding.references as ref}
             <li>
-              {#if ref.startsWith('http')}
-                <a href={ref} target="_blank" rel="noopener">{ref}</a>
+              {@const href = safeReferenceHref(ref)}
+              {#if href}
+                <a href={href} target="_blank" rel="noopener noreferrer">{ref}</a>
               {:else}
                 {ref}
               {/if}

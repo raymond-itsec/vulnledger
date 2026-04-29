@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { sanitizeUrl } from '$lib/util/url';
+
   type InlineToken =
     | { type: 'text'; value: string }
     | { type: 'code'; value: string }
@@ -15,14 +17,6 @@
     | { type: 'pre'; value: string };
 
   let { content = '' }: { content: string } = $props();
-
-  function sanitizeUrl(url: string): string | null {
-    const value = url.trim();
-    if (/^(https?:\/\/|mailto:|\/|#)/i.test(value)) {
-      return value;
-    }
-    return null;
-  }
 
   function parseInline(value: string): InlineToken[] {
     const tokens: InlineToken[] = [];
