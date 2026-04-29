@@ -6,6 +6,7 @@ import {
 import { readPublicErrorMessage } from '$lib/api/errors';
 import { taxonomy } from '$lib/stores/taxonomy.svelte';
 import { toast } from '$lib/stores/toast.svelte';
+import { LOGIN_PATH } from '$lib/config/routes';
 
 interface User {
   user_id: string;
@@ -73,10 +74,10 @@ function clearBrowserStateOnLogout(): void {
 
 function redirectToLoginShell(): void {
   if (typeof window === 'undefined') return;
-  if (window.location.pathname === '/') return;
+  if (window.location.pathname === LOGIN_PATH) return;
   // Use a hard redirect after forced/expired logout so stale in-memory state
   // from the previous route cannot keep running in a broken state.
-  window.location.replace('/');
+  window.location.replace(LOGIN_PATH);
 }
 
 async function clearStaleSession(): Promise<void> {

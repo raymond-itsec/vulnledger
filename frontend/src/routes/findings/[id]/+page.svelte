@@ -209,8 +209,8 @@
         <h2>References</h2>
         <ul class="ref-list">
           {#each finding.references as ref}
+            {@const href = safeReferenceHref(ref)}
             <li>
-              {@const href = safeReferenceHref(ref)}
               {#if href}
                 <a href={href} target="_blank" rel="noopener noreferrer">{ref}</a>
               {:else}
@@ -316,7 +316,7 @@
     </div>
 
     <div style="margin-top:1rem;font-size:0.8rem;color:var(--text-secondary);">
-      Session: <a href="/sessions/{finding.session_id}">View Session</a> &middot;
+      Session: <a href="/app/sessions/{finding.session_id}">View Session</a> &middot;
       Created: {new Date(finding.created_at).toLocaleString()} &middot;
       Updated: {new Date(finding.updated_at).toLocaleString()}
     </div>

@@ -8,6 +8,7 @@
   import AvailabilityBanner from '$lib/components/AvailabilityBanner.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { APP_VERSION } from '$lib/config/app-meta';
+  import { APP_BASE_PATH, LOGIN_PATH } from '$lib/config/routes';
   import { page } from '$app/state';
   import type { Snippet } from 'svelte';
 
@@ -16,15 +17,16 @@
   let userMenuOpen = $state(false);
   let userMenuRoot = $state<HTMLDivElement | null>(null);
   const AUTH_BOOTSTRAP_TIMEOUT_MS = 10000;
+  const PUBLIC_PATH_PREFIXES = ['/login', '/invite', '/onboarding'];
 
   const navItems = [
-    { href: '/', label: 'Dashboard', icon: '⊞' },
-    { href: '/clients', label: 'Clients', icon: '⊟' },
-    { href: '/assets', label: 'Assets', icon: '⊠' },
-    { href: '/sessions', label: 'Sessions', icon: '⊡' },
-    { href: '/findings', label: 'Findings', icon: '⊘' },
-    { href: '/admin', label: 'Admin', icon: '⚙', roles: ['admin'] },
-    { href: '/templates', label: 'Templates', icon: '⊙', roles: ['admin', 'reviewer'] },
+    { href: APP_BASE_PATH, label: 'Dashboard', icon: '⊞' },
+    { href: `${APP_BASE_PATH}/clients`, label: 'Clients', icon: '⊟' },
+    { href: `${APP_BASE_PATH}/assets`, label: 'Assets', icon: '⊠' },
+    { href: `${APP_BASE_PATH}/sessions`, label: 'Sessions', icon: '⊡' },
+    { href: `${APP_BASE_PATH}/findings`, label: 'Findings', icon: '⊘' },
+    { href: `${APP_BASE_PATH}/admin`, label: 'Admin', icon: '⚙', roles: ['admin'] },
+    { href: `${APP_BASE_PATH}/templates`, label: 'Templates', icon: '⊙', roles: ['admin', 'reviewer'] },
   ];
 
   let visibleNav = $derived(
@@ -34,9 +36,24 @@
     })
   );
 
+  function isPublicRoute(pathname: string): boolean {
+    if (pathname === '/') return true;
+    return PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  }
+
+  function normalizedAppPath(pathname: string): string {
+    if (pathname === APP_BASE_PATH) return APP_BASE_PATH;
+    if (pathname.startsWith(`${APP_BASE_PATH}/`)) return pathname;
+    if (pathname !== '/' && !isPublicRoute(pathname)) return `${APP_BASE_PATH}${pathname}`;
+    return pathname;
+  }
+
   function isActive(href: string, currentPath: string): boolean {
-    if (href === '/') return currentPath === '/';
-    return currentPath.startsWith(href);
+    const normalized = normalizedAppPath(currentPath);
+    if (href === APP_BASE_PATH) {
+      return normalized === APP_BASE_PATH;
+    }
+    return normalized.startsWith(href);
   }
 
   onMount(() => {
@@ -80,8 +97,14 @@
   });
 
   $effect(() => {
-    if (authReady && !auth.isAuthenticated && page.url.pathname !== '/') {
-      goto('/', { replaceState: true });
+    if (authReady && !auth.isAuthenticated && !isPublicRoute(page.url.pathname)) {
+      goto(LOGIN_PATH, { replaceState: true });
+    }
+  });
+
+  $effect(() => {
+    if (authReady && auth.isAuthenticated && isPublicRoute(page.url.pathname)) {
+      goto(APP_BASE_PATH, { replaceState: true });
     }
   });
 
@@ -94,7 +117,6 @@
   async function handleLogout() {
     userMenuOpen = false;
     await logout();
-    await goto('/', { replaceState: true });
   }
 
   function toggleUserMenu(event: MouseEvent) {
@@ -137,7 +159,7 @@
     <p>Loading...</p>
   </main>
 {:else if !auth.isAuthenticated}
-  {#if page.url.pathname === '/'}
+  {#if isPublicRoute(page.url.pathname)}
     {@render children()}
   {:else}
     <main class="content loading-shell">
@@ -173,9 +195,9 @@
         </button>
         {#if userMenuOpen}
           <div class="user-menu">
-            <a class="user-menu-item" href="/profile" onclick={closeUserMenu}>Profile settings</a>
+            <a class="user-menu-item" href={`${APP_BASE_PATH}/profile`} onclick={closeUserMenu}>Profile settings</a>
             {#if auth.user?.role === 'admin'}
-              <a class="user-menu-item" href="/admin" onclick={closeUserMenu}>Admin</a>
+              <a class="user-menu-item" href={`${APP_BASE_PATH}/admin`} onclick={closeUserMenu}>Admin</a>
             {/if}
             <button class="user-menu-item danger" onclick={handleLogout}>Log out</button>
           </div>

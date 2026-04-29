@@ -29,6 +29,9 @@ class ReportLimitError(ValueError):
     pass
 
 
+_CSV_FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r", "\n")
+
+
 def _sort_findings(findings: list[Finding], taxonomy: TaxonomyBundle) -> list[Finding]:
     risk_order = taxonomy.order_map("risk_level")
     return sorted(findings, key=lambda finding: risk_order.get(finding.risk_level, 99))
@@ -36,6 +39,13 @@ def _sort_findings(findings: list[Finding], taxonomy: TaxonomyBundle) -> list[Fi
 
 def _render_md(text: str | None) -> str:
     return sanitize_markdown_to_html(text)
+
+
+def _safe_csv_cell(value: object | None) -> str:
+    text = "" if value is None else str(value)
+    if text.startswith(_CSV_FORMULA_PREFIXES):
+        return f"'{text}"
+    return text
 
 
 def _estimate_report_input_size(session: ReviewSession, findings: list[Finding]) -> int:
@@ -149,17 +159,17 @@ def generate_csv(
     ])
     for f in findings:
         writer.writerow([
-            str(f.finding_id),
-            f.title,
-            f.risk_level,
-            taxonomy.label("risk_level", f.risk_level),
-            f.remediation_status,
-            taxonomy.label("remediation_status", f.remediation_status),
-            f.description,
-            f.impact or "",
-            f.recommendation or "",
-            "; ".join(f.references) if f.references else "",
-            f.created_at.isoformat() if f.created_at else "",
+            _safe_csv_cell(f.finding_id),
+            _safe_csv_cell(f.title),
+            _safe_csv_cell(f.risk_level),
+            _safe_csv_cell(taxonomy.label("risk_level", f.risk_level)),
+            _safe_csv_cell(f.remediation_status),
+            _safe_csv_cell(taxonomy.label("remediation_status", f.remediation_status)),
+            _safe_csv_cell(f.description),
+            _safe_csv_cell(f.impact or ""),
+            _safe_csv_cell(f.recommendation or ""),
+            _safe_csv_cell("; ".join(f.references) if f.references else ""),
+            _safe_csv_cell(f.created_at.isoformat() if f.created_at else ""),
         ])
     encoded = buf.getvalue().encode("utf-8")
     validate_report_output_size(encoded)

@@ -19,6 +19,26 @@ Reason: the admin UI is currently disabled by default and RFC1918-restricted whe
 - Finish harmonizing remaining config defaults so code fallback, Compose fallback, `.env.example`, and `README.md` always match one-for-one.
 Reason: most drift is fixed, but keeping all four sources aligned should remain an explicit maintenance goal.
 
+## [v0.2.1] - Draft
+
+### Breaking
+- Moved the authenticated app entry from `/` to `/app`. The public root now serves the waitlist page, and the dedicated sign-in page now lives at `/login`.
+
+### Added
+- Added invite-gated onboarding with new backend endpoints for invite verification, onboarding state, and account completion.
+- Added invite persistence with an `invites` table and onboarding cookie validation that binds account creation to the invited email address.
+- Added admin invite creation, listing, and revocation so clean installs can issue one-email invite codes without manual database edits.
+- Added public frontend routes for `/invite`, `/onboarding`, `/login`, and `/app`.
+
+### Changed
+- Ported the `launch3` waitlist experience into the real frontend app for `/`, including waitlist signup and an invite-code CTA.
+- Split the old root login/dashboard page into dedicated login and dashboard pages.
+- Centralized the frontend app base path behind a shared route helper so `/app` links and redirects are easier to maintain.
+- Updated auth redirects and layout guards so public pages stay public, onboarding requires a verified invite, and authenticated users land in `/app`.
+- Changed the invite flow handoff to `/invite` -> `/onboarding` -> `/login` -> `/app`, with onboarding now creating the account and then returning the user to the standard sign-in flow.
+- Added `/app/...` route wrappers for the existing application pages while keeping the old top-level URLs working as compatibility routes during the transition.
+- Unified admin-issued invites and waitlist-approved invites on the same backend invite system so both flows can mint codes for onboarding.
+
 ## [v0.2.0] - Draft
 
 ### Breaking
@@ -26,6 +46,8 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Removed app-facing MinIO configuration from the default deployment path. Use `FINDINGS_OBJECT_STORAGE_*`, `SEAWEEDFS_S3_ACCESS_KEY`, and `SEAWEEDFS_S3_SECRET_KEY`; old `FINDINGS_MINIO_*` / `MINIO_*` values are no longer wired into Compose.
 - Removed `FINDINGS_DATABASE_URL` from the default deployment path. The backend now builds the connection string from `POSTGRES_HOST`, `POSTGRES_SERVICE_PORT`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, and `POSTGRES_DB`.
 - Made initial admin credentials and object-storage credentials mandatory in the default deployment path. Missing values now fail fast at startup.
+- Removed HS256 JWT support from the runtime path. RS256 key configuration is now required, and `FINDINGS_SECRET_KEY`, `FINDINGS_JWT_PRIMARY_ALGORITHM`, and `FINDINGS_JWT_ALLOW_LEGACY_HS256` are no longer used.
+- Removed legacy password-hash verification for plain bcrypt and `bcrypt-sha256 v1`. Only the current `bcrypt-sha256 v2` path is accepted.
 
 ### Changed
 - Updated stack version defaults to `0.2.0`.
@@ -52,6 +74,7 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Added an Alembic migration for report export integrity and retention metadata (`sha256`, `locked_until`, `retention_expires_at`).
 
 ### Fixed
+- Neutralized spreadsheet-formula injection in CSV exports by prefixing dangerous user-controlled cell values before writing report rows.
 - Fixed JWT verification so the backend accepts tokens for the configured primary signing mode instead of rejecting fresh logins when RS256 key files are present but HS256 remains active.
 - Fixed proxy-aware rate limiting so deployments behind Caddy use the real client IP instead of collapsing requests onto the proxy address.
 - Fixed OpenAPI type-generation CI by supplying dummy required environment variables to the backend schema-export workflow.

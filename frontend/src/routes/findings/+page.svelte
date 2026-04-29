@@ -92,7 +92,7 @@
   async function openCreateFinding() {
     if (!hasSessions) {
       toast.error('Create a review session before adding a finding.');
-      await goto('/sessions?new=1', { replaceState: true });
+      await goto('/app/sessions?new=1', { replaceState: true });
       return;
     }
     showModal = true;
@@ -205,9 +205,9 @@
       <tbody>
         {#each findings as f}
           <tr>
-            <td><a href="/findings/{f.finding_id}">{f.title}</a></td>
+            <td><a href="/app/findings/{f.finding_id}">{f.title}</a></td>
             <td><Badge text={f.risk_level} variant={f.risk_level} /></td>
-            <td><a href="/sessions/{f.session_id}">{sessionName(f.session_id)}</a></td>
+            <td><a href="/app/sessions/{f.session_id}">{sessionName(f.session_id)}</a></td>
             <td><Badge text={f.remediation_status} variant={f.remediation_status} /></td>
             <td>{new Date(f.created_at).toLocaleDateString()}</td>
           </tr>
@@ -225,7 +225,7 @@
     </p>
     <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
       <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Close</button>
-      <a href="/sessions?new=1" class="btn btn-primary" onclick={() => (showModal = false)}>Create Session</a>
+      <a href="/app/sessions?new=1" class="btn btn-primary" onclick={() => (showModal = false)}>Create Session</a>
     </div>
   {:else}
     <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>

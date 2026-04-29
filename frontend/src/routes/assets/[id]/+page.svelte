@@ -123,7 +123,7 @@
         <dt>Description</dt>
         <dd>{asset.description || '--'}</dd>
         <dt>Client</dt>
-        <dd><a href="/clients/{asset.client_id}">View Client</a></dd>
+        <dd><a href="/app/clients/{asset.client_id}">View Client</a></dd>
       </dl>
     {/if}
   </div>
@@ -144,7 +144,7 @@
         <tbody>
           {#each sessions as session}
             <tr>
-              <td><a href="/sessions/{session.session_id}">{session.review_name}</a></td>
+              <td><a href="/app/sessions/{session.session_id}">{session.review_name}</a></td>
               <td>{session.review_date}</td>
               <td>{session.reviewer_name || '--'}</td>
               <td><Badge text={session.status} variant={session.status} /></td>

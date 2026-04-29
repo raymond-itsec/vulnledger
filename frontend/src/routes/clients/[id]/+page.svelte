@@ -130,7 +130,7 @@
         <tbody>
           {#each assets as asset}
             <tr>
-              <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
+              <td><a href="/app/assets/{asset.asset_id}">{asset.asset_name}</a></td>
               <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
               <td>{asset.description || '--'}</td>
             </tr>

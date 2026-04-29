@@ -91,7 +91,7 @@
   async function openCreateSession() {
     if (!hasAssets) {
       toast.error('Create an asset before starting a review session.');
-      await goto('/assets?new=1', { replaceState: true });
+      await goto('/app/assets?new=1', { replaceState: true });
       return;
     }
     showModal = true;
@@ -163,7 +163,7 @@
       <tbody>
         {#each sessions as session}
           <tr>
-            <td><a href="/sessions/{session.session_id}">{session.review_name}</a></td>
+            <td><a href="/app/sessions/{session.session_id}">{session.review_name}</a></td>
             <td>{session.review_date}</td>
             <td>{session.reviewer_name || '--'}</td>
             <td><Badge text={session.status} variant={session.status} /></td>
@@ -182,7 +182,7 @@
     </p>
     <div style="display:flex;gap:0.5rem;justify-content:flex-end;">
       <button class="btn btn-secondary" type="button" onclick={() => (showModal = false)}>Close</button>
-      <a href="/assets?new=1" class="btn btn-primary" onclick={() => (showModal = false)}>Create Asset</a>
+      <a href="/app/assets?new=1" class="btn btn-primary" onclick={() => (showModal = false)}>Create Asset</a>
     </div>
   {:else}
     <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>

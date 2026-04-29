@@ -237,8 +237,8 @@
               <h3>References</h3>
               <ul>
                 {#each selected.references as ref}
+                  {@const href = safeReferenceHref(ref)}
                   <li>
-                    {@const href = safeReferenceHref(ref)}
                     {#if href}
                       <a href={href} target="_blank" rel="noopener noreferrer">{ref}</a>
                     {:else}

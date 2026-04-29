@@ -142,7 +142,7 @@
       if (isCurrent) {
         toast.success('Current session revoked. Signing out...');
         await logout();
-        await goto('/', { replaceState: true });
+        await goto('/login', { replaceState: true });
         return;
       }
       toast.success('Session revoked.');
@@ -161,7 +161,7 @@
       const result = await authApi.revokeAllSessions();
       toast.success(`Revoked ${result.revoked_count} session(s). Signing out...`);
       await logout();
-      await goto('/', { replaceState: true });
+      await goto('/login', { replaceState: true });
     } catch (error: any) {
       toast.error(error?.message || 'Could not revoke all sessions.');
     } finally {

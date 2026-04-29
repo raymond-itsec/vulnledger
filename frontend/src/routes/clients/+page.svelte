@@ -84,7 +84,7 @@
       <tbody>
         {#each clients as client}
           <tr>
-            <td><a href="/clients/{client.client_id}">{client.company_name}</a></td>
+            <td><a href="/app/clients/{client.client_id}">{client.company_name}</a></td>
             <td>{client.primary_contact_name || '--'}</td>
             <td>{client.primary_contact_email || '--'}</td>
           </tr>

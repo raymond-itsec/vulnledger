@@ -120,7 +120,7 @@
         <button class="btn btn-secondary" onclick={() => (editing = true)}>Edit</button>
       {/if}
       {#if canEdit}
-        <a href="/findings?new=1&session_id={session.session_id}" class="btn btn-primary">Add Finding</a>
+        <a href="/app/findings?new=1&session_id={session.session_id}" class="btn btn-primary">Add Finding</a>
       {/if}
     </div>
   </div>
@@ -154,7 +154,7 @@
         <dt>Date</dt><dd>{session.review_date}</dd>
         <dt>Reviewer</dt><dd>{session.reviewer_name || '--'}</dd>
         <dt>Status</dt><dd><Badge text={session.status} variant={session.status} /></dd>
-        <dt>Asset</dt><dd><a href="/assets/{session.asset_id}">View Asset</a></dd>
+        <dt>Asset</dt><dd><a href="/app/assets/{session.asset_id}">View Asset</a></dd>
       </dl>
       {#if session.notes}
         <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border-color);">
@@ -246,7 +246,7 @@
         <tbody>
           {#each findings as f}
             <tr>
-              <td><a href="/findings/{f.finding_id}">{f.title}</a></td>
+              <td><a href="/app/findings/{f.finding_id}">{f.title}</a></td>
               <td><Badge text={f.risk_level} variant={f.risk_level} /></td>
               <td><Badge text={f.remediation_status} variant={f.remediation_status} /></td>
             </tr>

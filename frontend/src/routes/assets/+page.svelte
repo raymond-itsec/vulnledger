@@ -53,7 +53,7 @@
   async function openCreateAsset() {
     if (!hasClients) {
       toast.error('Create a client before adding an asset.');
-      await goto('/clients?new=1', { replaceState: true });
+      await goto('/app/clients?new=1', { replaceState: true });
       return;
     }
     showModal = true;
@@ -118,9 +118,9 @@
       <tbody>
         {#each assets as asset}
           <tr>
-            <td><a href="/assets/{asset.asset_id}">{asset.asset_name}</a></td>
+            <td><a href="/app/assets/{asset.asset_id}">{asset.asset_name}</a></td>
             <td>{taxonomy.label('asset_type', asset.asset_type)}</td>
-            <td><a href="/clients/{asset.client_id}">{clientName(asset.client_id)}</a></td>
+            <td><a href="/app/clients/{asset.client_id}">{clientName(asset.client_id)}</a></td>
             <td>{asset.description || '--'}</td>
           </tr>
         {/each}

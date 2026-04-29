@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from app.api import attachments, auth, assets, clients, findings, reports, sessions, taxonomy, templates, users
+from app.api import attachments, auth, assets, clients, findings, invites, onboarding, reports, sessions, taxonomy, templates, users
 from app.config import settings, startup_config_source_report
 from app.database import engine
 from app.logging_config import configure_logging
@@ -165,6 +165,8 @@ app.add_middleware(
 )
 
 app.include_router(auth.router, prefix="/api")
+app.include_router(invites.router, prefix="/api")
+app.include_router(onboarding.router, prefix="/api")
 app.include_router(users.router, prefix="/api")
 app.include_router(clients.router, prefix="/api")
 app.include_router(assets.router, prefix="/api")

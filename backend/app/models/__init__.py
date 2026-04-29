@@ -10,6 +10,7 @@ from app.models.finding_template import FindingTemplate
 from app.models.refresh_session import RefreshSession
 from app.models.auth_security_event import AuthSecurityEvent
 from app.models.report_export import ReportExport
+from app.models.invite import Invite
 from app.models.taxonomy import TaxonomyEntry, TaxonomyVersion
 
 __all__ = [
@@ -25,6 +26,7 @@ __all__ = [
     "RefreshSession",
     "AuthSecurityEvent",
     "ReportExport",
+    "Invite",
     "TaxonomyVersion",
     "TaxonomyEntry",
 ]
