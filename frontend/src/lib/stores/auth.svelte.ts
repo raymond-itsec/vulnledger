@@ -34,6 +34,21 @@ let bootstrapPromise: Promise<void> | null = null;
 let bootstrapAttempted = false;
 let staleSessionCleanupPromise: Promise<void> | null = null;
 let lastRefreshFailurePermanent = false;
+let lastRefreshRetryAfterMs = 0;
+
+// Caps the cooperation window with a misbehaving / overly-aggressive rate
+// limiter. We honor Retry-After up to this much; beyond it we surface the
+// failure rather than freeze the UI for arbitrarily long.
+const MAX_RETRY_AFTER_MS = 8000;
+const DEFAULT_RETRY_AFTER_MS = 4000;
+
+/** Parse an HTTP Retry-After header value (seconds) → ms, capped. */
+function parseRetryAfter(raw: string | null): number {
+  if (!raw) return DEFAULT_RETRY_AFTER_MS;
+  const seconds = Number(raw);
+  if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_RETRY_AFTER_MS;
+  return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+}
 
 export const auth = {
   get token() { return token; },
@@ -154,24 +169,21 @@ export async function refreshToken(): Promise<boolean> {
   refreshPromise = (async () => {
     let permanentFailure = false;
     try {
-      // First attempt. If it gets rate-limited (429), back off briefly and
-      // retry once — bursts of dashboard calls can momentarily exhaust the
-      // /api/* rate-limit budget but recover within a second or two.
-      let res = await fetchWithAvailability('/api/auth/refresh', {
+      // Single attempt only — bootstrapAuth handles retry orchestration so
+      // we don't double-tap the rate-limit budget. If we get 429 with a
+      // Retry-After header, we honor it via the helper below.
+      const res = await fetchWithAvailability('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include',
       }, true);
-      if (res.status === 429) {
-        await new Promise((resolve) => setTimeout(resolve, 1500));
-        res = await fetchWithAvailability('/api/auth/refresh', {
-          method: 'POST',
-          credentials: 'include',
-        }, true);
-      }
       if (!res.ok) {
         if (res.status === 401) {
           permanentFailure = true;
           await clearStaleSession();
+        } else if (res.status === 429) {
+          // Surface server-suggested wait time (capped) so callers can
+          // schedule a smarter retry without flooding the rate limiter.
+          lastRefreshRetryAfterMs = parseRetryAfter(res.headers.get('Retry-After'));
         }
         return false;
       }
@@ -179,6 +191,7 @@ export async function refreshToken(): Promise<boolean> {
       if (!data?.access_token) return false;
       bootstrapAttempted = true;
       token = data.access_token;
+      lastRefreshRetryAfterMs = 0;
       await fetchMe();
       return true;
     } catch {
@@ -215,12 +228,30 @@ export async function bootstrapAuth(): Promise<void> {
   }
 
   bootstrapPromise = (async () => {
-    const refreshed = await refreshToken();
+    // First attempt.
+    let refreshed = await refreshToken();
+
+    // If the failure was transient (rate-limit, network, 5xx — anything
+    // that is NOT a 401), wait the server-suggested Retry-After (capped at
+    // MAX_RETRY_AFTER_MS) and try once more. We deliberately do not loop
+    // — repeated retries would just keep eating the rate-limit budget and
+    // pushing the recovery time further out. If a single, well-timed
+    // retry can't recover, treat as bootstrap failure and let the layout
+    // decide what to show (currently: redirect to /login).
+    if (!refreshed && !lastRefreshFailurePermanent) {
+      const wait = lastRefreshRetryAfterMs || DEFAULT_RETRY_AFTER_MS;
+      await new Promise((resolve) => setTimeout(resolve, wait));
+      refreshed = await refreshToken();
+    }
+
     if (refreshed) {
       bootstrapAttempted = true;
       return;
     }
 
+    // Either the refresh truly failed (401) or our single retry didn't help.
+    // Mark bootstrapAttempted only on permanent (401) failures so a future
+    // bootstrap can try again from scratch when transient.
     token = null;
     user = null;
     bootstrapAttempted = lastRefreshFailurePermanent;
