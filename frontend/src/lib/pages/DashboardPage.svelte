@@ -6,7 +6,6 @@
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { appPath } from '$lib/config/routes';
-  import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { setCrumbs, clearCrumbs } from '$lib/stores/breadcrumb.svelte';
 
   // ── State ──────────────────────────────────────────────────────────
@@ -14,16 +13,13 @@
   let sessionCount = $state(0);
   let findingCount = $state(0);
   let openFindingCount = $state(0);
+  let criticalCount = $state(0);
+  let resolvedCount = $state(0);
   let recentSessions = $state<Session[]>([]);
   let recentFindings = $state<Finding[]>([]);
-  let riskBreakdown = $state<Record<string, number>>({});
-  let statusBreakdown = $state<Record<string, number>>({});
   let loading = $state(true);
 
   // ── Derived ────────────────────────────────────────────────────────
-  const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
-  const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
-
   const todayLabel = $derived.by(() =>
     new Intl.DateTimeFormat('en-US', {
       weekday: 'long',
@@ -44,9 +40,6 @@
     if (fullName) return fullName.split(/\s+/)[0];
     return auth.user?.username ?? 'there';
   });
-
-  const criticalCount = $derived(riskBreakdown.critical ?? 0);
-  const resolvedCount = $derived(statusBreakdown.resolved ?? 0);
 
   const queueCount = $derived(
     openFindingCount + recentSessions.filter((s) => s.status !== 'completed').length,
@@ -100,35 +93,40 @@
   }
 
   // ── Data loading ───────────────────────────────────────────────────
+  // Seven parallel calls covering exactly what the redesigned Dashboard
+  // renders — clients/sessions/findings totals, open + critical + resolved
+  // counts, recent sessions, and the 10 most recent findings for the
+  // critical-findings list. All in one Promise.all so we hit the backend
+  // in a single sub-second burst rather than spreading 15 sequential calls
+  // across 2-3 seconds. Taxonomy is already loaded by the layout, so we
+  // don't re-trigger it here.
   async function loadDashboard() {
     try {
-      await taxonomy.load();
-      const [clients, sessions, findings, openFindings, recentF] = await Promise.all([
+      const [
+        clients,
+        sessions,
+        findings,
+        openFindings,
+        criticalFindings,
+        resolvedFindings,
+        recentF,
+      ] = await Promise.all([
         clientsApi.list(1, 1),
         sessionsApi.list(undefined, 1, 5),
         findingsApi.list({ page: 1, per_page: 1 }),
         findingsApi.list({ remediation_status: 'open', page: 1, per_page: 1 }),
+        findingsApi.list({ risk_level: 'critical', page: 1, per_page: 1 }),
+        findingsApi.list({ remediation_status: 'resolved', page: 1, per_page: 1 }),
         findingsApi.list({ page: 1, per_page: 10 }),
       ]);
       clientCount = clients.total;
       sessionCount = sessions.total;
       findingCount = findings.total;
       openFindingCount = openFindings.total;
+      criticalCount = criticalFindings.total;
+      resolvedCount = resolvedFindings.total;
       recentSessions = sessions.items;
       recentFindings = recentF.items;
-
-      const risk: Record<string, number> = {};
-      const status: Record<string, number> = {};
-      for (const level of riskLevels) {
-        const r = await findingsApi.list({ risk_level: level.value, page: 1, per_page: 1 });
-        if (r.total > 0) risk[level.value] = r.total;
-      }
-      for (const s of remediationStatuses) {
-        const r = await findingsApi.list({ remediation_status: s.value, page: 1, per_page: 1 });
-        if (r.total > 0) status[s.value] = r.total;
-      }
-      riskBreakdown = risk;
-      statusBreakdown = status;
     } catch {
       // Aggregate failures are non-fatal — the dashboard just shows zeros.
     } finally {
