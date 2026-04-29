@@ -1,15 +1,10 @@
 <script lang="ts">
   // AppTopbar — breadcrumb-driven page header.
   //
-  // Displays the breadcrumb trail set by the active page (or a path-derived
-  // fallback computed in +layout). The optional title slot (rendered via the
-  // children snippet) is for in-page secondary nav / page actions.
-  //
-  // Visual spec follows /design-system/project/ui_kits/app/Header.jsx:
-  //  - Cream-tinted bar with subtle backdrop blur
-  //  - Breadcrumb at the top, optional page title below
-  //  - Search field on the right (focus ring in brand orange)
-  //  - Slot for primary CTA buttons
+  // Fixed-height bar (67px) so its bottom edge aligns with the sidebar's
+  // brand divider, regardless of which page is rendered. Pages that want a
+  // prominent heading should render their own <h1> in their body — the
+  // topbar is just navigation context.
 
   import type { Snippet } from 'svelte';
   import Breadcrumb from '$lib/components/Breadcrumb.svelte';
@@ -17,11 +12,9 @@
 
   let {
     crumbs = [],
-    title,
     actions,
   }: {
     crumbs?: Crumb[];
-    title?: string;
     actions?: Snippet;
   } = $props();
 
@@ -31,9 +24,6 @@
 <header class="topbar">
   <div class="topbar-left">
     <Breadcrumb {crumbs} />
-    {#if title}
-      <h1 class="page-title">{title}</h1>
-    {/if}
   </div>
 
   <div class="topbar-right">
@@ -50,37 +40,55 @@
 </header>
 
 <style>
-  /* Glass values mirror PublicHeader so /app and login feel like the
-     same visual family. Slightly less opaque + heavier blur than the old
-     cream tint so the underlying pastel gradient bleeds through. */
+  /* Fixed 67px height aligns the bottom border with the sidebar's brand
+     divider on every page, regardless of breadcrumb depth.
+
+     Backdrop blur is graduated: 50px at the top → 24px at the bottom.
+     Implemented via two stacked, absolutely-positioned pseudo-elements,
+     each with its own backdrop-filter and a complementary linear-gradient
+     mask. The masks fade in/out so the two blur strengths blend smoothly
+     across the height. The cream tint also lives on the pseudos so we
+     don't get a doubled fill in overlapping regions. */
   .topbar {
     position: sticky;
     top: 0;
     z-index: 40;
+    isolation: isolate; /* keep the pseudos' z-index local to this element */
     display: flex;
-    align-items: flex-end;
+    align-items: center;
     justify-content: space-between;
     gap: 16px;
-    padding: 18px 28px 14px;
-    background: rgba(250, 228, 220, 0.62);
-    backdrop-filter: blur(24px) saturate(170%);
-    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    height: 67px;
+    flex-shrink: 0;
+    padding: 0 28px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.42);
     font-family: var(--font-sans);
   }
+  .topbar::before,
+  .topbar::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: rgba(250, 228, 220, 0.62);
+  }
+  .topbar::before {
+    backdrop-filter: blur(50px) saturate(170%);
+    -webkit-backdrop-filter: blur(50px) saturate(170%);
+    mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  }
+  .topbar::after {
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
+    mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, black 100%);
+  }
   .topbar-left {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    align-items: center;
     min-width: 0;
-  }
-  .page-title {
-    margin: 0;
-    font-size: 22px;
-    font-weight: 700;
-    color: #1e1e2e;
-    line-height: 1.2;
-    letter-spacing: -0.01em;
   }
   .topbar-right {
     display: flex;
@@ -129,6 +137,10 @@
   }
   @media (max-width: 880px) {
     .topbar {
+      /* Allow the bar to grow to fit the stacked search field on narrow viewports. */
+      height: auto;
+      min-height: 67px;
+      padding: 12px 28px;
       flex-direction: column;
       align-items: stretch;
     }
