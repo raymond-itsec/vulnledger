@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import { login as doLogin } from '$lib/stores/auth.svelte';
   import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { APP_BASE_PATH, INVITE_PATH } from '$lib/config/routes';
@@ -50,7 +51,7 @@
 <div class="login-page">
   <div class="login-card">
     <div class="login-brand">
-      <img class="login-logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
+      <BrandLockup href="/" size="lg" centered={true} />
     </div>
     <p class="subtitle">Sign in to continue</p>
     <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
@@ -103,11 +104,8 @@
     justify-content: center;
     margin-bottom: 0.25rem;
   }
-  .login-logo {
-    width: 24rem;
-    max-width: 100%;
-    height: auto;
-    object-fit: contain;
+  .login-brand :global(.brand-lockup) {
+    margin-bottom: 0.25rem;
   }
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center; }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }

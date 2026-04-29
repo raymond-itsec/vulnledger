@@ -6,6 +6,7 @@
   import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import AvailabilityBanner from '$lib/components/AvailabilityBanner.svelte';
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { APP_VERSION } from '$lib/config/app-meta';
   import { APP_BASE_PATH, LOGIN_PATH } from '$lib/config/routes';
@@ -170,7 +171,7 @@
   <div class="app-layout">
     <aside class="sidebar">
       <div class="sidebar-header">
-        <img class="sidebar-logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
+        <BrandLockup href={APP_BASE_PATH} light={true} />
         <span class="version">{APP_VERSION}</span>
       </div>
       <nav>
@@ -237,11 +238,11 @@
     align-items: flex-start;
     gap: 0.25rem;
   }
-  .sidebar-logo {
-    width: 11rem;
-    height: auto;
-    flex-shrink: 0;
-    object-fit: contain;
+  .sidebar-header :global(.brand-lockup) {
+    max-width: 100%;
+  }
+  .sidebar-header :global(.label) {
+    color: rgba(255, 255, 255, 0.96);
   }
   .version {
     display: block;

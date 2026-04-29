@@ -1,4 +1,5 @@
 <script lang="ts">
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import { INVITE_PATH, LOGIN_PATH } from '$lib/config/routes';
 
   const WAITLIST_API_BASE = 'https://waitlist-api.vulnledger.app';
@@ -141,10 +142,7 @@
 
 <div class="landing-shell">
   <nav class="nav">
-    <a class="nav-brand" href="/">
-      <span class="mark" aria-hidden="true"></span>
-      <span>VulnLedger</span>
-    </a>
+    <BrandLockup href="/" />
     <div class="nav-right">
       <a class="btn-ghost" href={LOGIN_PATH}>Already invited? Sign in →</a>
     </div>
@@ -251,8 +249,7 @@
 
   <footer class="footer">
     <div class="footer-brand">
-      <span class="mark" aria-hidden="true"></span>
-      <span class="shine">VulnLedger</span>
+      <BrandLockup href="/" />
     </div>
     <span>Built for security professionals who take their craft seriously.</span>
     <span>© 2026 VulnLedger. All rights reserved.</span>
@@ -300,33 +297,6 @@
     backdrop-filter: blur(24px) saturate(170%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.42);
   }
-
-  .nav-brand {
-    display: flex;
-    align-items: center;
-    gap: 0.65rem;
-    font-weight: 800;
-    font-size: 1.05rem;
-    letter-spacing: 0;
-    color: var(--ink);
-    text-decoration: none;
-  }
-
-  .mark {
-    width: 34px;
-    height: 34px;
-    border-radius: 10px;
-    flex-shrink: 0;
-    background: conic-gradient(from 210deg, var(--accent-a), var(--accent-b), var(--accent-c), var(--accent-d), var(--accent-a));
-    display: grid;
-    place-items: center;
-    color: #fff;
-    font-weight: 900;
-    font-size: 0.95rem;
-    box-shadow: var(--shadow-sm);
-  }
-
-  .mark::after { content: "V"; }
 
   .nav-right {
     display: flex;
@@ -717,11 +687,14 @@
   .footer-brand {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-weight: 700;
-    font-size: 0.9rem;
-    color: var(--ink-soft);
     margin-bottom: 0.25rem;
+  }
+
+  .footer-brand :global(.label) {
+    background: linear-gradient(135deg, #ff6b3d 0%, #7b78f2 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
   }
 
   @media (prefers-reduced-motion: reduce) {

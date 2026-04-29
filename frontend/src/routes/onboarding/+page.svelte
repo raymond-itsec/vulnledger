@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { page } from '$app/state';
   import { onMount } from 'svelte';
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import { INVITE_PATH, LOGIN_PATH } from '$lib/config/routes';
   import { onboardingApi } from '$lib/api/onboarding';
   import { toast } from '$lib/stores/toast.svelte';
@@ -59,7 +60,7 @@
 
 <div class="public-shell">
   <div class="public-card">
-    <img class="logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
+    <BrandLockup href="/" size="lg" centered={true} />
     <h1>Complete your account</h1>
     {#if loading}
       <p class="intro">Checking your invite…</p>
@@ -117,11 +118,8 @@
     background: white;
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
   }
-  .logo {
-    width: min(16rem, 100%);
-    height: auto;
-    display: block;
-    margin: 0 auto 1rem;
+  .public-card :global(.brand-lockup) {
+    margin-bottom: 1rem;
   }
   h1 {
     margin: 0 0 0.5rem;

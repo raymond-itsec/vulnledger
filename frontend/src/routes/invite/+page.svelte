@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import BrandLockup from '$lib/components/BrandLockup.svelte';
   import { LOGIN_PATH, ONBOARDING_PATH } from '$lib/config/routes';
   import { onboardingApi } from '$lib/api/onboarding';
   import { toast } from '$lib/stores/toast.svelte';
@@ -32,7 +33,7 @@
 
 <div class="public-shell">
   <div class="public-card">
-    <img class="logo" src="/branding/vl-logo-small.png" alt="VulnLedger logo" />
+    <BrandLockup href="/" size="lg" centered={true} />
     <h1>Enter your invite code</h1>
     <p class="intro">
       Your invite code unlocks onboarding for the email address attached to the invite.
@@ -77,11 +78,8 @@
     background: white;
     box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
   }
-  .logo {
-    width: min(16rem, 100%);
-    height: auto;
-    display: block;
-    margin: 0 auto 1rem;
+  .public-card :global(.brand-lockup) {
+    margin-bottom: 1rem;
   }
   h1 {
     margin: 0 0 0.5rem;
