@@ -528,10 +528,13 @@
     align-items: center;
     justify-content: center;
   }
-  .icon-orange { background: #fff7f3; color: #f07340; }
-  .icon-red { background: #fdeaea; color: #d93b3b; }
-  .icon-amber { background: #fef7e8; color: #e8a82a; }
-  .icon-green { background: #e9f8ee; color: #3ba85a; }
+  /* No colored pill backgrounds — let the duotone icon carry the colour
+     on its own. The .stat-icon container still reserves 38px of layout
+     space so the head row stays balanced across cards. */
+  .icon-orange { color: #f07340; }
+  .icon-red { color: #d93b3b; }
+  .icon-amber { color: #e8a82a; }
+  .icon-green { color: #3ba85a; }
   .stat-value {
     font-size: 36px;
     font-weight: 800;
