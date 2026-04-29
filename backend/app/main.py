@@ -285,6 +285,9 @@ async def health():
         content={
             "status": overall_status,
             "version": settings.app_version,
+            "features": {
+                "oidc_enabled": settings.oidc_enabled,
+            },
             "checks": {
                 "database": database_check,
                 "object_storage": object_storage_check,

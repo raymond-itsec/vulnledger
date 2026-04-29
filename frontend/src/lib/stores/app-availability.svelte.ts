@@ -206,8 +206,16 @@ export const appAvailability = {
           true,
         );
         await logHealthCheckResult('login-probe', response);
+        try {
+          const body = await response.clone().json() as { features?: { oidc_enabled?: boolean } };
+          loginPageOidcAvailability = body.features?.oidc_enabled === true;
+          writeCachedBoolean(LOGIN_PAGE_OIDC_AVAILABILITY_CACHE_KEY, loginPageOidcAvailability);
+        } catch {
+          loginPageOidcAvailability = false;
+        }
       } catch {
         // fetchWithAvailability already updates the shared availability flag.
+        loginPageOidcAvailability = false;
       } finally {
         if (!unavailable) {
           writeCachedBoolean(LOGIN_PAGE_APP_AVAILABILITY_CACHE_KEY, true);
@@ -235,30 +243,8 @@ export const appAvailability = {
       return loginPageOidcAvailability;
     }
 
-    if (loginPageOidcAvailabilityProbePromise) {
-      return await loginPageOidcAvailabilityProbePromise;
-    }
-
-    loginPageOidcAvailabilityProbePromise = (async () => {
-      let available = false;
-      try {
-        const res = await fetchWithAvailability(
-          '/api/auth/oidc/login',
-          { method: 'HEAD', redirect: 'manual', cache: 'no-store' },
-          false,
-        );
-        available = res.status !== 404;
-      } catch {
-        available = false;
-      } finally {
-        loginPageOidcAvailability = available;
-        writeCachedBoolean(LOGIN_PAGE_OIDC_AVAILABILITY_CACHE_KEY, available);
-        loginPageOidcAvailabilityProbePromise = null;
-      }
-      return available;
-    })();
-
-    return await loginPageOidcAvailabilityProbePromise;
+    await this.checkLoginPageAppAvailabilityOnce();
+    return loginPageOidcAvailability ?? false;
   },
   observeResponse(
     input: RequestInfo | URL,
