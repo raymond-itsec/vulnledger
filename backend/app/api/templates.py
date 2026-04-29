@@ -94,6 +94,8 @@ async def update_template(
         raise HTTPException(status_code=404, detail="Template not found")
     if template.is_builtin and current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can edit built-in templates")
+    if not template.is_builtin and template.created_by != current_user.user_id and current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized to edit this template")
     update_data = body.model_dump(exclude_unset=True)
     if "risk_level" in update_data and update_data["risk_level"] is not None:
         try:
