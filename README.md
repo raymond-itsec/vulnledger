@@ -658,8 +658,6 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `APP_VERSION` | `0.2.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
 | `SEAWEEDFS_S3_PORT` | `8333` | Host port published for the SeaweedFS S3 gateway |
-| `SEAWEEDFS_ADMIN_UI_ENABLED` | `false` | Enable the SeaweedFS master/admin UI proxy; when disabled the port returns `404` |
-| `SEAWEEDFS_ADMIN_UI_PORT` | `9999` | Host port published for the SeaweedFS admin UI proxy (RFC1918 and loopback clients only) |
 | `BACKEND_PORT` | `8000` | Host port published for the FastAPI backend |
 | `FRONTEND_PORT` | `5173` | Host port published for the Svelte frontend |
 | `CLAMAV_PORT` | `3310` | Host port published for ClamAV |

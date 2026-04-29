@@ -66,40 +66,6 @@ services:
     volumes:
       - seaweedfs_data:/data
 
-  seaweedfs-admin-ui:
-    build:
-      context: ./caddy
-    image: vulnledger-caddy:2.11.2-ratelimit
-    restart: unless-stopped
-    logging: *default-logging
-    user: "10001:10001"
-    cap_drop: ["ALL"]
-    cap_add: ["NET_BIND_SERVICE"]
-    read_only: true
-    tmpfs:
-      - /tmp
-      - /data
-      - /config
-    deploy:
-      resources:
-        limits:
-          memory: 128M
-          cpus: "0.25"
-    depends_on:
-      seaweedfs:
-        condition: service_started
-    environment:
-      SEAWEEDFS_ADMIN_UI_ENABLED: ${SEAWEEDFS_ADMIN_UI_ENABLED:-false}
-      SEAWEEDFS_ADMIN_UI_PORT: ${SEAWEEDFS_ADMIN_UI_PORT:-9999}
-    command:
-      [
-        "/bin/sh",
-        "-ec",
-        "if [ \"$SEAWEEDFS_ADMIN_UI_ENABLED\" = \"true\" ]; then cat >/tmp/Caddyfile <<EOF\n:$SEAWEEDFS_ADMIN_UI_PORT {\n  @disallowed not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.0/8 ::1/128\n  respond @disallowed \"Forbidden\" 403\n  reverse_proxy seaweedfs:9333\n}\nEOF\nelse cat >/tmp/Caddyfile <<EOF\n:$SEAWEEDFS_ADMIN_UI_PORT {\n  respond \"SeaweedFS admin UI is disabled.\" 404\n}\nEOF\nfi\nexec caddy run --config /tmp/Caddyfile --adapter caddyfile",
-      ]
-    ports:
-      - "${SEAWEEDFS_ADMIN_UI_PORT:-9999}:9999"
-
   backend:
     build:
       context: ./backend

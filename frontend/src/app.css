@@ -122,6 +122,20 @@ input, select, textarea {
   border: 1px solid rgba(203, 187, 229, 0.72);
   border-radius: 0.375rem;
   background: rgba(255, 255, 255, 0.9);
+  color: var(--text-primary);
+}
+
+.form-group input::placeholder,
+.form-group textarea::placeholder {
+  color: #8a8dac;
+}
+
+.form-group input:disabled,
+.form-group select:disabled,
+.form-group textarea:disabled {
+  color: #666980;
+  -webkit-text-fill-color: #666980;
+  opacity: 1;
 }
 
 .form-group textarea { min-height: 100px; resize: vertical; }
@@ -198,6 +212,8 @@ tr:hover { background: rgba(255, 255, 255, 0.46); }
   border: 1px solid var(--border-color);
   border-radius: 0.375rem;
   font-size: 0.875rem;
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.9);
 }
 
 .stat-cards {

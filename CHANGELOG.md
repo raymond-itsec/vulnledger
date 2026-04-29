@@ -14,8 +14,6 @@ Reason: settings are still imported directly in many modules, which limits test 
 Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
 - Move service images to a private container registry and deploy by immutable digest.
 Reason: current host-local builds increase drift risk between environments and slow rollouts. Registry-backed, digest-pinned deploys improve reproducibility, rollback safety, and multi-host operations.
-- Add auth in front of the optional SeaweedFS admin UI when permanent exposure is needed.
-Reason: the admin UI is currently disabled by default and RFC1918-restricted when enabled, but it does not have its own login layer.
 - Finish harmonizing remaining config defaults so code fallback, Compose fallback, `.env.example`, and `README.md` always match one-for-one.
 Reason: most drift is fixed, but keeping all four sources aligned should remain an explicit maintenance goal.
 
@@ -31,7 +29,7 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Added public frontend routes for `/invite`, `/onboarding`, `/login`, and `/app`.
 
 ### Changed
-- Ported the `launch3` waitlist experience into the real frontend app for `/`, including waitlist signup and an invite-code CTA.
+- Ported the Worker waitlist experience into the real frontend app for `/`, including waitlist signup and an invite-code CTA.
 - Split the old root login/dashboard page into dedicated login and dashboard pages.
 - Centralized the frontend app base path behind a shared route helper so `/app` links and redirects are easier to maintain.
 - Updated auth redirects and layout guards so public pages stay public, onboarding requires a verified invite, and authenticated users land in `/app`.
@@ -68,7 +66,6 @@ Reason: most drift is fixed, but keeping all four sources aligned should remain 
 - Changed the frontend availability banner to slide the page down instead of overlaying the app.
 - Removed the frontend OIDC route probe and now expose OIDC availability from backend startup state through `/api/health`.
 - Added startup logging that reports which settings were missing from `.env`, supplied by Compose fallback, or supplied by Python defaults.
-- Added an internal SeaweedFS admin UI proxy on a dedicated configurable port, disabled by default and restricted to RFC1918 / loopback clients when enabled.
 
 ### Added
 - Added an Alembic migration for report export integrity and retention metadata (`sha256`, `locked_until`, `retention_expires_at`).

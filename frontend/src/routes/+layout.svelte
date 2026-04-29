@@ -37,6 +37,13 @@
     })
   );
 
+  const sectionTitle = $derived.by(() => {
+    const pathname = normalizedAppPath(page.url.pathname);
+    if (pathname === APP_BASE_PATH) return 'Dashboard';
+    const match = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    return match?.label ?? 'Workspace';
+  });
+
   function isPublicRoute(pathname: string): boolean {
     if (pathname === '/') return true;
     return PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
@@ -206,7 +213,21 @@
       </div>
     </aside>
     <main class="content">
-      {@render children()}
+      <header class="topbar">
+        <div class="topbar-title">{sectionTitle}</div>
+        <div class="topbar-actions">
+          <label class="topbar-search" aria-label="Search workspace">
+            <span class="topbar-search-icon">⌕</span>
+            <input type="search" placeholder="Search clients, findings, sessions..." />
+          </label>
+          {#if auth.user?.role === 'admin' || auth.user?.role === 'reviewer'}
+            <a class="topbar-cta" href={`${APP_BASE_PATH}/findings?new=1`}>+ New finding</a>
+          {/if}
+        </div>
+      </header>
+      <div class="content-inner">
+        {@render children()}
+      </div>
     </main>
   </div>
 {/if}
@@ -333,11 +354,93 @@
   .content {
     flex: 1;
     margin-left: 240px;
-    padding: 2rem;
     min-height: 100vh;
     background: transparent;
   }
+  .topbar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.25rem 1.75rem 1rem;
+    background: rgba(250, 228, 220, 0.58);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.46);
+    backdrop-filter: blur(24px) saturate(165%);
+  }
+  .topbar-title {
+    font-size: 0.96rem;
+    font-weight: 600;
+    color: rgba(71, 58, 88, 0.86);
+  }
+  .topbar-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+  }
+  .topbar-search {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    min-width: min(100%, 280px);
+    padding: 0.75rem 1rem;
+    border-radius: 14px;
+    background: rgba(255, 255, 255, 0.78);
+    border: 1px solid rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 20px rgba(80, 40, 120, 0.06);
+  }
+  .topbar-search-icon {
+    color: rgba(138, 141, 172, 0.9);
+    font-size: 0.9rem;
+  }
+  .topbar-search input {
+    width: 100%;
+    border: 0;
+    background: transparent;
+    color: var(--text-primary);
+    font: inherit;
+    outline: none;
+  }
+  .topbar-search input::placeholder {
+    color: #8a8dac;
+  }
+  .topbar-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.8rem 1.2rem;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #ff6a3d 0%, #ff8a4c 100%);
+    color: #fff;
+    font-size: 0.92rem;
+    font-weight: 700;
+    text-decoration: none;
+    box-shadow: 0 14px 26px rgba(255, 106, 61, 0.18);
+  }
+  .topbar-cta:hover {
+    text-decoration: none;
+    filter: brightness(1.02);
+  }
+  .content-inner {
+    padding: 1.25rem 1.75rem 2rem;
+  }
   .loading-shell {
     margin-left: 0;
+  }
+  @media (max-width: 980px) {
+    .topbar {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .topbar-actions {
+      flex-direction: column;
+      align-items: stretch;
+    }
+    .topbar-search {
+      min-width: 0;
+      width: 100%;
+    }
   }
 </style>
