@@ -47,9 +47,12 @@
     }),
   );
 
-  const sectionTitle = $derived.by(() => {
+  // sectionTitle drives the topbar's optional <h1>. We deliberately skip it on
+  // pages that present their own in-body greeting/hero (currently only the
+  // Dashboard) so the topbar doesn't repeat the breadcrumb verbatim.
+  const sectionTitle = $derived.by<string | undefined>(() => {
     const pathname = normalizedAppPath(page.url.pathname);
-    if (pathname === APP_BASE_PATH) return 'Dashboard';
+    if (pathname === APP_BASE_PATH) return undefined;
     const match = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
     return match?.label ?? 'Workspace';
   });

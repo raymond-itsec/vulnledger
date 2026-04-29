@@ -7,8 +7,9 @@
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { appPath } from '$lib/config/routes';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
-  import Badge from '$lib/components/Badge.svelte';
+  import { setCrumbs, clearCrumbs } from '$lib/stores/breadcrumb.svelte';
 
+  // ── State ──────────────────────────────────────────────────────────
   let clientCount = $state(0);
   let sessionCount = $state(0);
   let findingCount = $state(0);
@@ -19,43 +20,86 @@
   let statusBreakdown = $state<Record<string, number>>({});
   let loading = $state(true);
 
-  const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
+  // ── Derived ────────────────────────────────────────────────────────
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
   const remediationStatuses = $derived(taxonomy.activeEntries('remediation_status'));
+
   const todayLabel = $derived.by(() =>
     new Intl.DateTimeFormat('en-US', {
       weekday: 'long',
       month: 'long',
       day: 'numeric',
-    }).format(new Date())
+    }).format(new Date()),
   );
+
+  const greeting = $derived.by(() => {
+    const h = new Date().getHours();
+    if (h < 12) return 'Good morning';
+    if (h < 18) return 'Good afternoon';
+    return 'Good evening';
+  });
+
   const firstName = $derived.by(() => {
     const fullName = auth.user?.full_name?.trim();
     if (fullName) return fullName.split(/\s+/)[0];
     return auth.user?.username ?? 'there';
   });
+
   const criticalCount = $derived(riskBreakdown.critical ?? 0);
   const resolvedCount = $derived(statusBreakdown.resolved ?? 0);
-  const queueCount = $derived(openFindingCount + recentSessions.filter((session) => session.status !== 'completed').length);
+
+  const queueCount = $derived(
+    openFindingCount + recentSessions.filter((s) => s.status !== 'completed').length,
+  );
   const queueMax = $derived(Math.max(8, queueCount + 4));
   const queueProgress = $derived(Math.min(100, Math.round((queueCount / queueMax) * 100)));
+
+  // Critical findings list — only critical, capped to 5
+  const criticalFindingsList = $derived(
+    recentFindings.filter((f) => f.risk_level === 'critical').slice(0, 5),
+  );
+  // If there are fewer than 5 critical, fill the rest with the next most-recent regardless
+  const recentFindingsList = $derived.by(() => {
+    if (criticalFindingsList.length >= 5) return criticalFindingsList;
+    const ids = new Set(criticalFindingsList.map((f) => f.finding_id));
+    const filler = recentFindings
+      .filter((f) => !ids.has(f.finding_id))
+      .slice(0, 5 - criticalFindingsList.length);
+    return [...criticalFindingsList, ...filler];
+  });
+
+  // Project rows for the table
   const activeProjectRows = $derived.by(() =>
     recentSessions.map((session) => {
-      const relatedFindings = recentFindings.filter((finding) => finding.session_id === session.session_id);
-      const criticalFindings = relatedFindings.filter((finding) => finding.risk_level === 'critical').length;
+      const related = recentFindings.filter((f) => f.session_id === session.session_id);
+      const critical = related.filter((f) => f.risk_level === 'critical').length;
       return {
         id: session.session_id,
         name: session.review_name,
-        type: 'Security Review',
+        type: 'Security review',
         assetCount: 1,
-        findingCount: relatedFindings.length,
-        criticalFindings,
+        findingCount: related.length,
+        criticalFindings: critical,
         status: session.status,
         date: session.review_date,
       };
-    })
+    }),
   );
 
+  // ── Status / risk colour helpers (from design tokens) ──────────────
+  function statusChip(status: string): { bg: string; fg: string; label: string } {
+    const s = (status || '').toLowerCase();
+    if (s === 'completed' || s === 'resolved')
+      return { bg: '#E9F8EE', fg: '#2E8A48', label: status };
+    if (s === 'in_progress' || s === 'in-progress' || s === 'active')
+      return { bg: '#EBF3FD', fg: '#4A7FC4', label: status.replace('_', ' ') };
+    if (s === 'wrapping_up' || s === 'wrapping-up' || s === 'wrapping up')
+      return { bg: '#FEF7E8', fg: '#C48B10', label: status.replace('_', ' ') };
+    if (s === 'open') return { bg: '#FDEAEA', fg: '#D93B3B', label: status };
+    return { bg: '#F2EDE6', fg: '#5A5A72', label: status.replace('_', ' ') };
+  }
+
+  // ── Data loading ───────────────────────────────────────────────────
   async function loadDashboard() {
     try {
       await taxonomy.load();
@@ -64,7 +108,7 @@
         sessionsApi.list(undefined, 1, 5),
         findingsApi.list({ page: 1, per_page: 1 }),
         findingsApi.list({ remediation_status: 'open', page: 1, per_page: 1 }),
-        findingsApi.list({ page: 1, per_page: 5 }),
+        findingsApi.list({ page: 1, per_page: 10 }),
       ]);
       clientCount = clients.total;
       sessionCount = sessions.total;
@@ -86,16 +130,19 @@
       riskBreakdown = risk;
       statusBreakdown = status;
     } catch {
-      // Ignore dashboard aggregate failures.
+      // Aggregate failures are non-fatal — the dashboard just shows zeros.
     } finally {
       loading = false;
     }
   }
 
-  onMount(async () => {
+  // ── Lifecycle ──────────────────────────────────────────────────────
+  onMount(() => {
+    setCrumbs([{ label: 'Dashboard' }]);
     if (auth.isAuthenticated && !appAvailability.unavailable) {
-      await loadDashboard();
+      void loadDashboard();
     }
+    return clearCrumbs;
   });
 
   $effect(() => {
@@ -106,425 +153,526 @@
 </script>
 
 {#if loading}
-  <div class="dashboard-loading">Loading dashboard…</div>
+  <div class="loading">Loading dashboard…</div>
 {:else}
-  <section class="dashboard-shell">
-    <header class="hero-head">
-      <div class="hero-copy">
-        <p class="hero-date">{todayLabel}</p>
-        <h1>Good afternoon, <span>{firstName}.</span></h1>
-      </div>
+  <div class="dashboard">
+    <!-- Greeting -->
+    <header class="greeting">
+      <p class="date">{todayLabel}</p>
+      <h1>
+        {greeting},
+        <span class="name-gradient">{firstName}.</span>
+      </h1>
     </header>
 
-    <section class="hero-grid">
-      <a href={appPath('/findings?remediation_status=open')} class="focus-card">
+    <!-- Hero row: TODAY + Queue -->
+    <section class="hero-row">
+      <a class="today-card" href={appPath('/findings?remediation_status=open')}>
         <span class="eyebrow">Today</span>
-        <h2>{criticalCount > 0 ? `${criticalCount} critical findings need your review.` : 'Your security queue is under control.'}</h2>
-        <p>
-          {openFindingCount} open findings across {sessionCount} active review sessions.
-          Current context covers all clients in your workspace.
+        <h2 class="today-headline">
+          {#if criticalCount === 0}
+            No critical findings open.
+          {:else}
+            {criticalCount} critical finding{criticalCount > 1 ? 's' : ''} need{criticalCount === 1 ? 's' : ''} your review.
+          {/if}
+        </h2>
+        <p class="today-sub">
+          {openFindingCount} open finding{openFindingCount === 1 ? '' : 's'} across {sessionCount} active project{sessionCount === 1 ? '' : 's'}.
+          Current context covers {clientCount > 0 ? `${clientCount} client${clientCount === 1 ? '' : 's'}` : 'all clients'} in your workspace.
         </p>
       </a>
 
       <aside class="queue-card">
-        <span class="eyebrow">Your queue</span>
-        <div class="queue-value">{queueCount} <span>items</span></div>
-        <div class="queue-bar" aria-hidden="true">
-          <span style={`width:${queueProgress}%`}></span>
+        <span class="eyebrow muted">Your queue</span>
+        <div class="queue-value">
+          <span class="queue-number">{queueCount}</span>
+          <span class="queue-unit">items</span>
         </div>
-        <p>{queueProgress}% through scoped workload</p>
+        <div class="queue-bar" aria-hidden="true">
+          <span style:width="{queueProgress}%"></span>
+        </div>
+        <p class="queue-meta">{queueProgress}% through scoped workload</p>
       </aside>
     </section>
 
-    <section class="metric-grid">
-      <a href={appPath('/findings')} class="metric-card">
-        <div class="metric-top">
-          <span class="metric-label">Total findings</span>
-          <span class="metric-icon peach">⌖</span>
+    <!-- Stat cards -->
+    <section class="stats">
+      <a class="stat-card" href={appPath('/findings')}>
+        <div class="stat-head">
+          <span class="stat-label">Total findings</span>
+          <span class="stat-icon icon-orange" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+          </span>
         </div>
-        <div class="metric-value">{findingCount}</div>
-        <div class="metric-note positive">{openFindingCount > 0 ? `${openFindingCount} still need attention` : 'Clear board today'}</div>
+        <div class="stat-value">{findingCount}</div>
+        <div class="stat-meta neutral">
+          {openFindingCount > 0 ? `${openFindingCount} open · ${resolvedCount} resolved` : 'Clear board today'}
+        </div>
       </a>
-      <a href={appPath('/findings?risk_level=critical')} class="metric-card">
-        <div class="metric-top">
-          <span class="metric-label">Critical open</span>
-          <span class="metric-icon blush">△</span>
+
+      <a class="stat-card" href={appPath('/findings?risk_level=critical')}>
+        <div class="stat-head">
+          <span class="stat-label">Critical open</span>
+          <span class="stat-icon icon-red" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+          </span>
         </div>
-        <div class="metric-value">{criticalCount}</div>
-        <div class="metric-note danger">{criticalCount > 0 ? 'Escalate and validate remediation' : 'No critical backlog'}</div>
+        <div class="stat-value">{criticalCount}</div>
+        <div class="stat-meta" class:danger={criticalCount > 0} class:positive={criticalCount === 0}>
+          {criticalCount > 0 ? 'Escalate and validate remediation' : 'No critical backlog'}
+        </div>
       </a>
-      <a href={appPath('/sessions')} class="metric-card">
-        <div class="metric-top">
-          <span class="metric-label">Active projects</span>
-          <span class="metric-icon amber">□</span>
+
+      <a class="stat-card" href={appPath('/sessions')}>
+        <div class="stat-head">
+          <span class="stat-label">Active projects</span>
+          <span class="stat-icon icon-amber" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+          </span>
         </div>
-        <div class="metric-value">{sessionCount}</div>
-        <div class="metric-note warm">{recentSessions.length} recently touched</div>
+        <div class="stat-value">{sessionCount}</div>
+        <div class="stat-meta neutral">{recentSessions.length} recently touched</div>
       </a>
-      <a href={appPath('/findings?remediation_status=resolved')} class="metric-card">
-        <div class="metric-top">
-          <span class="metric-label">Resolved</span>
-          <span class="metric-icon mint">✓</span>
+
+      <a class="stat-card" href={appPath('/findings?remediation_status=resolved')}>
+        <div class="stat-head">
+          <span class="stat-label">Resolved</span>
+          <span class="stat-icon icon-green" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/></svg>
+          </span>
         </div>
-        <div class="metric-value">{resolvedCount}</div>
-        <div class="metric-note positive">Closed findings recorded</div>
+        <div class="stat-value">{resolvedCount}</div>
+        <div class="stat-meta positive">Closed findings recorded</div>
       </a>
     </section>
 
-    <section class="dashboard-panels">
-      <div class="panel panel-wide">
-        <div class="panel-header">
-          <h2>Projects</h2>
-          <a href={appPath('/sessions')}>View all →</a>
+    <!-- Bottom row: Projects table + Critical findings -->
+    <section class="bottom-row">
+      <div class="panel projects-panel">
+        <div class="panel-head">
+          <h3>Projects</h3>
+          <a class="view-all" href={appPath('/sessions')}>View all →</a>
         </div>
         {#if activeProjectRows.length === 0}
-          <p class="empty-state">No review sessions yet.</p>
+          <p class="empty">No review projects yet.</p>
         {:else}
-          <div class="project-table">
-            <div class="project-head">
-              <span>Project</span>
-              <span>Type</span>
-              <span>Assets</span>
-              <span>Findings</span>
-              <span>Status</span>
-            </div>
-            {#each activeProjectRows as row}
-              <a class="project-row" href={appPath(`/sessions/${row.id}`)}>
-                <div class="project-main">
-                  <strong>{row.name}</strong>
-                  <small>{row.date}</small>
-                </div>
-                <span class="project-type">{row.type}</span>
-                <span>{row.assetCount}</span>
-                <span class="finding-cell">
-                  {row.findingCount}
-                  {#if row.criticalFindings > 0}
-                    <small>{row.criticalFindings} crit</small>
-                  {/if}
-                </span>
-                <span><Badge text={row.status} variant={row.status} /></span>
-              </a>
-            {/each}
-          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Project</th>
+                <th>Type</th>
+                <th>Assets</th>
+                <th>Findings</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {#each activeProjectRows as row}
+                {@const chip = statusChip(row.status)}
+                <tr onclick={() => (window.location.href = appPath(`/sessions/${row.id}`))} tabindex="0" role="link">
+                  <td class="project-name">{row.name}</td>
+                  <td class="project-type">{row.type}</td>
+                  <td class="num">{row.assetCount}</td>
+                  <td>
+                    <span class="finding-count">{row.findingCount}</span>
+                    {#if row.criticalFindings > 0}
+                      <span class="crit-tag">{row.criticalFindings} crit</span>
+                    {/if}
+                  </td>
+                  <td>
+                    <span class="status-chip" style:background-color={chip.bg} style:color={chip.fg}>{chip.label}</span>
+                  </td>
+                </tr>
+              {/each}
+            </tbody>
+          </table>
         {/if}
       </div>
 
-      <div class="panel">
-        <div class="panel-header">
-          <h2>Critical findings</h2>
-          <a href={appPath('/findings?risk_level=critical')}>View all →</a>
+      <div class="panel findings-panel">
+        <div class="panel-head">
+          <h3>Critical findings</h3>
+          <a class="view-all" href={appPath('/findings?risk_level=critical')}>View all →</a>
         </div>
-        {#if recentFindings.length === 0}
-          <p class="empty-state">No findings yet.</p>
+        {#if recentFindingsList.length === 0}
+          <p class="empty">No findings yet.</p>
         {:else}
-          <div class="finding-list">
-            {#each recentFindings as finding}
-              <a class="finding-item" href={appPath(`/findings/${finding.finding_id}`)}>
-                <div class="finding-copy">
-                  <strong>{finding.title}</strong>
-                  <small>{finding.stable_id || finding.finding_id}</small>
-                </div>
-                <Badge text={finding.remediation_status} variant={finding.remediation_status} />
-              </a>
+          <ul class="finding-list">
+            {#each recentFindingsList as f, i (f.finding_id)}
+              {@const chip = statusChip(f.remediation_status)}
+              <li class:divider={i < recentFindingsList.length - 1}>
+                <a class="finding-row" href={appPath(`/findings/${f.finding_id}`)}>
+                  <div class="finding-text">
+                    <strong>{f.title}</strong>
+                    <code class="finding-id">{f.finding_id.slice(0, 8)}</code>
+                  </div>
+                  <span class="status-chip" style:background-color={chip.bg} style:color={chip.fg}>{chip.label}</span>
+                </a>
+              </li>
             {/each}
-          </div>
+          </ul>
         {/if}
       </div>
     </section>
-  </section>
+  </div>
 {/if}
 
 <style>
-  .dashboard-loading {
-    color: var(--text-secondary);
-    padding: 1rem 0;
+  .loading {
+    padding: 32px 4px;
+    color: var(--fg2, #5a5a72);
+    font-size: var(--text-sm);
   }
-  .dashboard-shell {
+
+  .dashboard {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
+    gap: 18px;
+    font-family: var(--font-sans);
+    color: var(--fg1, #1e1e2e);
   }
-  .hero-date {
-    font-size: 0.92rem;
-    color: #7d728f;
-    margin-bottom: 0.35rem;
+
+  /* ── Greeting ───────────────────────────────────────────── */
+  .greeting {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
   }
-  .hero-copy h1 {
-    font-size: clamp(2rem, 3.8vw, 3rem);
-    line-height: 1.05;
-    letter-spacing: -0.04em;
-    color: #26243a;
+  .date {
+    margin: 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: #6b6560;
   }
-  .hero-copy h1 span {
-    color: #f48f33;
+  .greeting h1 {
+    margin: 0;
+    font-size: 30px;
+    font-weight: 800;
+    line-height: 1.2;
+    letter-spacing: -0.01em;
+    color: #1e1e2e;
   }
-  .hero-grid {
+  .name-gradient {
+    background: linear-gradient(90deg, #f07340 0%, #e8a82a 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    color: transparent;
+  }
+
+  /* ── Hero row ───────────────────────────────────────────── */
+  .hero-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 280px;
-    gap: 1rem;
-    align-items: stretch;
+    grid-template-columns: 1fr 280px;
+    gap: 14px;
   }
-  .focus-card,
-  .queue-card,
-  .metric-card,
-  .panel {
-    background: rgba(255, 255, 255, 0.7);
-    border: 1px solid rgba(255, 255, 255, 0.85);
-    border-radius: 22px;
-    box-shadow: 0 18px 40px rgba(80, 40, 120, 0.12), 0 36px 70px rgba(80, 40, 120, 0.14);
-    backdrop-filter: blur(24px) saturate(150%);
-  }
-  .focus-card {
-    padding: 1.7rem 1.8rem;
-    min-height: 170px;
-    background: #242236;
-    color: rgba(255, 255, 255, 0.95);
-    text-decoration: none;
-  }
-  .focus-card:hover {
-    text-decoration: none;
-  }
-  .focus-card .eyebrow,
-  .queue-card .eyebrow,
-  .metric-label {
-    display: inline-block;
-    font-size: 0.74rem;
-    font-weight: 700;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-  }
-  .focus-card .eyebrow {
-    color: rgba(198, 193, 225, 0.7);
-    margin-bottom: 0.9rem;
-  }
-  .focus-card h2 {
-    font-size: clamp(1.65rem, 2.4vw, 2.2rem);
-    line-height: 1.12;
-    letter-spacing: -0.03em;
-    margin-bottom: 0.75rem;
-  }
-  .focus-card p {
-    color: rgba(206, 204, 220, 0.72);
-    line-height: 1.6;
-  }
+  .today-card,
   .queue-card {
-    padding: 1.3rem 1.35rem;
+    border-radius: 18px;
+    padding: 22px 28px;
+    text-decoration: none;
+    transition: transform 200ms, box-shadow 200ms;
   }
-  .queue-card .eyebrow {
-    color: #a6a0c4;
-    margin-bottom: 0.8rem;
+  .today-card {
+    background: #1e1e2e;
+    color: #fff;
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    justify-content: center;
+  }
+  .today-card:hover {
+    transform: translateY(-1px);
+    text-decoration: none;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.24);
+  }
+  .eyebrow {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.35);
+  }
+  .eyebrow.muted {
+    color: #9f9fb8;
+  }
+  .today-headline {
+    margin: 0;
+    font-size: 22px;
+    font-weight: 800;
+    line-height: 1.3;
+    color: #fff;
+  }
+  .today-sub {
+    margin: 0;
+    font-size: 13px;
+    line-height: 1.55;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .queue-card {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(200, 190, 178, 0.35);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 20px 22px;
   }
   .queue-value {
-    font-size: 3rem;
-    line-height: 1;
-    font-weight: 800;
-    color: #26243a;
-    margin-bottom: 0.9rem;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
   }
-  .queue-value span {
-    font-size: 1rem;
-    font-weight: 500;
-    color: #9a95b3;
+  .queue-number {
+    font-size: 36px;
+    font-weight: 800;
+    line-height: 1;
+    color: #1e1e2e;
+  }
+  .queue-unit {
+    font-size: 13px;
+    color: #9f9fb8;
   }
   .queue-bar {
-    height: 8px;
-    border-radius: 999px;
-    background: rgba(170, 162, 193, 0.28);
+    height: 7px;
+    border-radius: 99px;
+    background: rgba(0, 0, 0, 0.08);
     overflow: hidden;
-    margin-bottom: 0.6rem;
   }
-  .queue-bar span {
+  .queue-bar > span {
     display: block;
     height: 100%;
-    border-radius: inherit;
-    background: linear-gradient(135deg, #ff8f3a 0%, #f6b248 100%);
+    background: linear-gradient(90deg, #f07340, #e8a82a);
+    border-radius: 99px;
+    transition: width 320ms cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .queue-card p {
-    color: #aaa2c3;
-    font-size: 0.84rem;
+  .queue-meta {
+    margin: 0;
+    font-size: 11px;
+    color: #9f9fb8;
   }
-  .metric-grid {
+
+  /* ── Stat cards ─────────────────────────────────────────── */
+  .stats {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 0.9rem;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px;
   }
-  .metric-card {
-    padding: 1.15rem 1.25rem 1rem;
+  .stat-card {
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(200, 190, 178, 0.35);
+    border-radius: 16px;
+    padding: 18px 20px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
     text-decoration: none;
     color: inherit;
+    transition: transform 200ms, box-shadow 200ms;
   }
-  .metric-card:hover {
+  .stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 32px rgba(130, 95, 55, 0.16);
     text-decoration: none;
-    transform: translateY(-1px);
   }
-  .metric-top {
+  .stat-head {
     display: flex;
-    align-items: flex-start;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
+    align-items: flex-start;
+    margin-bottom: 12px;
   }
-  .metric-label {
-    color: #9b95ba;
+  .stat-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: #9f9fb8;
   }
-  .metric-icon {
+  .stat-icon {
     width: 34px;
     height: 34px;
-    border-radius: 12px;
-    display: inline-flex;
+    border-radius: 10px;
+    display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 0.95rem;
-    font-weight: 700;
   }
-  .metric-icon.peach { background: rgba(255, 238, 232, 0.95); color: #f38a3a; }
-  .metric-icon.blush { background: rgba(255, 236, 238, 0.95); color: #ff6e61; }
-  .metric-icon.amber { background: rgba(255, 246, 223, 0.95); color: #d59a12; }
-  .metric-icon.mint { background: rgba(229, 250, 238, 0.95); color: #2aa15d; }
-  .metric-value {
-    font-size: 3rem;
-    line-height: 1;
+  .icon-orange { background: #fff7f3; color: #f07340; }
+  .icon-red { background: #fdeaea; color: #d93b3b; }
+  .icon-amber { background: #fef7e8; color: #e8a82a; }
+  .icon-green { background: #e9f8ee; color: #3ba85a; }
+  .stat-value {
+    font-size: 36px;
     font-weight: 800;
-    color: #26243a;
-    margin-bottom: 0.45rem;
+    line-height: 1;
+    color: #1e1e2e;
+    margin-bottom: 6px;
   }
-  .metric-note {
-    font-size: 0.88rem;
+  .stat-meta {
+    font-size: 12px;
+    font-weight: 500;
   }
-  .metric-note.positive { color: #2c9b60; }
-  .metric-note.danger { color: #e1564d; }
-  .metric-note.warm { color: #d08922; }
-  .dashboard-panels {
+  .stat-meta.neutral { color: #6b6560; }
+  .stat-meta.positive { color: #2e8a48; }
+  .stat-meta.danger { color: #d93b3b; }
+
+  /* ── Bottom row ─────────────────────────────────────────── */
+  .bottom-row {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) 315px;
-    gap: 1rem;
+    grid-template-columns: 1fr 320px;
+    gap: 16px;
   }
   .panel {
-    padding: 0;
+    background: rgba(255, 255, 255, 0.92);
+    border: 1px solid rgba(200, 190, 178, 0.35);
+    border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 4px 12px rgba(0, 0, 0, 0.04);
   }
-  .panel-wide {
-    min-width: 0;
-  }
-  .panel-header {
+  .panel-head {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 1rem 1.25rem;
-    border-bottom: 1px solid rgba(220, 214, 236, 0.78);
-  }
-  .panel-header h2 {
-    font-size: 1.45rem;
-    letter-spacing: -0.03em;
-    color: #26243a;
-  }
-  .panel-header a {
-    color: #ff7d35;
-    font-weight: 600;
-  }
-  .project-table {
-    display: flex;
-    flex-direction: column;
-  }
-  .project-head,
-  .project-row {
-    display: grid;
-    grid-template-columns: minmax(220px, 1.8fr) minmax(120px, 1fr) 88px 120px 130px;
-    gap: 0.75rem;
     align-items: center;
-    padding: 0.95rem 1.25rem;
+    padding: 14px 20px;
+    border-bottom: 1px solid rgba(200, 190, 178, 0.28);
   }
-  .project-head {
-    font-size: 0.72rem;
+  .panel-head h3 {
+    margin: 0;
+    font-size: 14px;
     font-weight: 700;
+    color: #1e1e2e;
+  }
+  .view-all {
+    font-size: 12px;
+    font-weight: 600;
+    color: #f07340;
+    text-decoration: none;
+  }
+  .view-all:hover {
+    text-decoration: underline;
+  }
+  .empty {
+    padding: 36px 20px;
+    text-align: center;
+    font-size: 13px;
+    color: #9f9fb8;
+    margin: 0;
+  }
+
+  /* Projects table */
+  .projects-panel table {
+    width: 100%;
+    border-collapse: collapse;
+  }
+  .projects-panel thead tr {
+    background: rgba(242, 237, 230, 0.5);
+  }
+  .projects-panel th {
+    padding: 9px 20px;
+    text-align: left;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
-    letter-spacing: 0.16em;
-    color: #aaa2c3;
+    color: #9f9fb8;
+    border-bottom: 1px solid rgba(200, 190, 178, 0.28);
   }
-  .project-row {
-    color: #26243a;
-    text-decoration: none;
-    border-top: 1px solid rgba(228, 222, 240, 0.72);
+  .projects-panel tbody tr {
+    border-top: 1px solid rgba(200, 190, 178, 0.2);
+    cursor: pointer;
+    transition: background 150ms;
   }
-  .project-row:hover {
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.36);
+  .projects-panel tbody tr:hover {
+    background: rgba(240, 115, 64, 0.04);
   }
-  .project-main {
-    display: flex;
-    flex-direction: column;
-    gap: 0.18rem;
+  .projects-panel tbody tr:focus-visible {
+    background: rgba(240, 115, 64, 0.07);
+    outline: 2px solid #f07340;
+    outline-offset: -2px;
   }
-  .project-main strong {
-    font-size: 1rem;
+  .projects-panel td {
+    padding: 12px 20px;
+    font-size: 13px;
+    color: #1e1e2e;
   }
-  .project-main small,
-  .project-type {
-    color: #9a95b3;
-  }
-  .finding-cell {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    font-weight: 700;
-  }
-  .finding-cell small {
-    color: #e1564d;
+  .project-name { font-weight: 600; }
+  .project-type { font-size: 12px; color: #9f9fb8; text-transform: capitalize; }
+  .num { font-weight: 700; }
+  .finding-count { font-weight: 700; font-size: 14px; }
+  .crit-tag {
+    margin-left: 6px;
+    font-size: 11px;
     font-weight: 600;
+    color: #d93b3b;
   }
+
+  /* Findings list */
   .finding-list {
-    display: flex;
-    flex-direction: column;
+    list-style: none;
+    margin: 0;
+    padding: 0;
   }
-  .finding-item {
+  .finding-list li.divider {
+    border-bottom: 1px solid rgba(200, 190, 178, 0.2);
+  }
+  .finding-row {
     display: flex;
     align-items: flex-start;
     justify-content: space-between;
-    gap: 0.9rem;
-    padding: 1rem 1.25rem;
-    border-top: 1px solid rgba(228, 222, 240, 0.72);
-    color: #26243a;
+    gap: 12px;
+    padding: 11px 18px;
+    text-decoration: none;
+    color: inherit;
+    transition: background 150ms;
+  }
+  .finding-row:hover {
+    background: rgba(240, 115, 64, 0.04);
     text-decoration: none;
   }
-  .finding-item:hover {
-    text-decoration: none;
-    background: rgba(255, 255, 255, 0.36);
-  }
-  .finding-copy {
+  .finding-text {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 3px;
+    min-width: 0;
+    flex: 1;
   }
-  .finding-copy strong {
+  .finding-text strong {
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e1e2e;
     line-height: 1.35;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
-  .finding-copy small {
-    color: #9a95b3;
+  .finding-id {
+    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: 11px;
+    color: #9f9fb8;
+    background: transparent;
+    padding: 0;
   }
-  @media (max-width: 1280px) {
-    .metric-grid {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-    }
-    .dashboard-panels {
-      grid-template-columns: 1fr;
-    }
+
+  /* Status chip — used in both projects table and findings list */
+  .status-chip {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: capitalize;
+    white-space: nowrap;
   }
-  @media (max-width: 1080px) {
-    .hero-grid {
-      grid-template-columns: 1fr;
-    }
+
+  /* ── Responsive ─────────────────────────────────────────── */
+  @media (max-width: 1100px) {
+    .stats { grid-template-columns: repeat(2, 1fr); }
   }
-  @media (max-width: 860px) {
-    .metric-grid {
-      grid-template-columns: 1fr;
-    }
-    .project-head {
-      display: none;
-    }
-    .project-row {
-      grid-template-columns: 1fr;
-      gap: 0.45rem;
-    }
+  @media (max-width: 880px) {
+    .hero-row { grid-template-columns: 1fr; }
+    .bottom-row { grid-template-columns: 1fr; }
+    .stats { grid-template-columns: 1fr 1fr; }
+    .greeting h1 { font-size: 24px; }
   }
 </style>
