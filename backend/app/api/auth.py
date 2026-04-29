@@ -3,7 +3,6 @@ from uuid import UUID
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
-from slowapi.util import get_remote_address
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -26,7 +25,13 @@ from app.services.auth import (
     create_access_token,
     verify_password,
 )
-from app.services.ip_utils import extract_forwarded_ips, is_public_ip, parse_ip_candidate
+from app.services.ip_utils import (
+    extract_forwarded_ips,
+    is_public_ip,
+    parse_ip_candidate,
+    rate_limit_ip_key,
+    resolve_request_ip,
+)
 from app.services.login_throttle import check_login_allowed
 from app.services.refresh_sessions import (
     describe_refresh_session,
@@ -43,26 +48,27 @@ from app.services.refresh_sessions import (
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-limiter = Limiter(key_func=get_remote_address)
+limiter = Limiter(key_func=lambda request: rate_limit_ip_key(request, settings.trust_proxy_headers))
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
 SESSION_HINT_COOKIE_NAME = settings.session_hint_cookie_name
 
 
 def _request_ip(request: Request) -> str | None:
+    resolved = resolve_request_ip(request, settings.trust_proxy_headers)
+    if resolved:
+        return resolved
+
     direct_ip = parse_ip_candidate(request.client.host if request.client else None)
-    if not settings.trust_proxy_headers:
+    if direct_ip and is_public_ip(direct_ip):
+        return direct_ip
+    if direct_ip:
         return direct_ip
 
-    x_real_ip = parse_ip_candidate(request.headers.get("x-real-ip"))
     forwarded_ips = extract_forwarded_ips(request)
-    candidates = [x_real_ip, *forwarded_ips, direct_ip]
-    for candidate in candidates:
+    for candidate in forwarded_ips:
         if is_public_ip(candidate):
             return candidate
-    for candidate in candidates:
-        if candidate:
-            return candidate
-    return None
+    return forwarded_ips[0] if forwarded_ips else None
 
 
 def _request_user_agent(request: Request) -> str | None:

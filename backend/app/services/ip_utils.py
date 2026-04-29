@@ -59,3 +59,30 @@ def is_rfc1918_or_loopback(value: str | None) -> bool:
             or ip in ipaddress.ip_network("127.0.0.0/8")
         )
     return ip.is_loopback
+
+
+def resolve_request_ip(request: Request, trust_proxy_headers: bool) -> str | None:
+    direct_ip = parse_ip_candidate(request.client.host if request.client else None)
+    if not trust_proxy_headers:
+        return direct_ip
+
+    x_real_ip = parse_ip_candidate(request.headers.get("x-real-ip"))
+    forwarded_ips = extract_forwarded_ips(request)
+    candidates = [x_real_ip, *forwarded_ips, direct_ip]
+    for candidate in candidates:
+        if is_public_ip(candidate):
+            return candidate
+    for candidate in candidates:
+        if candidate:
+            return candidate
+    return None
+
+
+def rate_limit_ip_key(request: Request, trust_proxy_headers: bool) -> str:
+    return resolve_request_ip(request, trust_proxy_headers) or get_request_host_fallback(request)
+
+
+def get_request_host_fallback(request: Request) -> str:
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"

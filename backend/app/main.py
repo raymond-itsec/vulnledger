@@ -11,7 +11,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
 
@@ -28,7 +27,12 @@ from app.services.storage import (
     ensure_buckets,
     get_object_storage_client,
 )
-from app.services.ip_utils import extract_forwarded_ips, is_rfc1918_or_loopback, parse_ip_candidate
+from app.services.ip_utils import (
+    extract_forwarded_ips,
+    is_rfc1918_or_loopback,
+    parse_ip_candidate,
+    rate_limit_ip_key,
+)
 from app.services.taxonomy import ensure_default_taxonomy_version
 
 configure_logging()
@@ -47,7 +51,10 @@ if _secret_key_bytes < MIN_SECRET_KEY_BYTES:
     raise RuntimeError(f"Refusing to start: invalid signing configuration ({reason}).")
 
 # Rate limiter
-limiter = Limiter(key_func=get_remote_address, default_limits=[settings.rate_limit_api])
+limiter = Limiter(
+    key_func=lambda request: rate_limit_ip_key(request, settings.trust_proxy_headers),
+    default_limits=[settings.rate_limit_api],
+)
 
 
 @asynccontextmanager
