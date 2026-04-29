@@ -58,7 +58,7 @@ VulnLedger is a self-hosted web application for managing security code review fi
 - **Rate Limiting** -- Brute-force protection on login, configurable API limits
 - **Security Headers** -- CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
 - **Optional OIDC SSO** -- Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
-- **Virus Scanning** -- ClamAV integration scans every file upload before storage and blocks uploads if the scanner is configured but unavailable
+- **Virus Scanning** -- ClamAV integration scans every file upload before storage and blocks uploads whenever the scanner is disabled, unreachable, or unhealthy
 - **Automated Backups** -- Scheduled PostgreSQL dumps with configurable retention
 
 ---
@@ -597,13 +597,13 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS` | `7` | Per-token refresh lifetime; each rotation issues a new token with this expiry (bounded by the family cap below) |
 | `FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS` | `30` | **Security policy.** Absolute ceiling on a single login — no amount of rotation extends a refresh-token family past this. When crossed, the family is revoked and the user must log in again. Must be between `7` and `30` inclusive. |
 | `FINDINGS_REFRESH_SESSION_RETENTION_DAYS` | _auto_ (`2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`) | **DB housekeeping.** How long already-dead refresh-session rows (expired or revoked) are kept in `auth_refresh_sessions` before the pruner deletes them. Must be `>= 2 x FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS`. Affects forensic/audit window only; has no effect on auth behavior. |
-| `FINDINGS_TRUST_PROXY_HEADERS` | `false` | Trust proxy headers (for example from Caddy) to extract real client IPs |
+| `FINDINGS_TRUST_PROXY_HEADERS` | `true` | Trust proxy headers (for example from Caddy) to extract real client IPs |
 | `FINDINGS_ALLOWED_ORIGINS` | `["http://localhost:5173", "http://localhost:3000"]` | CORS allowed origins |
 | `FINDINGS_ALLOWED_METHODS` | `["GET","POST","PATCH","DELETE","OPTIONS"]` | CORS allowed methods |
 | `FINDINGS_ALLOWED_HEADERS` | `["Authorization","Content-Type","Accept","If-None-Match"]` | CORS allowed request headers |
 | `FINDINGS_OBJECT_STORAGE_ENDPOINT` | `seaweedfs:8333` | S3-compatible object-storage endpoint |
-| `FINDINGS_OBJECT_STORAGE_ACCESS_KEY` | _(empty)_ | Object-storage access key |
-| `FINDINGS_OBJECT_STORAGE_SECRET_KEY` | _(empty)_ | Object-storage secret key |
+| `FINDINGS_OBJECT_STORAGE_ACCESS_KEY` | See `.env.example` | Required object-storage access key |
+| `FINDINGS_OBJECT_STORAGE_SECRET_KEY` | See `.env.example` | Required object-storage secret key |
 | `FINDINGS_OBJECT_STORAGE_SECURE` | `false` | Use HTTPS for object storage |
 | `FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET` | `finding-attachments` | Bucket for uploaded finding evidence |
 | `FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET` | `generated-reports` | Bucket for generated PDF/CSV/JSON exports |
@@ -627,11 +627,11 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST` | `[]` | Explicit allowlist for OIDC callback redirect URI |
 | `FINDINGS_OIDC_REQUIRE_NONCE` | `true` | Require nonce validation on OIDC callback |
 | `FINDINGS_OIDC_DEFAULT_ROLE` | `reviewer` | Default role for auto-provisioned SSO users |
-| `FINDINGS_INITIAL_ADMIN_USERNAME` | _(empty)_ | Username for the one-time seeded admin account |
-| `FINDINGS_INITIAL_ADMIN_PASSWORD` | _(empty)_ | Password for the one-time seeded admin account |
-| `FINDINGS_INITIAL_ADMIN_EMAIL` | _(empty)_ | Email for the one-time seeded admin account |
-| `FINDINGS_INITIAL_ADMIN_FULL_NAME` | `Administrator` | Display name for the one-time seeded admin account |
-| `FINDINGS_CLAMAV_HOST` | _(empty)_ | ClamAV host (empty = scanning disabled) |
+| `FINDINGS_INITIAL_ADMIN_USERNAME` | See `.env.example` | Required username for the seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_PASSWORD` | See `.env.example` | Required password for the seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_EMAIL` | See `.env.example` | Required email for the seeded admin account |
+| `FINDINGS_INITIAL_ADMIN_FULL_NAME` | See `.env.example` | Required display name for the seeded admin account |
+| `FINDINGS_CLAMAV_HOST` | `clamav` | ClamAV host; uploads are blocked whenever scanning is disabled or the scanner is unavailable |
 | `FINDINGS_CLAMAV_PORT` | `3310` | ClamAV TCP port |
 | `FINDINGS_JWT_PRIMARY_ALGORITHM` | `HS256` | Access-token signing algorithm (`HS256` or `RS256`) |
 | `FINDINGS_JWT_ALLOW_LEGACY_HS256` | `true` | When enabled, token verification still accepts HS256 during RS256 migration |

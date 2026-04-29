@@ -2,23 +2,28 @@
   import { appAvailability } from '$lib/stores/app-availability.svelte';
 </script>
 
-<div
-  class="availability-banner"
-  class:visible={appAvailability.unavailable}
-  role="alert"
-  aria-live="assertive"
-  aria-hidden={!appAvailability.unavailable}
->
-  <span>{appAvailability.message}</span>
+<div class="availability-banner-shell" class:visible={appAvailability.unavailable} aria-hidden={!appAvailability.unavailable}>
+  <div
+    class="availability-banner"
+    role="alert"
+    aria-live="assertive"
+  >
+    <span>{appAvailability.message}</span>
+  </div>
 </div>
 
 <style>
+  .availability-banner-shell {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.22s ease;
+  }
+
+  .availability-banner-shell.visible {
+    max-height: 4.5rem;
+  }
+
   .availability-banner {
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    z-index: 1400;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -38,8 +43,9 @@
       opacity 0.22s ease;
   }
 
-  .availability-banner.visible {
+  .availability-banner-shell.visible .availability-banner {
     transform: translateY(0);
     opacity: 1;
+    pointer-events: auto;
   }
 </style>

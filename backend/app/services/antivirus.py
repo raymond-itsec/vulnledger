@@ -1,8 +1,4 @@
-"""ClamAV virus scanning for file attachments.
-
-Scans files before they are stored in object storage. Gracefully degrades
-when ClamAV is not available (logs a warning, allows upload).
-"""
+"""ClamAV virus scanning for file attachments."""
 
 import io
 import logging
@@ -62,19 +58,15 @@ def scan_file_stream(file_stream: BinaryIO, filename: str) -> tuple[bool, str]:
     """Scan file data for viruses.
 
     Returns:
-        (is_clean, message) -- False for infected uploads, and in production
-        also False when scanning is unavailable.
+        (is_clean, message) -- False for infected uploads and any scanner
+        misconfiguration or unavailability.
     """
     if not settings.clamav_host:
-        if settings.runtime_mode == "production":
-            return False, "Virus scanner is not configured"
-        return True, "Scanner disabled"
+        return False, "Virus scanner is disabled. File uploads require ClamAV to be configured."
 
     scanner = _get_scanner()
     if scanner is None:
-        if settings.runtime_mode == "production":
-            return False, "Scanner not available"
-        return True, "Scanner unavailable in development mode"
+        return False, "Virus scanner is not available. File uploads are blocked until ClamAV is reachable."
 
     try:
         file_stream.seek(0)
@@ -91,6 +83,4 @@ def scan_file_stream(file_stream: BinaryIO, filename: str) -> tuple[bool, str]:
             return False, f"Scan inconclusive: {status}"
     except Exception:
         logger.exception("ClamAV scan failed for %s", filename)
-        if settings.runtime_mode == "production":
-            return False, "Scanner error"
-        return True, "Scanner error in development mode"
+        return False, "Virus scanner error. File uploads are blocked until ClamAV is healthy."

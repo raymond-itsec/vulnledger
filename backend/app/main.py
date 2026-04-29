@@ -268,7 +268,29 @@ async def _check_clamav_health() -> dict[str, object]:
 
 @app.get("/api/health")
 async def health():
-    return {"status": "ok", "version": settings.app_version}
+    database_check, object_storage_check = await asyncio.gather(
+        _check_database_health(),
+        _check_object_storage_health(),
+    )
+
+    critical_checks = (database_check, object_storage_check)
+    critical_down = any(check.get("status") == "down" for check in critical_checks)
+    degraded = any(check.get("status") == "degraded" for check in critical_checks)
+
+    overall_status = "down" if critical_down else ("degraded" if degraded else "ok")
+    http_status = status.HTTP_503_SERVICE_UNAVAILABLE if critical_down else status.HTTP_200_OK
+
+    return JSONResponse(
+        status_code=http_status,
+        content={
+            "status": overall_status,
+            "version": settings.app_version,
+            "checks": {
+                "database": database_check,
+                "object_storage": object_storage_check,
+            },
+        },
+    )
 
 
 @app.get("/api/health/live")

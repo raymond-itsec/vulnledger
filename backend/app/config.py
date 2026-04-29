@@ -44,13 +44,13 @@ class Settings(BaseSettings):
     refresh_token_family_max_lifetime_days: int = 30
     # None = auto-derive as 2 * refresh_token_family_max_lifetime_days.
     refresh_session_retention_days: int | None = None
-    trust_proxy_headers: bool = False
+    trust_proxy_headers: bool = True
     allowed_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
     allowed_methods: list[str] = ["GET", "POST", "PATCH", "DELETE", "OPTIONS"]
     allowed_headers: list[str] = ["Authorization", "Content-Type", "Accept", "If-None-Match"]
     object_storage_endpoint: str = "seaweedfs:8333"
-    object_storage_access_key: str = ""
-    object_storage_secret_key: str = ""
+    object_storage_access_key: str
+    object_storage_secret_key: str
     object_storage_secure: bool = False
     object_storage_evidence_bucket: str = "finding-attachments"
     object_storage_reports_bucket: str = "generated-reports"
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
     mailjet_api_key: str = ""
     mailjet_api_secret: str = ""
     mailjet_from_email: str = "noreply@findings.local"
-    mailjet_from_name: str = "Security Findings Manager"
+    mailjet_from_name: str = "VulnLedger"
     app_base_url: str = "http://localhost"
     # Rate limiting
     rate_limit_login: str = "5/minute"
@@ -76,12 +76,11 @@ class Settings(BaseSettings):
     oidc_redirect_uri_allowlist: list[str] = []
     oidc_require_nonce: bool = True
     oidc_default_role: str = "reviewer"
-    initial_admin_username: str = ""
-    initial_admin_password: str = ""
-    initial_admin_email: str = ""
-    initial_admin_full_name: str = "Administrator"
-    # ClamAV (optional -- leave empty to disable)
-    clamav_host: str = ""
+    initial_admin_username: str
+    initial_admin_password: str
+    initial_admin_email: str
+    initial_admin_full_name: str
+    clamav_host: str = "clamav"
     clamav_port: int = 3310
     # JWT migration controls. Default stays HS256-compatible until RS256 keys are configured.
     jwt_primary_algorithm: str
@@ -119,9 +118,15 @@ class Settings(BaseSettings):
         "postgres_user",
         "postgres_password",
         "postgres_db",
+        "object_storage_access_key",
+        "object_storage_secret_key",
         "jwt_issuer",
         "jwt_audience",
         "session_hint_cookie_name",
+        "initial_admin_username",
+        "initial_admin_password",
+        "initial_admin_email",
+        "initial_admin_full_name",
         mode="before",
     )
     @classmethod
