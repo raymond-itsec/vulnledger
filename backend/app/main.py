@@ -41,9 +41,10 @@ logger = logging.getLogger(__name__)
 
 _applied_default_env_vars = applied_default_env_vars()
 if _applied_default_env_vars:
-    logger.info(
-        "Configuration defaults applied for unset environment variables: %s",
-        ", ".join(_applied_default_env_vars),
+    print(
+        "[startup] Configuration defaults applied for unset environment variables: "
+        + ", ".join(_applied_default_env_vars),
+        flush=True,
     )
 
 MIN_SECRET_KEY_BYTES = 32
