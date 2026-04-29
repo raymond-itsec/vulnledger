@@ -17,7 +17,7 @@ _COMPOSE_PATH = Path("/run/config/docker-compose.yml")
 
 
 class Settings(BaseSettings):
-    app_version: str = ""
+    app_version: str = "0.0.0"
     runtime_mode: str = "development"
     database_url: str = ""
     postgres_host: str = Field(validation_alias="POSTGRES_HOST")
