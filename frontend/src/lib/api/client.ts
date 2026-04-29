@@ -5,45 +5,13 @@ import {
   fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
 import { readPublicErrorMessage } from '$lib/api/errors';
-
-// ── Rate-limit cooperation ──────────────────────────────────────────────
-//
-// When the edge proxy returns 429 with a Retry-After hint, we hold all
-// in-flight and incoming /api/* calls in a single shared "cooling" promise
-// until the server-suggested wait elapses, then retry once. Without this,
-// every concurrent request would individually hammer the limit again and
-// keep pushing the recovery time further out.
-//
-// We cap the cooperation window at MAX_RETRY_AFTER_MS so a misbehaving
-// limiter can't freeze the UI for arbitrarily long; beyond that we surface
-// the failure to the caller.
-
-const MAX_RETRY_AFTER_MS = 8000;
-const DEFAULT_RETRY_AFTER_MS = 3000;
-let rateLimitCooling: Promise<void> | null = null;
-
-function parseRetryAfter(raw: string | null): number {
-  if (!raw) return DEFAULT_RETRY_AFTER_MS;
-  const seconds = Number(raw);
-  if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_RETRY_AFTER_MS;
-  return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
-}
-
-function startCooling(ms: number): Promise<void> {
-  if (rateLimitCooling) return rateLimitCooling;
-  rateLimitCooling = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      rateLimitCooling = null;
-      resolve();
-    }, ms);
-  });
-  return rateLimitCooling;
-}
+import { awaitRateLimitCooling, parseRetryAfter, startCooling } from '$lib/api/rate-limit';
 
 export async function authorizedFetch(path: string, options: RequestInit = {}): Promise<Response> {
   // If the edge already told us "back off", queue here until cooling expires
-  // before sending another request.
-  if (rateLimitCooling) await rateLimitCooling;
+  // before sending another request. Shared with auth.svelte.ts so refreshes
+  // also cooperate with the same cool-down window.
+  await awaitRateLimitCooling();
 
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),

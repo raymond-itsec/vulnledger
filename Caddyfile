@@ -29,14 +29,16 @@
 
 		# Edge API rate limiting (requires caddy-ratelimit module).
 		# 600 events/minute (10/sec average) is comfortable for an SPA that
-		# batches requests on page load: a typical dashboard load does ~7
-		# parallel calls, and active navigation still leaves plenty of
-		# headroom. Anything more sustained than 10 req/sec from a single
-		# IP is unusual and worth limiting. Auth endpoints stay covered
-		# (a brute-force login would still be capped).
+		# batches requests on page load. Endpoints excluded below:
+		#   /api/health, /api/health/live  — health probes, must never throttle
+		#   /api/auth/refresh              — requires a valid refresh-token cookie,
+		#                                    cannot be brute-forced, and a 429 here
+		#                                    forcibly logs the user out (catastrophic
+		#                                    UX). Brute-force protection lives on
+		#                                    /api/auth/login via login_zone below.
 		@api_limited {
 			path /api/*
-			not path /api/health /api/health/live
+			not path /api/health /api/health/live /api/auth/refresh
 		}
 		rate_limit @api_limited {
 			zone api_zone {
