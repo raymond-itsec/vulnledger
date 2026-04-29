@@ -30,7 +30,10 @@ endpoints:
 
   - name: postgres
     group: infra
-    url: "postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable"
+    # Gatus has no built-in postgres endpoint type; a TCP reachability check
+    # is sufficient here. End-to-end DB liveness is covered transitively by
+    # the backend-api endpoint, which fails fast if Postgres is unreachable.
+    url: "tcp://db:5432"
     interval: 60s
     conditions:
       - "[CONNECTED] == true"

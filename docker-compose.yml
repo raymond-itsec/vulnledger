@@ -308,10 +308,6 @@ services:
         limits:
           memory: 128M
           cpus: "0.25"
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-findings}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-      POSTGRES_DB: ${POSTGRES_DB:-findings}
     volumes:
       - ./monitoring/gatus.yaml:/config/config.yaml:ro
     ports:
