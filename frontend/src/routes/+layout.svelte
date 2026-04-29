@@ -24,10 +24,17 @@
   const AUTH_BOOTSTRAP_TIMEOUT_MS = 10000;
 
   const sidebarCollapsed = $derived(sidebar.collapsed);
-  const PUBLIC_PATH_PREFIXES = [
-    '/login', '/invite', '/onboarding',
+  // Two categories:
+  //   AUTH_GATEWAY_PREFIXES — pages that exist only to onboard / sign in.
+  //     Authenticated users get redirected away from these to /app.
+  //   INFO_PUBLIC_PREFIXES — universal info / legal pages reachable by
+  //     anyone (signed in or not). Listed in PUBLIC_PATH_PREFIXES so the
+  //     auth-required gate doesn't bounce signed-out visitors.
+  const AUTH_GATEWAY_PREFIXES = ['/login', '/invite', '/onboarding'];
+  const INFO_PUBLIC_PREFIXES = [
     '/about', '/help', '/trust', '/privacy', '/terms', '/guidelines', '/contact', '/support',
   ];
+  const PUBLIC_PATH_PREFIXES = [...AUTH_GATEWAY_PREFIXES, ...INFO_PUBLIC_PREFIXES];
 
   type AppNavItem = NavItem & { roles?: string[] };
 
@@ -48,16 +55,6 @@
     }),
   );
 
-  // sectionTitle drives the topbar's optional <h1>. We deliberately skip it on
-  // pages that present their own in-body greeting/hero (currently only the
-  // Dashboard) so the topbar doesn't repeat the breadcrumb verbatim.
-  const sectionTitle = $derived.by<string | undefined>(() => {
-    const pathname = normalizedAppPath(page.url.pathname);
-    if (pathname === APP_BASE_PATH) return undefined;
-    const match = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
-    return match?.label ?? 'Workspace';
-  });
-
   // Crumbs come from the breadcrumb store when a page sets them; otherwise we
   // synthesize a sensible default from the path. Pages can call setCrumbs() in
   // onMount to override (see frontend/src/lib/stores/breadcrumb.svelte.ts).
@@ -74,6 +71,15 @@
   function isPublicRoute(pathname: string): boolean {
     if (pathname === '/') return true;
     return PUBLIC_PATH_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+  }
+
+  // True only for pages an authenticated user should be bounced away from
+  // (login, invite, onboarding, root waitlist). Universal info pages like
+  // /about, /trust, /privacy etc. return false here so signed-in users can
+  // navigate to them via the footer without being redirected back to /app.
+  function isAuthGatewayRoute(pathname: string): boolean {
+    if (pathname === '/') return true;
+    return AUTH_GATEWAY_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
   }
 
   function normalizedAppPath(pathname: string): string {
@@ -129,8 +135,13 @@
     }
   });
 
+  // Only bounce signed-in users away from auth-gateway pages (/login,
+  // /invite, /onboarding, /). Info pages (/about, /trust, etc.) stay
+  // accessible — clicking them from the in-app PublicFooter navigates
+  // normally instead of triggering a redirect loop that would re-mount
+  // the dashboard and re-fire its API calls.
   $effect(() => {
-    if (authReady && auth.isAuthenticated && isPublicRoute(page.url.pathname)) {
+    if (authReady && auth.isAuthenticated && isAuthGatewayRoute(page.url.pathname)) {
       goto(APP_BASE_PATH, { replaceState: true });
     }
   });
@@ -173,7 +184,7 @@
       adminHref={`${APP_BASE_PATH}/admin`}
     />
     <main class="content">
-      <AppTopbar {crumbs} title={sectionTitle}>
+      <AppTopbar {crumbs}>
         {#snippet actions()}
           {#if auth.user?.role === 'admin' || auth.user?.role === 'reviewer'}
             <a class="topbar-cta" href={`${APP_BASE_PATH}/findings?new=1`}>+ New finding</a>

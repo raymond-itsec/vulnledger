@@ -137,18 +137,16 @@
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────
+  // Single onMount call only. We deliberately do NOT add a reactive $effect
+  // to re-load on auth/availability changes — loadDashboard reads taxonomy
+  // derived state, which would re-trigger the effect after taxonomy hydrates,
+  // doubling every API call (clients, sessions, 5 risk levels, 5 statuses).
   onMount(() => {
     setCrumbs([{ label: 'Dashboard' }]);
     if (auth.isAuthenticated && !appAvailability.unavailable) {
       void loadDashboard();
     }
     return clearCrumbs;
-  });
-
-  $effect(() => {
-    if (auth.isAuthenticated && !appAvailability.unavailable) {
-      void loadDashboard();
-    }
   });
 </script>
 
