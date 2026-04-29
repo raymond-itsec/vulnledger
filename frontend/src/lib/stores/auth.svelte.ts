@@ -136,6 +136,16 @@ export async function fetchMe(): Promise<void> {
   }
 }
 
+/**
+ * Returns whether the most recent refreshToken() failure was caused by a
+ * 401 (i.e. truly invalid/expired session). Used by authorizedFetch to
+ * decide whether to clear the session or just surface the error and let
+ * the caller retry. Transient causes (429, 5xx, network) leave this false.
+ */
+export function lastRefreshWasAuthFailure(): boolean {
+  return lastRefreshFailurePermanent;
+}
+
 export async function refreshToken(): Promise<boolean> {
   if (refreshPromise) {
     return await refreshPromise;
@@ -144,10 +154,20 @@ export async function refreshToken(): Promise<boolean> {
   refreshPromise = (async () => {
     let permanentFailure = false;
     try {
-      const res = await fetchWithAvailability('/api/auth/refresh', {
+      // First attempt. If it gets rate-limited (429), back off briefly and
+      // retry once — bursts of dashboard calls can momentarily exhaust the
+      // /api/* rate-limit budget but recover within a second or two.
+      let res = await fetchWithAvailability('/api/auth/refresh', {
         method: 'POST',
         credentials: 'include',
       }, true);
+      if (res.status === 429) {
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        res = await fetchWithAvailability('/api/auth/refresh', {
+          method: 'POST',
+          credentials: 'include',
+        }, true);
+      }
       if (!res.ok) {
         if (res.status === 401) {
           permanentFailure = true;

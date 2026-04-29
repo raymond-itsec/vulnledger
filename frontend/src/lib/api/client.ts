@@ -1,4 +1,4 @@
-import { auth, refreshToken, logout } from '$lib/stores/auth.svelte';
+import { auth, lastRefreshWasAuthFailure, logout, refreshToken } from '$lib/stores/auth.svelte';
 import {
   APPLICATION_UNAVAILABLE_MESSAGE,
   appAvailability,
@@ -21,9 +21,15 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
     if (refreshed) {
       headers['Authorization'] = `Bearer ${auth.token}`;
       res = await fetchWithAvailability(path, { ...options, headers }, true);
-    } else {
+    } else if (lastRefreshWasAuthFailure()) {
+      // Refresh endpoint returned 401 → session is genuinely invalid.
       await logout(false);
       throw new Error('Session expired');
+    } else {
+      // Refresh failed for a transient reason (rate-limited, network blip,
+      // backend 5xx). Don't clear the session — surface the original 401 so
+      // the caller can retry. Next API call will trigger another refresh.
+      throw new Error('Could not refresh session right now. Please retry in a moment.');
     }
   }
 
