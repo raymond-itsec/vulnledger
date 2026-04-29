@@ -88,16 +88,22 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.32) 0%, transparent 60%),
+      linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
     padding: 1.5rem;
   }
   .login-card {
-    background: white;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.78);
     padding: 2.5rem;
-    border-radius: 0.75rem;
+    border-radius: 1.25rem;
     width: 100%;
     max-width: 420px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    box-shadow: 0 18px 40px rgba(80, 40, 120, 0.16), 0 36px 70px rgba(80, 40, 120, 0.18);
   }
   .login-brand {
     display: flex;
@@ -110,14 +116,14 @@
   .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; font-size: 0.9rem; text-align: center; }
   .login-btn { width: 100%; justify-content: center; padding: 0.625rem; text-align: center; text-decoration: none; display: block; }
   .login-card .form-group input {
-    background: #f8fafc;
-    border-color: #cbd5e1;
-    color: #111827;
+    background: rgba(255, 255, 255, 0.92);
+    border-color: rgba(203, 187, 229, 0.72);
+    color: var(--text-primary);
   }
-  .login-card .form-group input::placeholder { color: #6b7280; }
+  .login-card .form-group input::placeholder { color: #8a8dac; }
   .login-card .form-group input:focus {
-    border-color: #64748b;
-    box-shadow: 0 0 0 2px rgba(100, 116, 139, 0.18);
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(255, 106, 61, 0.14);
   }
   .sso-divider {
     text-align: center;

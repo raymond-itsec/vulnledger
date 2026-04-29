@@ -221,6 +221,7 @@
   .sidebar {
     width: 240px;
     background: var(--sidebar-bg);
+    backdrop-filter: blur(18px) saturate(145%);
     color: var(--text-light);
     display: flex;
     flex-direction: column;
@@ -232,7 +233,7 @@
   }
   .sidebar-header {
     padding: 1.25rem 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.16);
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -271,18 +272,18 @@
   .nav-item.active {
     background: var(--sidebar-active);
     color: white;
-    border-right: 3px solid var(--accent);
+    border-right: 3px solid #ffb266;
   }
   .nav-icon { font-size: 1rem; width: 1.25rem; text-align: center; }
   .sidebar-footer {
     position: relative;
     padding: 1rem 1.5rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    border-top: 1px solid rgba(255, 255, 255, 0.16);
   }
   .user-trigger {
     width: 100%;
     padding: 0.625rem 0.75rem;
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.12);
     border: none;
     border-radius: 0.375rem;
     display: flex;
@@ -305,8 +306,8 @@
     left: 1.5rem;
     right: 1.5rem;
     bottom: calc(100% + 0.5rem);
-    background: rgba(23, 30, 20, 0.98);
-    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(49, 38, 77, 0.97);
+    border: 1px solid rgba(255, 255, 255, 0.16);
     border-radius: 0.5rem;
     overflow: hidden;
     box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
@@ -334,6 +335,7 @@
     margin-left: 240px;
     padding: 2rem;
     min-height: 100vh;
+    background: transparent;
   }
   .loading-shell {
     margin-left: 0;

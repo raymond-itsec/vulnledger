@@ -108,15 +108,21 @@
     align-items: center;
     justify-content: center;
     padding: 1.5rem;
-    background: linear-gradient(180deg, #f7f1fb 0%, #eef4ff 100%);
+    background:
+      radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.4) 0%, transparent 55%),
+      radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.3) 0%, transparent 60%),
+      radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.32) 0%, transparent 60%),
+      linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
   }
   .public-card {
     width: 100%;
     max-width: 520px;
     padding: 2rem;
-    border-radius: 1rem;
-    background: white;
-    box-shadow: 0 20px 60px rgba(15, 23, 42, 0.12);
+    border-radius: 1.25rem;
+    background: rgba(255, 255, 255, 0.82);
+    backdrop-filter: blur(24px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.78);
+    box-shadow: 0 18px 40px rgba(80, 40, 120, 0.16), 0 36px 70px rgba(80, 40, 120, 0.18);
   }
   .public-card :global(.brand-lockup) {
     margin-bottom: 1rem;
