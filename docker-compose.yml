@@ -95,7 +95,7 @@ services:
       [
         "/bin/sh",
         "-ec",
-        "if [ \"$SEAWEEDFS_ADMIN_UI_ENABLED\" = \"true\" ]; then cat >/tmp/Caddyfile <<'EOF'\n:{$SEAWEEDFS_ADMIN_UI_PORT:9999} {\n  @disallowed not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.0/8 ::1/128\n  respond @disallowed \"Forbidden\" 403\n  reverse_proxy seaweedfs:9333\n}\nEOF\nelse cat >/tmp/Caddyfile <<'EOF'\n:{$SEAWEEDFS_ADMIN_UI_PORT:9999} {\n  respond \"SeaweedFS admin UI is disabled.\" 404\n}\nEOF\nfi\nexec caddy run --config /tmp/Caddyfile --adapter caddyfile",
+        "if [ \"$SEAWEEDFS_ADMIN_UI_ENABLED\" = \"true\" ]; then cat >/tmp/Caddyfile <<EOF\n:$SEAWEEDFS_ADMIN_UI_PORT {\n  @disallowed not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.0/8 ::1/128\n  respond @disallowed \"Forbidden\" 403\n  reverse_proxy seaweedfs:9333\n}\nEOF\nelse cat >/tmp/Caddyfile <<EOF\n:$SEAWEEDFS_ADMIN_UI_PORT {\n  respond \"SeaweedFS admin UI is disabled.\" 404\n}\nEOF\nfi\nexec caddy run --config /tmp/Caddyfile --adapter caddyfile",
       ]
     ports:
       - "${SEAWEEDFS_ADMIN_UI_PORT:-9999}:9999"
