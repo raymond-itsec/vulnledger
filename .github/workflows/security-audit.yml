@@ -55,6 +55,21 @@ jobs:
             --user "$(id -u):$(id -g)" \
             -e FINDINGS_SECRET_KEY=change-this-to-a-real-32-byte-secret-value \
             -e FINDINGS_RUNTIME_MODE=development \
+            -e POSTGRES_HOST=db \
+            -e POSTGRES_SERVICE_PORT=5432 \
+            -e POSTGRES_USER=ci_user \
+            -e POSTGRES_PASSWORD=ci_password \
+            -e POSTGRES_DB=ci_db \
+            -e FINDINGS_OBJECT_STORAGE_ACCESS_KEY=ci-storage-key \
+            -e FINDINGS_OBJECT_STORAGE_SECRET_KEY=ci-storage-secret \
+            -e FINDINGS_INITIAL_ADMIN_USERNAME=ci-admin \
+            -e FINDINGS_INITIAL_ADMIN_PASSWORD=ci-admin-password \
+            -e FINDINGS_INITIAL_ADMIN_EMAIL=ci-admin@example.com \
+            -e FINDINGS_INITIAL_ADMIN_FULL_NAME='CI Admin' \
+            -e FINDINGS_JWT_PRIMARY_ALGORITHM=HS256 \
+            -e FINDINGS_JWT_ISSUER=ci-backend \
+            -e FINDINGS_JWT_AUDIENCE=ci-api \
+            -e FINDINGS_SESSION_HINT_COOKIE_NAME=vl_session \
             -v "$PWD:/workspace" \
             -w /workspace \
             vulnledger-backend-openapi \
