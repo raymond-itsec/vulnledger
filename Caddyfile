@@ -1,3 +1,19 @@
+# ---- Global server-level config ----------------------------------------
+{
+	# Item 14: tighter HTTP timeouts than Caddy defaults to limit DoS surface
+	# (slow-loris, idle keep-alive abuse). Values chosen for an interactive
+	# SPA: most calls finish in <1s, large attachment uploads need write
+	# headroom, idle connections recycle promptly.
+	servers {
+		timeouts {
+			read_body   30s
+			read_header 10s
+			write       60s
+			idle        2m
+		}
+	}
+}
+
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
@@ -6,23 +22,56 @@
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		# Item 13: modern security headers added below alongside the existing set.
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Legacy belt-and-braces alongside the CSP frame-ancestors directive
+		# below. Some old user agents only honor X-Frame-Options.
+		X-Frame-Options "DENY"
+		# Adobe Flash legacy — closes the cross-domain policy file vector.
+		X-Permitted-Cross-Domain-Policies "none"
 		# Script/style/img/etc. directives are set via SvelteKit's hash-mode
 		# CSP meta tag (configured in frontend/svelte.config.js). Only
 		# directives that are ignored inside <meta> are emitted here so we
 		# don't intersect with and block Kit's inline-script hashes.
-		Content-Security-Policy "frame-ancestors 'none'"
+		Content-Security-Policy "frame-ancestors 'none'; base-uri 'self'; form-action 'self'"
 	}
 
 	@https protocol https
 	header @https Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 
-	# Do not trust user-supplied forwarding chains.
+	# Item 10: do not trust ANY user-supplied forwarding chain. Caddy is the
+	# public-facing edge in this deployment; a client should never be able to
+	# hint about its IP, host, or scheme. If you ever put Caddy behind another
+	# proxy (CDN/ALB), this whole block needs to be inverted to trust the
+	# upstream and reject everyone else.
 	@spoofed_xff header X-Forwarded-For *
 	respond @spoofed_xff "Forbidden" 403
 	@spoofed_forwarded header Forwarded *
 	respond @spoofed_forwarded "Forbidden" 403
+	@spoofed_real_ip header X-Real-IP *
+	respond @spoofed_real_ip "Forbidden" 403
+	@spoofed_xfh header X-Forwarded-Host *
+	respond @spoofed_xfh "Forbidden" 403
+	@spoofed_xfp header X-Forwarded-Proto *
+	respond @spoofed_xfp "Forbidden" 403
+	@spoofed_orig_xff header X-Original-Forwarded-For *
+	respond @spoofed_orig_xff "Forbidden" 403
+	@spoofed_true_ip header True-Client-IP *
+	respond @spoofed_true_ip "Forbidden" 403
+	@spoofed_cf_ip header CF-Connecting-IP *
+	respond @spoofed_cf_ip "Forbidden" 403
+	@spoofed_cluster_ip header X-Cluster-Client-IP *
+	respond @spoofed_cluster_ip "Forbidden" 403
 
 	route {
+		# Item 11: cap request bodies globally so we can't be flooded with
+		# multi-megabyte payloads on JSON endpoints (DoS via memory). Override
+		# specifically on the attachments path where larger uploads are
+		# legitimate.
+		request_body {
+			max_size 1MB
+		}
 		request_body /api/findings/*/attachments {
 			max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
 		}
@@ -52,9 +101,7 @@
 		# Tighter bucket specifically on /api/auth/login to keep brute-force
 		# protection in place. Only login needs this — /refresh and /logout
 		# require an existing valid session (cookie or token) so they can't
-		# be brute-forced and fall under the general /api/* limit. Keeping
-		# refresh under the broad 600/min limit is essential for active SPA
-		# use where every page reload triggers a refresh.
+		# be brute-forced and fall under the general /api/* limit.
 		@login_brute {
 			path /api/auth/login
 		}
@@ -66,13 +113,18 @@
 			}
 		}
 
-		# Bridge for static SPA mode: avoid loading full protected routes when
-		# logged out. Full SSR auth-gating will replace this later.
+		# Item 3: redirect logged-out users away from protected routes BEFORE
+		# the SPA shell loads. Covers both the legacy top-level paths and the
+		# /app/* siblings introduced when authenticated routing moved under
+		# /app. Redirect target is /login (not /) so the user lands somewhere
+		# they can act on.
 		@protected_without_session {
 			path /clients* /assets* /sessions* /findings* /admin* /templates* /profile*
+			path /app/clients* /app/assets* /app/sessions* /app/findings* /app/admin* /app/templates* /app/profile* /app /app/*
+			not path /api/*
 			not header Cookie *vl_session=1*
 		}
-		redir @protected_without_session / 302
+		redir @protected_without_session /login 302
 
 		handle /api/* {
 			reverse_proxy backend:8000

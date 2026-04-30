@@ -23,6 +23,7 @@ from app.schemas.auth import (
 )
 from app.services.auth import (
     create_access_token,
+    hash_password,
     verify_password,
 )
 from app.services.ip_utils import (
@@ -47,6 +48,19 @@ from app.services.refresh_sessions import (
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+# Pre-computed dummy hash used to keep login timing constant when the supplied
+# username doesn't exist. Without this, verify_password() is short-circuited by
+# Python's `or` semantics in the "no user" branch (~2ms response) while a real
+# username forces a full bcrypt verify (~150-220ms). The timing differential is
+# sufficient to enumerate valid usernames remotely. Hashing a sentinel string
+# at import time means we use the SAME hashing function and cost factor as
+# real passwords, so the dummy verify takes equivalent CPU time.
+# The sentinel string is never accepted as a real password because no real
+# user will ever have THIS hash stored against them (it's local to this file).
+_DUMMY_PASSWORD_HASH = hash_password(
+    "vl::timing-oracle-defense::never-matches-any-real-input"
+)
 
 limiter = Limiter(key_func=lambda request: rate_limit_ip_key(request, settings.trust_proxy_headers))
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
@@ -160,7 +174,12 @@ async def login(
         )
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
-    if not user or not verify_password(body.password, user.password_hash):
+    # Always run verify_password — even for missing users — against a sentinel
+    # hash so timing is identical for "user exists, wrong password" and "user
+    # does not exist". Closes the username-enumeration timing oracle.
+    target_hash = user.password_hash if user is not None else _DUMMY_PASSWORD_HASH
+    password_ok = verify_password(body.password, target_hash)
+    if user is None or not password_ok:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",

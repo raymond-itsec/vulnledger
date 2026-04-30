@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { goto } from '$app/navigation';
   import { auth } from '$lib/stores/auth.svelte';
   import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { clientsApi } from '$lib/api/clients';
@@ -287,7 +288,7 @@
             <tbody>
               {#each activeProjectRows as row}
                 {@const chip = statusChip(row.status)}
-                <tr onclick={() => (window.location.href = appPath(`/sessions/${row.id}`))} tabindex="0" role="link">
+                <tr onclick={() => goto(appPath(`/sessions/${row.id}`))} tabindex="0" role="link">
                   <td class="project-name">{row.name}</td>
                   <td class="project-type">{row.type}</td>
                   <td class="num">{row.assetCount}</td>
