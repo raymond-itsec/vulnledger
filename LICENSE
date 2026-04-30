@@ -1,0 +1,103 @@
+VulnLedger Personal Use License
+Version 1.0
+
+Copyright (c) 2026 Raymond Zwarts
+All rights reserved.
+
+1. Overview
+
+This license allows you to view, copy, modify, and self-host this software
+for personal, non-commercial use, subject to the terms below.
+
+This is a source-available license. It is not an open source license.
+
+2. Definitions
+
+"Software" means the VulnLedger source code in this repository, including
+associated configuration, scripts, and documentation, excluding third-party
+components that are separately licensed.
+
+"Personal Use" means use by a natural person for private learning,
+evaluation, experimentation, or self-hosting for their own personal purposes,
+without any commercial advantage or business-related purpose.
+
+"Commercial Use" means any use of the Software:
+
+- by or for a business, employer, public-sector body, or other organization;
+- to provide services to third parties;
+- to support revenue-generating, client-serving, internal business, or
+  production business operations;
+- in exchange for money, other compensation, or commercial advantage;
+- as part of consulting, managed services, SaaS, hosting, resale, OEM,
+  white-labeling, or support offerings.
+
+3. Rights Granted
+
+Subject to this license, you may:
+
+- use the Software for Personal Use;
+- self-host the Software for Personal Use;
+- copy and modify the Software for Personal Use;
+- share unmodified or modified copies of the Software for Personal Use only,
+  provided that:
+  - you include this license with the copy; and
+  - you do not remove copyright, attribution, or license notices.
+
+4. Restrictions
+
+You may not, without prior written permission from the copyright holder:
+
+- use the Software for Commercial Use;
+- sell, sublicense, rent, lease, or commercially distribute the Software;
+- offer the Software as a hosted or managed service;
+- use the Software for internal business operations;
+- use the Software in client work or for the benefit of a third party in a
+  commercial or organizational context;
+- represent the Software as being available under an OSI-approved open source
+  license.
+
+5. Third-Party Components
+
+The Software may include or depend on third-party components under separate
+licenses. Those components remain subject to their own license terms. This
+license applies only to the portions of the Software owned by the copyright
+holder.
+
+6. No Trademark Rights
+
+This license does not grant any right to use the names "VulnLedger" or
+associated logos, marks, or branding, except as reasonably necessary for
+permitted redistribution of the Software under this license.
+
+7. Contributions
+
+Unless otherwise agreed in writing, any contribution intentionally submitted
+for inclusion in the Software grants the copyright holder a perpetual,
+worldwide, non-exclusive, irrevocable, royalty-free license to use, modify,
+distribute, sublicense, and relicense that contribution.
+
+8. Termination
+
+Any use of the Software outside the scope of this license automatically
+terminates your rights under it.
+
+Upon termination, you must stop using and distributing the Software, except
+to the extent a separate written permission applies.
+
+9. Warranty Disclaimer
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT.
+
+10. Limitation of Liability
+
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, IN NO EVENT SHALL THE COPYRIGHT
+HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY, WHETHER IN AN
+ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM, OUT OF, OR IN
+CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+11. Commercial Licensing
+
+If you want to use the Software commercially, you must obtain prior written
+permission from the copyright holder under a separate commercial agreement.
