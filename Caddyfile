@@ -65,19 +65,6 @@
 	respond @spoofed_cluster_ip "Forbidden" 403
 
 	route {
-		# VL-2026-012: reject malformed paths at the edge before any matcher,
-		# rate limit, or body cap fires. Closes a class of bypasses where
-		# URL-encoding tricks (double slashes, dot-segments, %2F, %00) let a
-		# request fall through path-based matchers — most notably the strict
-		# 30/min rate limit on /api/auth/login, which used an exact path and
-		# could be evaded with `/api//auth//login`. Backend literal routing
-		# happened to 404 such requests today, but defense in depth: any
-		# future Starlette middleware that normalizes paths would flip this
-		# from benign to live. Rejecting upfront also closes the analogous
-		# bypass on the @attachments matcher and any future path matchers.
-		@malformed_path path_regexp malformed (//|/\./|/\.\./|%2[fF]|%5[cC]|%00)
-		respond @malformed_path "Bad Request" 400
-
 		# VL-2026-005: cap request bodies globally so we can't be flooded with
 		# multi-megabyte payloads on JSON endpoints (DoS via memory). Override
 		# specifically on the attachments path where larger uploads are
@@ -141,10 +128,15 @@
 		# require an existing valid session (cookie or token) so they can't
 		# be brute-forced and fall under the general /api/* limit.
 		#
-		# VL-2026-012: belt-and-braces — anchored regexp with optional
-		# trailing slash and case-insensitive flag, so trailing-slash and
-		# case-shift variants can't fall through to the looser general
-		# bucket even if the @malformed_path filter above ever has a gap.
+		# VL-2026-012: anchored regexp with optional trailing slash and a
+		# case-insensitive flag so trailing-slash and case-shift variants
+		# can't fall through to the looser general bucket. Caddy normalizes
+		# the URI path before matchers evaluate (collapses `//`, resolves
+		# `/./` and `/../`, decodes percent-encodings), which means malformed
+		# variants like `/api//auth//login` ALSO match this regexp on the
+		# normalized form. Verified empirically 2026-04-30: 31st rapid POST
+		# to /api//auth//login returned 429 from `login_zone`, confirming
+		# the strict bucket fires on the malformed variant.
 		@login_brute path_regexp (?i)^/api/auth/login/?$
 		rate_limit @login_brute {
 			zone login_zone {
