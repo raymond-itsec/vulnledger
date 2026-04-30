@@ -16,6 +16,7 @@ it was discovered and (when fixed) the date it was closed.
 | VL-2026-008 | No HTTP timeouts configured | Low | Fixed | 2026-04-30 | 2026-04-30 | [#18](../../issues/18) |
 | VL-2026-009 | Edge CSP only `frame-ancestors` | Low-Med | Fixed | 2026-04-30 | 2026-04-30 | [#19](../../issues/19) |
 | VL-2026-010 | `POST /api/findings` 500 — nested transaction | High (functional) | Open | 2026-04-30 | — | [#20](../../issues/20) |
+| VL-2026-011 | Breadcrumb mismatches active sidebar item on error page | Info | Open | 2026-04-30 | — | [#21](../../issues/21) |
 
 ## Conventions
 
