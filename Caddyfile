@@ -76,15 +76,27 @@
 		# 30MB override only kicked in for paths with trailing extra segments
 		# (e.g. /api/findings/<id>/attachments/extra), while real uploads to
 		# /api/findings/<id>/attachments fell back to the global 1MB cap and
-		# silently 413'd at >1MB. Switching to a named regexp matcher with
-		# explicit anchors (^...$) and a single-segment ID ([^/]+) makes the
-		# 30MB cap apply exactly to the canonical upload path and nowhere
-		# else. Side benefit: closes the small DoS amplification surface where
+		# silently 413'd at >1MB.
+		#
+		# A first attempt at a fix used a no-matcher `request_body 1MB` plus
+		# a `@attachments` regexp override at 30MB, but Caddy chains
+		# `request_body` middleware: both fire when both match, and the
+		# smaller limit wins regardless of order. So the global 1MB cap
+		# kept short-circuiting the 30MB cap on attachment requests.
+		#
+		# Final form: BOTH `request_body` directives carry mutually
+		# exclusive matchers, so exactly one fires per request. Anchored
+		# regexp (^...$) with a single-segment ID ([^/]+) makes the 30MB
+		# cap apply exactly to the canonical upload path and nowhere else.
+		# Side benefit: closes the small DoS amplification surface where
 		# unauthenticated requests could push 30MB at non-existent routes.
-		request_body {
+		@attachments path_regexp ^/api/findings/[^/]+/attachments$
+		@not_attachments {
+			not path_regexp ^/api/findings/[^/]+/attachments$
+		}
+		request_body @not_attachments {
 			max_size 1MB
 		}
-		@attachments path_regexp ^/api/findings/[^/]+/attachments$
 		request_body @attachments {
 			max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
 		}
