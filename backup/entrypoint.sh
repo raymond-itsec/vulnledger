@@ -7,6 +7,65 @@ DEFAULT_BACKUP_CRON="0 2 * * *"
 CRON_DIR="/tmp/backup-cron"
 CRON_FILE="$CRON_DIR/postgres"
 
+# Pre-flight: validate encryption configuration BEFORE the scheduler
+# starts. If the operator declared that encryption is required (either
+# explicitly via BACKUP_ENCRYPTION_REQUIRED=true or implicitly via
+# FINDINGS_RUNTIME_MODE=production) but no passphrase file is mounted,
+# fail fast with a loud banner and a non-restarting exit code so the
+# operator sees the failure in `docker compose ps` instead of an
+# infinite restart loop. Paired with `restart: "no"` in compose for
+# this service.
+BACKUP_ENCRYPTION_SECRET_FILE="${BACKUP_ENCRYPTION_SECRET_FILE:-/run/secrets/backup_encryption_passphrase}"
+BACKUP_ENCRYPTION_REQUIRED="${BACKUP_ENCRYPTION_REQUIRED:-false}"
+RUNTIME_MODE="${FINDINGS_RUNTIME_MODE:-development}"
+
+if [ ! -s "$BACKUP_ENCRYPTION_SECRET_FILE" ]; then
+    if [ "$BACKUP_ENCRYPTION_REQUIRED" = "true" ] || [ "$RUNTIME_MODE" = "production" ]; then
+        cat >&2 <<EOF
+
+================================================================================
+  FATAL: Backup encryption is REQUIRED but no passphrase is configured.
+================================================================================
+
+  Why this fired:
+    BACKUP_ENCRYPTION_REQUIRED = $BACKUP_ENCRYPTION_REQUIRED
+    FINDINGS_RUNTIME_MODE      = $RUNTIME_MODE
+    Expected secret file       = $BACKUP_ENCRYPTION_SECRET_FILE
+    File state                 = missing or empty
+
+  Resolution (production / encrypted backups required):
+
+    1. Generate a strong passphrase on the host:
+         openssl rand -base64 48 > ./secrets/backup_encryption_passphrase
+         chmod 600 ./secrets/backup_encryption_passphrase
+
+    2. STORE THE PASSPHRASE IN YOUR PASSWORD MANAGER.
+       Without it, encrypted backups cannot be restored. There is no
+       recovery path if you lose this passphrase.
+
+    3. Restart the backup container:
+         docker compose up -d --force-recreate backup
+
+  Alternative (development only — leaves backups UNENCRYPTED on disk):
+
+    Add to .env on the host:
+        BACKUP_ENCRYPTION_REQUIRED=false
+        FINDINGS_RUNTIME_MODE=development
+
+    Then: docker compose up -d --force-recreate backup
+
+  This container is exiting with code 78 (configuration error) and
+  WILL NOT RESTART. The rest of the stack continues running, but no
+  backups are being created until this is resolved.
+
+================================================================================
+
+EOF
+        exit 78
+    fi
+fi
+
+
 latest_backup_age_seconds() {
   latest_file=$(ls -1t "$BACKUP_DIR"/findings_*.sql.gz* 2>/dev/null | head -n 1 || true)
   if [ -z "$latest_file" ]; then
