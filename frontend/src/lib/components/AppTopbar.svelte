@@ -40,22 +40,16 @@
 </header>
 
 <style>
-  /* Fixed 67px height aligns the bottom border with the sidebar's brand
-     divider on every page, regardless of breadcrumb depth.
-
-     Frosted-glass dive-under effect: as text scrolls UP into the topbar,
-     it's crisp at the bottom edge (about to disappear) and progressively
-     blurred until completely obscured by the time it reaches the top edge
-     (just before leaving view). Implemented via a single absolutely
-     positioned pseudo-element holding the heavy blur + cream tint, with
-     a linear-gradient mask fading from fully opaque at the top to fully
-     transparent at the bottom. Where the mask is transparent, the raw
-     page content shows through unblurred and untinted. */
+  /* Same uniform glass treatment as PublicHeader on the public pages — one
+     translucent cream layer, one backdrop-filter, a thin highlight border.
+     67px height aligns the bottom border with the sidebar's brand divider.
+     No fancy gradient mask: the blur is the same all the way through, the
+     tint is the same all the way through. Matches the home / login look
+     exactly so the visual transition between public and /app is seamless. */
   .topbar {
     position: sticky;
     top: 0;
     z-index: 40;
-    isolation: isolate; /* keep the pseudo's z-index local to this element */
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -63,20 +57,11 @@
     height: 67px;
     flex-shrink: 0;
     padding: 0 28px;
+    background: rgba(250, 228, 220, 0.62);
+    backdrop-filter: blur(24px) saturate(170%);
+    -webkit-backdrop-filter: blur(24px) saturate(170%);
     border-bottom: 1px solid rgba(255, 255, 255, 0.42);
     font-family: var(--font-sans);
-  }
-  .topbar::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: rgba(250, 228, 220, 0.7);
-    backdrop-filter: blur(50px) saturate(170%);
-    -webkit-backdrop-filter: blur(50px) saturate(170%);
-    mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
-    -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
   }
   .topbar-left {
     display: flex;

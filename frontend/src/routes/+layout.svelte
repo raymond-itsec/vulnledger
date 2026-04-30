@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, setContext } from 'svelte';
   import { goto } from '$app/navigation';
   import '../app.css';
   import { auth, bootstrapAuth, logout } from '$lib/stores/auth.svelte';
@@ -11,6 +11,7 @@
   import AppTopbar from '$lib/components/AppTopbar.svelte';
   import PublicFooter from '$lib/components/PublicFooter.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
+  import { APP_SHELL_CONTEXT_KEY } from '$lib/components/app-shell-context';
   import { APP_VERSION } from '$lib/config/app-meta';
   import { APP_BASE_PATH, LOGIN_PATH } from '$lib/config/routes';
   import { breadcrumb } from '$lib/stores/breadcrumb.svelte';
@@ -155,6 +156,13 @@
   async function handleLogout() {
     await logout();
   }
+
+  // Tell descendants whether the /app shell (sidebar + topbar + footer) is
+  // currently wrapping them. PublicShell reads this and downgrades to a
+  // bare children-only render so navigating an authenticated user to
+  // /trust et al. doesn't double up the chrome.
+  const isAppShellActive = $derived(authReady && auth.isAuthenticated);
+  setContext(APP_SHELL_CONTEXT_KEY, () => isAppShellActive);
 </script>
 
 <AvailabilityBanner />
