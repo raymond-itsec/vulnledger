@@ -80,7 +80,7 @@
 		# hygiene — it leaks attack attempts into application logs and
 		# leaves us one Starlette path-normalization middleware away from
 		# a real bypass. This block kills the entire class at the edge.
-		@malformed_path vars_regexp {http.request.orig_uri.path} (//|/\./|/\.\./|%2[fF]|%5[cC]|%00)
+		@malformed_path vars_regexp {http.request.orig_uri.path} (//|/\./|/\.\./|%2[fF]|%5[cC]|%00|\x00)
 		respond @malformed_path "Bad Request" 400
 
 		# VL-2026-005: cap request bodies globally so we can't be flooded with
