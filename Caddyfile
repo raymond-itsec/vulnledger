@@ -65,14 +65,27 @@
 	respond @spoofed_cluster_ip "Forbidden" 403
 
 	route {
-		# Item 11: cap request bodies globally so we can't be flooded with
+		# VL-2026-005: cap request bodies globally so we can't be flooded with
 		# multi-megabyte payloads on JSON endpoints (DoS via memory). Override
 		# specifically on the attachments path where larger uploads are
 		# legitimate.
+		#
+		# VL-2026-013: the previous inline path matcher
+		# `request_body /api/findings/*/attachments { ... }` did not match the
+		# canonical upload path in practice — empirical testing showed the
+		# 30MB override only kicked in for paths with trailing extra segments
+		# (e.g. /api/findings/<id>/attachments/extra), while real uploads to
+		# /api/findings/<id>/attachments fell back to the global 1MB cap and
+		# silently 413'd at >1MB. Switching to a named regexp matcher with
+		# explicit anchors (^...$) and a single-segment ID ([^/]+) makes the
+		# 30MB cap apply exactly to the canonical upload path and nowhere
+		# else. Side benefit: closes the small DoS amplification surface where
+		# unauthenticated requests could push 30MB at non-existent routes.
 		request_body {
 			max_size 1MB
 		}
-		request_body /api/findings/*/attachments {
+		@attachments path_regexp ^/api/findings/[^/]+/attachments$
+		request_body @attachments {
 			max_size {$CADDY_ATTACHMENT_MAX_SIZE:30MB}
 		}
 
