@@ -65,6 +65,24 @@
 	respond @spoofed_cluster_ip "Forbidden" 403
 
 	route {
+		# VL-2026-012: reject malformed paths at the edge so the backend
+		# never sees them. `path_regexp` operates on Caddy's NORMALIZED
+		# path (already collapsed `//`, resolved `/./`, decoded some
+		# percent-encodings) — useful for matchers but blind to the raw
+		# request line. `vars_regexp` against {http.request.orig_uri.path}
+		# matches the path AS RECEIVED, before normalization, so we can
+		# reject malformed requests outright.
+		#
+		# Defense in depth on top of the @login_brute regexp tightening
+		# below: matchers see the normalized form and the strict bucket
+		# correctly fires on `/api//auth//login`, but Caddy still forwards
+		# the raw malformed path to the backend by default. That's bad
+		# hygiene — it leaks attack attempts into application logs and
+		# leaves us one Starlette path-normalization middleware away from
+		# a real bypass. This block kills the entire class at the edge.
+		@malformed_path vars_regexp {http.request.orig_uri.path} (//|/\./|/\.\./|%2[fF]|%5[cC]|%00)
+		respond @malformed_path "Bad Request" 400
+
 		# VL-2026-005: cap request bodies globally so we can't be flooded with
 		# multi-megabyte payloads on JSON endpoints (DoS via memory). Override
 		# specifically on the attachments path where larger uploads are
