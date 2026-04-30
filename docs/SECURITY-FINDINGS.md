@@ -17,7 +17,20 @@ it was discovered and (when fixed) the date it was closed.
 | VL-2026-009 | Edge CSP only `frame-ancestors` | Low-Med | Fixed | 2026-04-30 | 2026-04-30 | [#19](../../issues/19) |
 | VL-2026-010 | `POST /api/findings` 500 — nested transaction | High (functional) | Open | 2026-04-30 | — | [#20](../../issues/20) |
 | VL-2026-011 | Breadcrumb mismatches active sidebar item on error page | Info | Open | 2026-04-30 | — | [#21](../../issues/21) |
-| VL-2026-011 | Breadcrumb mismatches active sidebar item on error page | Info | Open | 2026-04-30 | — | [#21](../../issues/21) |
+| VL-2026-012 | Login rate-limit bypass via path normalization | Low | Open | 2026-04-30 | — | [#23](../../issues/23) |
+| VL-2026-013 | Caddy attachment body-cap matcher misconfigured — uploads >1MB silently fail | Medium (functional) | Open | 2026-04-30 | — | [#24](../../issues/24) |
+
+## Scope of the register
+
+A finding earns a `VL-YYYY-NNN` ID and a row here when it **affects
+behavior** — security, correctness, performance, or user-visible UX.
+Pure code-hygiene work (refactors, doc-only changes, chore PRs) lives
+as a plain GitHub issue with the appropriate area + `enhancement`
+labels and is **not** registered here, even when it was discovered
+during an audit sweep.
+
+Borderline cases default to inclusion: if uncertain whether something
+touches behavior, give it a VL- ID.
 
 ## Conventions
 
