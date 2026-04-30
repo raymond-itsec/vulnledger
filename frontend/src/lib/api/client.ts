@@ -7,12 +7,13 @@ import {
 import { readPublicErrorMessage } from '$lib/api/errors';
 import { awaitRateLimitCooling, parseRetryAfter, startCooling } from '$lib/api/rate-limit';
 
-export async function authorizedFetch(path: string, options: RequestInit = {}): Promise<Response> {
-  // If the edge already told us "back off", queue here until cooling expires
-  // before sending another request. Shared with auth.svelte.ts so refreshes
-  // also cooperate with the same cool-down window.
-  await awaitRateLimitCooling();
+// Maximum 429 retries per request before giving up. With Retry-After-aware
+// cooling each retry waits for the budget to free up; 3 attempts spans up
+// to ~24s of cool-down which covers the worst-case sustained-burst case
+// without freezing the UI indefinitely.
+const MAX_429_RETRIES = 3;
 
+export async function authorizedFetch(path: string, options: RequestInit = {}): Promise<Response> {
   const headers: Record<string, string> = {
     ...(options.headers as Record<string, string> || {}),
   };
@@ -20,15 +21,28 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
     headers['Authorization'] = `Bearer ${auth.token}`;
   }
 
-  let res = await fetchWithAvailability(path, { ...options, headers }, true);
+  let res: Response;
+  let attempt = 0;
+  while (true) {
+    // If the edge already told us "back off", queue here until cooling
+    // expires before sending another request. Shared with auth.svelte.ts
+    // so refreshes also cooperate with the same cool-down window.
+    await awaitRateLimitCooling();
 
-  // 429 — server is rate-limiting us. Honor Retry-After (capped) once, then
-  // retry the original request. Any other in-flight calls hitting 429 in
-  // the same window will share this cooling promise.
-  if (res.status === 429) {
-    const waitMs = parseRetryAfter(res.headers.get('Retry-After'));
-    await startCooling(waitMs);
     res = await fetchWithAvailability(path, { ...options, headers }, true);
+
+    // 429 — keep cooling and retrying up to MAX_429_RETRIES. Concurrent
+    // requests share the same cool-down promise, so a single Retry-After
+    // value paces the whole burst rather than each request scheduling
+    // its own retry.
+    if (res.status === 429 && attempt < MAX_429_RETRIES) {
+      const waitMs = parseRetryAfter(res.headers.get('Retry-After'));
+      await startCooling(waitMs);
+      attempt++;
+      continue;
+    }
+
+    break;
   }
 
   if (res.status === 401) {

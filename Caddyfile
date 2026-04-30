@@ -28,8 +28,9 @@
 		}
 
 		# Edge API rate limiting (requires caddy-ratelimit module).
-		# 600 events/minute (10/sec average) is comfortable for an SPA that
-		# batches requests on page load. Endpoints excluded below:
+		# 1200 events/minute (20/sec average) is comfortable for an SPA that
+		# batches requests on page load and stays well above active-dev F5
+		# patterns. Endpoints excluded below:
 		#   /api/health, /api/health/live  — health probes, must never throttle
 		#   /api/auth/refresh              — requires a valid refresh-token cookie,
 		#                                    cannot be brute-forced, and a 429 here
@@ -43,7 +44,7 @@
 		rate_limit @api_limited {
 			zone api_zone {
 				key {remote_host}
-				events 600
+				events 1200
 				window 1m
 			}
 		}
