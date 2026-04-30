@@ -51,6 +51,12 @@
       if (canEdit) {
         try { reviewers = await usersApi.listReviewers(); } catch { /* ignore */ }
       }
+    } catch {
+      // Backend returned 404 (asset doesn't exist), 422 (malformed id), or
+      // some other error. Leave `asset` null so the template renders the
+      // "Asset not found" branch instead of letting SvelteKit show its
+      // default error page.
+      asset = null;
     } finally {
       loading = false;
     }
