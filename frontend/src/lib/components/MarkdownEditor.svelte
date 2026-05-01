@@ -101,6 +101,12 @@
     border: 1px solid var(--border-color);
     border-radius: 0.375rem;
     background: white;
+    /* #28: must set `color` explicitly when overriding `background` —
+     * Svelte's scoped-style hash makes this rule more specific than
+     * the global `.form-group textarea` rule, so without an explicit
+     * color the text would inherit from system fieldtext (white on
+     * dark-mode OS = invisible). */
+    color: var(--text-primary);
     font-family: inherit;
     font-size: 0.875rem;
     resize: vertical;
