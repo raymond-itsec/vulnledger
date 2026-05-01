@@ -2,8 +2,6 @@
 
 What VulnLedger looks like today, what we're building next, and where it's heading. Plain-language overview for users, contributors, and anyone evaluating the project.
 
-For the engineering plan with technical detail, see [v0.3 plan](v0.3-plan.md).
-
 ## Where we are: v0.2.2 (today)
 
 VulnLedger is a self-hosted security review platform: clients, reviewed assets, review sessions, and findings, with full edit history, file attachments, PDF/CSV/JSON exports, and email notifications. Optional SSO. Encrypted backups. ClamAV-scanned uploads.

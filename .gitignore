@@ -48,3 +48,6 @@ backup/vendor/*
 
 # Design system handoff bundle (kept locally as reference, not committed)
 design-system/
+
+# v0.3 technical plan - kept local until ready to publish
+docs/v0.3-plan.md
