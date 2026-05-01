@@ -69,6 +69,19 @@ class Settings(BaseSettings):
     password_min_length: int = Field(default=16, ge=16)
     password_max_length: int = 128
     password_min_zxcvbn_score: int = Field(default=3, ge=0, le=4)
+    # SQLAlchemy connection pool. Defaults match SQLAlchemy 2.0
+    # built-ins; making them explicit means operators can tune via env
+    # without code changes when the app tier scales horizontally.
+    # Effective max per backend instance = pool_size + max_overflow.
+    # Postgres default max_connections is 100, so plan for at most
+    # ~5 backend instances on default settings before needing PgBouncer
+    # or an explicit max_connections raise.
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    # pool_pre_ping issues a tiny SELECT 1 per checkout to detect stale
+    # connections (e.g., after Postgres restart). Adds < 1 ms; saves
+    # painful "this works once after a DB restart, then breaks" bugs.
+    db_pool_pre_ping: bool = True
     report_max_findings: int = 250
     report_max_input_chars: int = 200000
     report_max_output_size_mb: int = 25

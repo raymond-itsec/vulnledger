@@ -27,6 +27,9 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET` | `finding-attachments` | Bucket for uploaded finding evidence |
 | `FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET` | `generated-reports` | Bucket for generated PDF/CSV/JSON exports |
 | `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` | `25` | Authoritative attachment size limit enforced by the backend |
+| `FINDINGS_DB_POOL_SIZE` | `5` | SQLAlchemy connection-pool size per backend instance. Effective max connections per instance = `pool_size + max_overflow`. |
+| `FINDINGS_DB_MAX_OVERFLOW` | `10` | SQLAlchemy max-overflow burst above `pool_size`. |
+| `FINDINGS_DB_POOL_PRE_PING` | `true` | Issue a small `SELECT 1` per checkout to detect stale connections (e.g. after Postgres restart). |
 | `FINDINGS_PASSWORD_MIN_LENGTH` | `16` | Minimum password length. Hard floor: env values below 16 are rejected at startup. |
 | `FINDINGS_PASSWORD_MAX_LENGTH` | `128` | Maximum password length. |
 | `FINDINGS_PASSWORD_MIN_ZXCVBN_SCORE` | `3` | Minimum zxcvbn strength score (0-4). 3 is resistant to GPU-farm brute force for years. |
