@@ -7,15 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### TODO (Next Change)
-- Complete full migration from module-level `settings = Settings()` usage to dependency-based settings access (`get_settings()` end-to-end).
-Reason: settings are still imported directly in many modules, which limits test isolation and makes runtime overrides harder. Finishing this migration is needed for reliable per-test/per-environment configuration without side effects.
-- Implement protected-route server-load enforcement (`+page.server.ts`) where applicable, instead of relying on client-only auth guards.
-Reason: current frontend runs with `ssr = false`, so route protection is still primarily client-side. Moving enforcement to server-load boundaries requires an SSR/auth-flow adjustment and should be done as a dedicated architectural follow-up.
-- Move service images to a private container registry and deploy by immutable digest.
-Reason: current host-local builds increase drift risk between environments and slow rollouts. Registry-backed, digest-pinned deploys improve reproducibility, rollback safety, and multi-host operations.
-- Finish harmonizing remaining config defaults so code fallback, Compose fallback, `.env.example`, and `README.md` always match one-for-one.
-Reason: most drift is fixed, but keeping all four sources aligned should remain an explicit maintenance goal.
+Active work tracks under v0.3.0 below. Open issues for the next release line live on GitHub with the [`v0.3.x` label](https://github.com/raymond-itsec/vulnledger/labels/v0.3.x).
 
 ## [v0.3.0] - Planned (breaking)
 
