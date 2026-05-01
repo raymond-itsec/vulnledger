@@ -64,7 +64,10 @@ _DUMMY_PASSWORD_HASH = hash_password(
 
 limiter = Limiter(key_func=lambda request: rate_limit_ip_key(request, settings.trust_proxy_headers))
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
-SESSION_HINT_COOKIE_NAME = settings.session_hint_cookie_name
+# VL-2026-014: hardcoded (was settings.session_hint_cookie_name). Caddy's
+# protected-route gate also looks for this exact name; the env var was
+# the drift source between the two layers and had no real-world use case.
+SESSION_HINT_COOKIE_NAME = "vl_session"
 
 
 def _request_ip(request: Request) -> str | None:

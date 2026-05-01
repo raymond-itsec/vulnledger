@@ -102,7 +102,6 @@ class Settings(BaseSettings):
     jwt_public_key_pem: str = ""
     jwt_private_key_file: str = ""
     jwt_public_key_file: str = ""
-    session_hint_cookie_name: str
 
     model_config = {
         "env_prefix": "FINDINGS_",
@@ -142,7 +141,6 @@ class Settings(BaseSettings):
         "object_storage_secret_key",
         "jwt_issuer",
         "jwt_audience",
-        "session_hint_cookie_name",
         "initial_admin_username",
         "initial_admin_password",
         "initial_admin_email",

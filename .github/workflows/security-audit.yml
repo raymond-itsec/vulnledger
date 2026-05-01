@@ -71,7 +71,6 @@ jobs:
             -e FINDINGS_JWT_AUDIENCE=ci-api \
             -e FINDINGS_JWT_PRIVATE_KEY_FILE=/run/secrets/jwt_private_key.pem \
             -e FINDINGS_JWT_PUBLIC_KEY_FILE=/run/secrets/jwt_public_key.pem \
-            -e FINDINGS_SESSION_HINT_COOKIE_NAME=vl_session \
             -v /tmp/jwt-private.pem:/run/secrets/jwt_private_key.pem:ro \
             -v /tmp/jwt-public.pem:/run/secrets/jwt_public_key.pem:ro \
             -v "$PWD:/workspace" \

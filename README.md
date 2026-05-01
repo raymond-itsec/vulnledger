@@ -381,7 +381,6 @@ FINDINGS_OIDC_REDIRECT_URI=
 # JWT / session identity
 FINDINGS_JWT_ISSUER=vulnledger-backend
 FINDINGS_JWT_AUDIENCE=vulnledger-api
-FINDINGS_SESSION_HINT_COOKIE_NAME=vl_session
 
 # Optional: ClamAV
 FINDINGS_CLAMAV_HOST=localhost
@@ -653,7 +652,6 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_JWT_PUBLIC_KEY_PEM` | _(empty)_ | RS256 public key PEM (use this or `FINDINGS_JWT_PUBLIC_KEY_FILE`) |
 | `FINDINGS_JWT_PRIVATE_KEY_FILE` | See `.env.example` | Path to an RS256 private key PEM file mounted in the backend container |
 | `FINDINGS_JWT_PUBLIC_KEY_FILE` | See `.env.example` | Path to an RS256 public key PEM file mounted in the backend container |
-| `FINDINGS_SESSION_HINT_COOKIE_NAME` | See `.env.example` | Non-sensitive session-hint cookie name used for OIDC/logout cleanup |
 | `FINDINGS_RUNTIME_MODE` | `development` | Runtime mode used by backup encryption policy (`production` enforces secret presence) |
 | `APP_VERSION` | `0.2.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
