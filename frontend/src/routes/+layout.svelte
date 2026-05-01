@@ -63,7 +63,13 @@
     if (breadcrumb.crumbs && breadcrumb.crumbs.length > 0) return breadcrumb.crumbs;
     const pathname = normalizedAppPath(page.url.pathname);
     if (pathname === APP_BASE_PATH) return [{ label: 'Dashboard' }];
-    const match = navItems.find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
+    // VL-2026-011: longest-prefix match. The Dashboard item's href is the
+    // app root ('/app'), which is a prefix of every /app/<sub> path. A
+    // naive find() would always pick Dashboard. Sorting by href length
+    // descending makes the most-specific item win.
+    const match = [...navItems]
+      .sort((a, b) => b.href.length - a.href.length)
+      .find((item) => pathname === item.href || pathname.startsWith(`${item.href}/`));
     if (!match) return [{ label: 'Workspace' }];
     if (pathname === match.href) return [{ label: match.label }];
     return [{ label: match.label, href: match.href }, { label: 'Detail' }];

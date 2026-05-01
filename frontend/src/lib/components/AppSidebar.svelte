@@ -64,6 +64,12 @@
 
   function isActive(href: string): boolean {
     if (href === activeHref) return true;
+    // VL-2026-011: the Dashboard item's href is the app root (e.g. '/app').
+    // Without this exact-match guard, every /app/<sub-path> would match
+    // Dashboard via the prefix check below AND its real nav item, leaving
+    // Dashboard stuck as "active" on every page.
+    const isRoot = !href.includes('/', 1);
+    if (isRoot) return false;
     return activeHref.startsWith(href + '/');
   }
 
