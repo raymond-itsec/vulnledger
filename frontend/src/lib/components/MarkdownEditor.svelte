@@ -98,10 +98,10 @@
   .md-editor textarea {
     width: 100%;
     padding: 0.5rem 0.75rem;
-    border: 1px solid var(--border-color);
+    border: 1px solid rgba(203, 187, 229, 0.72);
     border-radius: 0.375rem;
-    background: white;
-    /* #28: must set `color` explicitly when overriding `background` —
+    background: rgba(255, 255, 255, 0.9);
+    /* #28: must set `color` explicitly when overriding `background`.
      * Svelte's scoped-style hash makes this rule more specific than
      * the global `.form-group textarea` rule, so without an explicit
      * color the text would inherit from system fieldtext (white on
