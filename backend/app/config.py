@@ -59,6 +59,16 @@ class Settings(BaseSettings):
     object_storage_evidence_bucket: str = "finding-attachments"
     object_storage_reports_bucket: str = "generated-reports"
     attachment_max_file_size_mb: int = 25
+    # Password policy. zxcvbn score is 0-4 (0=trivial, 4=very strong); 3
+    # means resistant to offline slow-hash attacks for ~years at GPU
+    # farm rates.
+    #
+    # password_min_length has a hard floor of 16: env values below that
+    # are rejected at startup (Field ge=16). This is a deliberate policy
+    # ceiling on how lax operators can make the platform.
+    password_min_length: int = Field(default=16, ge=16)
+    password_max_length: int = 128
+    password_min_zxcvbn_score: int = Field(default=3, ge=0, le=4)
     report_max_findings: int = 250
     report_max_input_chars: int = 200000
     report_max_output_size_mb: int = 25
@@ -177,6 +187,22 @@ class Settings(BaseSettings):
                 f"and 30 inclusive (got {value})"
             )
         return value
+
+    @model_validator(mode="after")
+    def _validate_password_bounds(self) -> "Settings":
+        # Catch the misconfig where max <= min, which would silently
+        # brick all password-creation paths (every password fails one
+        # bound or the other). Fail fast at startup, loud, with a clear
+        # message, so the operator sees it before any user does.
+        if self.password_max_length < self.password_min_length:
+            raise ValueError(
+                "FINDINGS_PASSWORD_MAX_LENGTH "
+                f"({self.password_max_length}) must be >= "
+                "FINDINGS_PASSWORD_MIN_LENGTH "
+                f"({self.password_min_length}). Otherwise no password "
+                "can satisfy both bounds and every registration fails."
+            )
+        return self
 
     @model_validator(mode="after")
     def _resolve_session_retention(self) -> "Settings":

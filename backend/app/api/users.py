@@ -57,7 +57,14 @@ async def create_user(
         linked_client_id=body.linked_client_id,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Username or email is already in use",
+        )
     await db.refresh(user)
     return user
 
@@ -128,6 +135,13 @@ async def update_user(
         user.linked_client_id = update_data["linked_client_id"]
     if "is_active" in update_data:
         user.is_active = update_data["is_active"]
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Email is already in use",
+        )
     await db.refresh(user)
     return user
