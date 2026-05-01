@@ -7,12 +7,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "generate:types": "npx --yes openapi-typescript@7.13.0 ../backend/openapi.generated.json -o src/lib/api/generated.ts",
-    "generate:types:live": "npx --yes openapi-typescript@7.13.0 http://127.0.0.1:8000/openapi.json -o src/lib/api/generated.ts"
+    "generate:types:live": "npx --yes openapi-typescript@7.13.0 http://127.0.0.1:8000/openapi.json -o src/lib/api/generated.ts",
+    "lint:css": "stylelint 'src/**/*.{css,svelte}'"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.10",
     "@sveltejs/kit": "^2.58.0",
     "@sveltejs/vite-plugin-svelte": "^7.0.0",
+    "postcss": "^8.4.47",
+    "postcss-html": "^1.7.0",
+    "stylelint": "^16.10.0",
     "svelte": "^5.55.5",
     "svelte-check": "^4.4.6",
     "typescript": "^6.0.3",

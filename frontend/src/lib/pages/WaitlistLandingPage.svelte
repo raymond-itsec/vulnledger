@@ -608,6 +608,7 @@
   .waitlist-input:focus {
     border-color: var(--accent-a);
     background: #fff;
+    color: var(--ink);
     box-shadow: 0 0 0 4px rgba(255,106,61,0.15);
   }
 
