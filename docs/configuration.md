@@ -62,7 +62,7 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `FINDINGS_JWT_PRIVATE_KEY_FILE` | See `.env.example` | Path to an RS256 private key PEM file mounted in the backend container |
 | `FINDINGS_JWT_PUBLIC_KEY_FILE` | See `.env.example` | Path to an RS256 public key PEM file mounted in the backend container |
 | `FINDINGS_RUNTIME_MODE` | `development` | Runtime mode used by backup encryption policy (`production` enforces secret presence) |
-| `APP_VERSION` | `0.2.0` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
+| `APP_VERSION` | `0.2.2` | Shared deployment version for frontend display (`VITE_APP_VERSION`) and backend metadata (`FINDINGS_APP_VERSION`) |
 | `POSTGRES_PORT` | `5432` | Host port published for PostgreSQL |
 | `SEAWEEDFS_S3_PORT` | `8333` | Host port published for the SeaweedFS S3 gateway |
 | `BACKEND_PORT` | `8000` | Host port published for the FastAPI backend |
@@ -131,7 +131,7 @@ FINDINGS_CLAMAV_PORT=3310
 CADDY_ATTACHMENT_MAX_SIZE=30MB
 
 # Optional: Unified app version shown in UI and backend metadata
-APP_VERSION=0.2.0
+APP_VERSION=0.2.2
 ```
 
 ## JWT signing (RS256)

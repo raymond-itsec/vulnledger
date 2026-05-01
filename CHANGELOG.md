@@ -17,7 +17,75 @@ Reason: current host-local builds increase drift risk between environments and s
 - Finish harmonizing remaining config defaults so code fallback, Compose fallback, `.env.example`, and `README.md` always match one-for-one.
 Reason: most drift is fixed, but keeping all four sources aligned should remain an explicit maintenance goal.
 
-## [v0.2.1] - Draft
+## [v0.3.0] - Planned (breaking)
+
+This is the planned next-major shape of the project. **No upgrade scripts will be provided** for the changes below; deployments running v0.2.x must redeploy from scratch on the new layout.
+
+It's only "breaking" in the deployment sense, not the data sense. The migration path is: take a fresh backup on v0.2.x, deploy v0.3.0 from scratch, restore.
+
+**What survives a fresh v0.3.0 deploy + restore**:
+
+- Application **database** (clients, assets, sessions, findings, finding history, taxonomy, users, invites, report-export metadata) — recoverable from any encrypted `findings_*.sql.gz.enc` produced by the `backup` container.
+
+**What does NOT survive automatically**:
+
+- **Object storage** (`seaweedfs_data` volume): finding attachments and the actual stored PDF/CSV/JSON report-export bytes. v0.2.x's `backup` container only handles PostgreSQL. The SeaweedFS volume must be snapshotted manually before the v0.3.0 fresh deploy if attachments and stored exports need to survive. See [Operations → Object storage backup](https://raymond-itsec.github.io/vulnledger/operations/#object-storage-backup) for the manual `tar` procedure.
+
+Long-term, multi-node SeaweedFS replication will replace the manual snapshot path.
+
+### Planned breaking changes
+- Per-tier docker compose layout (`compose/edge.yml`, `compose/app.yml`, `compose/data.yml`, `compose/monitoring.yml`) replacing the single `docker-compose.yml`. Existing `docker-compose.yml` retired in favor of a Makefile-driven `make allinone-up` / `make multihost-up`.
+- Multi-host topology with WireGuard mesh between four hosts (edge, app, data, monitoring). Single-host `allinone` mode preserved as a profile.
+- VictoriaMetrics + vmagent + vmalert + Alertmanager + Grafana + Loki replace Gatus for observability. Internal Grafana dashboards via SSO; public anonymous dashboard for the customer-facing status page.
+- Tier-isolated docker networks (`edge_net`, `app_net`, `data_net`, `monitoring_net`) replacing the single shared bridge.
+- Service discovery via env-driven hostnames (`data.vl.local`, `app.vl.local`, etc.) instead of bare docker service names.
+- DB schema rename per the Q1(b) redesign decision: `Clients` table → `Customers`, `ReviewSessions` table → `Projects`. API routes follow: `/api/clients` → `/api/customers`, `/api/sessions` → `/api/projects`. Touches backend models, alembic migration, API routes, frontend routes, and the API client. Migration runs automatically during the v0.3.0 fresh-deploy + restore flow.
+
+## [v0.2.2] - 2026-05-01
+
+### Security
+- Fixed VL-2026-012: login rate-limit bypass via path normalization. Added `@malformed_path` matcher in Caddy using `vars_regexp` against `{http.request.orig_uri.path}` to reject paths containing `//`, `/./`, `/../`, `%2F`, `%5C`, or NUL bytes (encoded or literal) with 400 before any handler runs. Tightened `@login_brute` to anchored regexp `(?i)^/api/auth/login/?$` as belt-and-braces.
+- Fixed VL-2026-014: hardcoded the session-hint cookie name (`vl_session`) in the backend instead of leaving it env-configurable. Eliminates the drift between backend (env-driven) and Caddy (hardcoded) that could break the auth gate when the env was changed. Removed `FINDINGS_SESSION_HINT_COOKIE_NAME` from `config.py`, `docker-compose.yml`, `.env.example`, README, and the `security-audit` CI workflow.
+- Fixed VL-2026-015: admin user create/update payload validation. Three sub-issues:
+  - Added `zxcvbn` strength estimation on every password entry point (onboarding, admin user create) via new shared validator at `backend/app/services/password_policy.py`. Catches long-but-weak passwords (`aaaaaaaaaaaaaaaa`, `passwordpassword`).
+  - Constrained `role` on `UserCreate` and `UserUpdate` to `Literal['admin', 'reviewer', 'client_user']`. Garbage role strings now return 422 instead of soft-locking the account.
+  - Wrapped commits in `create_user` and `update_user` with `try/except IntegrityError -> 409`. Duplicate username/email no longer returns 500.
+- Added password policy settings: `FINDINGS_PASSWORD_MIN_LENGTH` (default 16, hard floor enforced via `Field(ge=16)`), `FINDINGS_PASSWORD_MAX_LENGTH` (default 128), `FINDINGS_PASSWORD_MIN_ZXCVBN_SCORE` (default 3). Cross-field model validator on `Settings` rejects misconfigs (e.g., max < min) at startup with a clear message.
+- Hardened the backup container: pre-flight encryption check in `entrypoint.sh` runs before the scheduler. Missing passphrase in production mode prints a loud actionable banner and exits 78 (SYSEXITS configuration error). Restart policy changed from `unless-stopped` to `"no"` so config errors surface in `docker compose ps` instead of looping silently. Closes #26.
+- Disabled SeaweedFS filer directory listing (`-filer.disableDirListing`) and removed the LAN port binding for the filer UI. Backend still talks to seaweedfs over the docker network; nothing else needs port 8888 reachable.
+- Added `clipboard-write=(self)` to the Caddy `Permissions-Policy` header so the new SHA256 copy-to-clipboard button can use the modern API.
+
+### Added
+- New `mkdocs-material` documentation site auto-published to GitHub Pages via `.github/workflows/docs.yml`. Eight pages: Home, Quickstart, Architecture, Deployment, Operations, Configuration, Security (with the findings register), API Reference.
+- New `.github/FUNDING.yml` adds a Sponsor button at the top of the repository (GitHub Sponsors).
+- New custom stylelint rule `vl/no-form-bg-without-color` flags any selector targeting `input/textarea/select` that sets `background` without an explicit `color`. Mechanically prevents the recurring white-on-white form input regression class. Wired into `.github/workflows/frontend-lint.yml` to run on push and pull request. Closes #29.
+- Added SHA256 copy-to-clipboard button on the Stored Exports table. New `frontend/src/lib/util/clipboard.ts` helper tries `navigator.clipboard.writeText` first and falls back to `document.execCommand('copy')` for plain-HTTP origins.
+- Added the `internal-audit` GitHub label to mark every self-reported finding from internal audit sweeps.
+
+### Changed
+- Replaced the dated `audit-YYYY-MM-DD` GitHub label scheme with the single `internal-audit` label. Migrated 15 existing issues. Date stays in the issue body / register row.
+- Slimmed `README.md` from 972 lines to 22 (tagline + docs link + sponsor link + license). All long-form content lives at the docs site now.
+- Replaced the global `code, .code` styling with a pastel-friendly tint (`rgba(120, 100, 160, 0.10)` background, `var(--text-primary)` text). Was dark-on-dark and unreadable in every place inline code was used (SHA columns, invite codes).
+- Restyled the modal component to match the pastel-glass aesthetic: glass-card surface, sticky frosted header, softer overlay with backdrop blur, hover state on close button.
+- Added thin lavender semi-transparent scrollbars globally (`::-webkit-scrollbar` + Firefox `scrollbar-color`) to replace the OS-default black scrollbars that broke the visual language inside modals and textareas.
+- AppTopbar `.search input` color literal swapped to `var(--text-primary)`. WaitlistLandingPage `--ink` local token removed; references updated to `--text-primary`. Token consistency.
+- AppSidebar `isActive()` and the layout breadcrumb match now use longest-prefix logic instead of greedy `find()`. Dashboard no longer falsely highlights as active on every `/app/<sub>` page. Fixes VL-2026-011 broader than the original error-page-only scope.
+
+### Fixed
+- Fixed VL-2026-010: `POST /api/findings` 500 caused by nested transaction begin. Replaced `async with db.begin():` blocks in `create_finding` and `update_finding` with the codebase convention (`db.add(...)` -> `await db.commit()`).
+- Fixed VL-2026-013: Caddy attachment body-cap matcher. The previous `request_body /api/findings/*/attachments` glob did not match the canonical upload path; real uploads >1MB silently 413'd at the edge. Now uses two `request_body` directives with mutually exclusive `path_regexp` matchers (`@attachments` and `@not_attachments`) so exactly one fires per request.
+- Fixed VL-2026-011 (broader than the original report): sidebar active state and breadcrumb both mis-derived on every `/app/<sub>` page (Dashboard always highlighted, breadcrumb showed `Dashboard / Detail`). Greedy prefix matching replaced with longest-prefix matching in both places.
+- Fixed #28: white-on-white input text recurring regression. Added `color: var(--text-primary)` and `background: #ffffff` to the bare `input, select, textarea` rule in `app.css`. Added `:-webkit-autofill` rules pinning text and background to our tokens. Added explicit `color` on the scoped `.md-editor textarea` rule. Future-proofed by the new stylelint rule (#29).
+
+### Removed
+- Removed Gatus from the stack. The `gatus` service definition is gone from `docker-compose.yml`, the `monitoring/gatus.yaml` and `monitoring/` directory are deleted, `GATUS_PORT` and `GATUS_BIND_IP` are removed from `.env.example`, and the "Optional health dashboard" section is removed from `docs/operations.md`. Gatus will be replaced by the VictoriaMetrics + Grafana + Loki + Alertmanager stack landing as part of v0.3.0. Past releases keep their Gatus mentions in the historical CHANGELOG entries.
+- Removed the `FINDINGS_SESSION_HINT_COOKIE_NAME` configuration setting (see VL-2026-014 above).
+
+### Operations
+- Created `docs/SECURITY-FINDINGS.md` register with `VL-YYYY-NNN` IDs. Convention codified: behavior-affecting findings get VL-IDs and a register row; pure code-hygiene work stays as plain enhancement issues.
+- Added new GitHub issues for follow-up enhancement work tracked separately: #22 (centralize `COOKIE_SECURE` derivation), #25 (swap healthcheck to `/api/health/live`), #27 (expand observability stack), #30 (implement workspace search), #33 (per-role password length tiers).
+
+## [v0.2.1] - 2026-04-30
 
 ### Breaking
 - Moved the authenticated app entry from `/` to `/app`. The public root now serves the waitlist page, and the dedicated sign-in page now lives at `/login`.
