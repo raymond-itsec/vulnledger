@@ -53,6 +53,11 @@ services:
         "-master.port=9333",
         "-volume.port=8080",
         "-filer.port=8888",
+        # Disable directory listing in the filer web UI. The HTTP
+        # endpoint stays up (the backend talks to it for file ops), but
+        # browsing /buckets/, /sessions/, etc. as HTML returns 403/404
+        # instead of an enumerable file tree.
+        "-filer.disableDirListing",
         "-s3",
         "-s3.port=8333",
       ]
