@@ -44,6 +44,7 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 
 ### Fixed
 - Replaced two `datetime.utcnow()` calls in `backend/app/services/reports.py` with `datetime.now(timezone.utc)`. The deprecated `utcnow()` returned a naive datetime that lost the UTC marker on JSON serialization (consumers parsing `report_generated_at` would have seen no `+00:00` suffix and could mis-interpret the timestamp as local time). All 21 Postgres datetime columns already use `TIMESTAMP WITH TIME ZONE`.
+- SeaweedFS volume cap bumped from the default 7 to 30 in `docker-compose.yml`. The default was hit by the existing default-collection volumes (1-7) plus the `generated-reports` collection volume, leaving no headroom for the master to allocate a volume for the `finding-attachments` collection. Every attachment upload since the storage migration was failing silently with `No writable volumes and no free volumes left for collection:finding-attachments` in the SeaweedFS logs. Each volume is up to ~30GB, allocated lazily, so the higher cap costs nothing if unused.
 
 ### Audited (no code change required)
 - httpx connection-reuse audit: zero direct uses of `httpx` in application code (`backend/app/`, `backend/tests/`, `backend/scripts/`). `httpx==0.28.1` is a transitive dependency pinned for Authlib's OIDC discovery + token exchange; Authlib manages its own client lifecycle. No connection-pool leak risk to refactor. Added an explanatory comment in `backend/requirements.txt` so the pin isn't accidentally removed by a future cleanup.

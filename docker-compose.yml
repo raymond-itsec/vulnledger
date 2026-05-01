@@ -52,6 +52,15 @@ services:
         "-ip=seaweedfs",
         "-master.port=9333",
         "-volume.port=8080",
+        # Volume slots per volume server. Default 7 is too low when
+        # multiple S3 buckets exist (finding-attachments,
+        # generated-reports, ...). Each bucket gets its own SeaweedFS
+        # collection, and the master refuses to allocate volumes for
+        # a new collection once the cap is hit, causing silent upload
+        # failures with "No writable volumes and no free volumes
+        # left". Each volume is up to ~30GB, allocated lazily, so a
+        # high cap costs nothing if unused.
+        "-volume.max=30",
         "-filer.port=8888",
         # Disable directory listing in the filer web UI. The HTTP
         # endpoint stays up (the backend talks to it for file ops), but
