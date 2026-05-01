@@ -63,6 +63,10 @@ services:
       AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_S3_SECRET_KEY:?Set SEAWEEDFS_S3_SECRET_KEY in .env}
     ports:
       - "127.0.0.1:${SEAWEEDFS_S3_PORT:-8333}:8333"
+      # Filer web UI for ad-hoc bucket browsing during dev. LAN-bound
+      # (0.0.0.0) so the laptop can reach it; should be revisited
+      # before any non-dev deployment.
+      - "0.0.0.0:8888:8888"
     volumes:
       - seaweedfs_data:/data
 
