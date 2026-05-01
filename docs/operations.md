@@ -78,21 +78,9 @@ Every service uses the `json-file` driver with rotation at 10 MB × 5 files to k
 
 `docker-compose.yml` defines healthchecks for `db` (`pg_isready`), `seaweedfs`, `clamav`, and `caddy`. The backend declares `depends_on` with `condition: service_healthy` against `db` and `seaweedfs`, so it does not attempt migrations or accept traffic until its dependencies are ready. `docker compose ps` reflects per-service health, and crashed containers restart via `restart: unless-stopped` (except `backup`, which uses `restart: "no"` so a config error doesn't loop).
 
-### Optional health dashboard (Gatus)
+### Recommended observability stack
 
-An opt-in monitoring profile runs [Gatus](https://gatus.io) against every service. Configuration is fully declarative in `monitoring/gatus.yaml` - no setup wizard, no admin login.
-
-```bash
-docker compose --profile monitoring up -d
-```
-
-Then open `http://127.0.0.1:${GATUS_PORT:-8080}` for the status page. Add alert channels (Slack, Discord, email, webhook) by editing `monitoring/gatus.yaml`.
-
-Gatus checks each service over the docker network using each image's fixed listening port, so host-side port overrides in `.env` do not need to be mirrored into the Gatus config.
-
-### Beyond Gatus
-
-For trending, alerting, and 1-year retention, the recommended observability stack is:
+For trending, alerting, and 1-year retention, the planned stack is:
 
 - **VictoriaMetrics** as the time-series database (drop-in Prometheus replacement, ~10x better compression at long retention)
 - **vmagent** scraping per-host exporters

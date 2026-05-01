@@ -71,7 +71,6 @@ Application settings use the `FINDINGS_` prefix. The deployment also exposes sup
 | `CADDY_HTTP_PORT` | `80` | Host port published for Caddy HTTP |
 | `CADDY_HTTPS_PORT` | `443` | Host port published for Caddy HTTPS and HTTP/3 |
 | `CADDY_ATTACHMENT_MAX_SIZE` | `30MB` | Reverse-proxy upload body limit; keep this at or slightly above `FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB` |
-| `GATUS_PORT` | `8080` | Host port published for the optional Gatus monitoring dashboard (only when started with `--profile monitoring`) |
 
 ## Sample `.env` for local development
 
