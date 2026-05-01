@@ -105,7 +105,11 @@
     width: 100%;
     border: 0;
     background: transparent;
-    color: #1e1e2e;
+    /* Required by the vl/no-form-bg-without-color stylelint rule
+     * (background: transparent triggers the check). Using the token
+     * instead of a hardcoded #1e1e2e for consistency with the rest
+     * of the app. */
+    color: var(--text-primary);
     font: inherit;
     font-size: 13px;
     outline: none;

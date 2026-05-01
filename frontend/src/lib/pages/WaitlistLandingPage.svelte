@@ -411,7 +411,6 @@
     --accent-c: #7ab7ff;
     --accent-d: #a78bfa;
     --accent-e: #5dd39e;
-    --ink: #1a1d2e;
     --ink-soft: #42455e;
     --muted: #8a8dac;
     --shadow-sm: 0 2px 4px rgba(80, 40, 120, 0.08), 0 6px 20px rgba(80, 40, 120, 0.1);
@@ -419,7 +418,7 @@
     --shadow-lg: 0 12px 32px rgba(80, 40, 120, 0.18), 0 44px 88px rgba(80, 40, 120, 0.28);
 
     min-height: 100vh;
-    color: var(--ink);
+    color: var(--text-primary);
     background:
       radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.55) 0%, transparent 55%),
       radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.4) 0%, transparent 60%),
@@ -508,7 +507,7 @@
     font-weight: 900;
     letter-spacing: -0.04em;
     line-height: 1.05;
-    color: var(--ink);
+    color: var(--text-primary);
     max-width: 18ch;
   }
 
@@ -598,7 +597,7 @@
     border-radius: 12px;
     border: 1.5px solid rgba(180,160,220,0.42);
     background: rgba(255,255,255,0.85);
-    color: var(--ink);
+    color: var(--text-primary);
     outline: none;
     transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
   }
@@ -608,7 +607,7 @@
   .waitlist-input:focus {
     border-color: var(--accent-a);
     background: #fff;
-    color: var(--ink);
+    color: var(--text-primary);
     box-shadow: 0 0 0 4px rgba(255,106,61,0.15);
   }
 
@@ -799,7 +798,7 @@
     font-weight: 800;
     letter-spacing: -0.02em;
     margin-bottom: 0.45rem;
-    color: var(--ink);
+    color: var(--text-primary);
   }
 
   .feature-card p {
