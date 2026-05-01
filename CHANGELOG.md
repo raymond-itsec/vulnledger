@@ -44,9 +44,9 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 ## [v0.2.2] - 2026-05-01
 
 ### Security
-- Fixed VL-2026-012: login rate-limit bypass via path normalization. Added `@malformed_path` matcher in Caddy using `vars_regexp` against `{http.request.orig_uri.path}` to reject paths containing `//`, `/./`, `/../`, `%2F`, `%5C`, or NUL bytes (encoded or literal) with 400 before any handler runs. Tightened `@login_brute` to anchored regexp `(?i)^/api/auth/login/?$` as belt-and-braces.
-- Fixed VL-2026-014: hardcoded the session-hint cookie name (`vl_session`) in the backend instead of leaving it env-configurable. Eliminates the drift between backend (env-driven) and Caddy (hardcoded) that could break the auth gate when the env was changed. Removed `FINDINGS_SESSION_HINT_COOKIE_NAME` from `config.py`, `docker-compose.yml`, `.env.example`, README, and the `security-audit` CI workflow.
-- Fixed VL-2026-015: admin user create/update payload validation. Three sub-issues:
+- Fixed VL-2026-012 (#23): login rate-limit bypass via path normalization. Added `@malformed_path` matcher in Caddy using `vars_regexp` against `{http.request.orig_uri.path}` to reject paths containing `//`, `/./`, `/../`, `%2F`, `%5C`, or NUL bytes (encoded or literal) with 400 before any handler runs. Tightened `@login_brute` to anchored regexp `(?i)^/api/auth/login/?$` as belt-and-braces.
+- Fixed VL-2026-014 (#31): hardcoded the session-hint cookie name (`vl_session`) in the backend instead of leaving it env-configurable. Eliminates the drift between backend (env-driven) and Caddy (hardcoded) that could break the auth gate when the env was changed. Removed `FINDINGS_SESSION_HINT_COOKIE_NAME` from `config.py`, `docker-compose.yml`, `.env.example`, README, and the `security-audit` CI workflow.
+- Fixed VL-2026-015 (#32): admin user create/update payload validation. Three sub-issues:
   - Added `zxcvbn` strength estimation on every password entry point (onboarding, admin user create) via new shared validator at `backend/app/services/password_policy.py`. Catches long-but-weak passwords (`aaaaaaaaaaaaaaaa`, `passwordpassword`).
   - Constrained `role` on `UserCreate` and `UserUpdate` to `Literal['admin', 'reviewer', 'client_user']`. Garbage role strings now return 422 instead of soft-locking the account.
   - Wrapped commits in `create_user` and `update_user` with `try/except IntegrityError -> 409`. Duplicate username/email no longer returns 500.
@@ -72,14 +72,14 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 - AppSidebar `isActive()` and the layout breadcrumb match now use longest-prefix logic instead of greedy `find()`. Dashboard no longer falsely highlights as active on every `/app/<sub>` page. Fixes VL-2026-011 broader than the original error-page-only scope.
 
 ### Fixed
-- Fixed VL-2026-010: `POST /api/findings` 500 caused by nested transaction begin. Replaced `async with db.begin():` blocks in `create_finding` and `update_finding` with the codebase convention (`db.add(...)` -> `await db.commit()`).
-- Fixed VL-2026-013: Caddy attachment body-cap matcher. The previous `request_body /api/findings/*/attachments` glob did not match the canonical upload path; real uploads >1MB silently 413'd at the edge. Now uses two `request_body` directives with mutually exclusive `path_regexp` matchers (`@attachments` and `@not_attachments`) so exactly one fires per request.
-- Fixed VL-2026-011 (broader than the original report): sidebar active state and breadcrumb both mis-derived on every `/app/<sub>` page (Dashboard always highlighted, breadcrumb showed `Dashboard / Detail`). Greedy prefix matching replaced with longest-prefix matching in both places.
+- Fixed VL-2026-010 (#20): `POST /api/findings` 500 caused by nested transaction begin. Replaced `async with db.begin():` blocks in `create_finding` and `update_finding` with the codebase convention (`db.add(...)` -> `await db.commit()`).
+- Fixed VL-2026-013 (#24): Caddy attachment body-cap matcher. The previous `request_body /api/findings/*/attachments` glob did not match the canonical upload path; real uploads >1MB silently 413'd at the edge. Now uses two `request_body` directives with mutually exclusive `path_regexp` matchers (`@attachments` and `@not_attachments`) so exactly one fires per request.
+- Fixed VL-2026-011 (#21, broader than the original report): sidebar active state and breadcrumb both mis-derived on every `/app/<sub>` page (Dashboard always highlighted, breadcrumb showed `Dashboard / Detail`). Greedy prefix matching replaced with longest-prefix matching in both places.
 - Fixed #28: white-on-white input text recurring regression. Added `color: var(--text-primary)` and `background: #ffffff` to the bare `input, select, textarea` rule in `app.css`. Added `:-webkit-autofill` rules pinning text and background to our tokens. Added explicit `color` on the scoped `.md-editor textarea` rule. Future-proofed by the new stylelint rule (#29).
 
 ### Removed
 - Removed Gatus from the stack. The `gatus` service definition is gone from `docker-compose.yml`, the `monitoring/gatus.yaml` and `monitoring/` directory are deleted, `GATUS_PORT` and `GATUS_BIND_IP` are removed from `.env.example`, and the "Optional health dashboard" section is removed from `docs/operations.md`. Gatus will be replaced by the VictoriaMetrics + Grafana + Loki + Alertmanager stack landing as part of v0.3.0. Past releases keep their Gatus mentions in the historical CHANGELOG entries.
-- Removed the `FINDINGS_SESSION_HINT_COOKIE_NAME` configuration setting (see VL-2026-014 above).
+- Removed the `FINDINGS_SESSION_HINT_COOKIE_NAME` configuration setting (see VL-2026-014 / #31 above).
 
 ### Operations
 - Created `docs/SECURITY-FINDINGS.md` register with `VL-YYYY-NNN` IDs. Convention codified: behavior-affecting findings get VL-IDs and a register row; pure code-hygiene work stays as plain enhancement issues.
