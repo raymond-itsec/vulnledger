@@ -3,7 +3,7 @@
 import csv
 import io
 import json
-from datetime import datetime
+from datetime import datetime, timezone
 
 from weasyprint import HTML
 from weasyprint import default_url_fetcher
@@ -90,7 +90,7 @@ def generate_json(
     validate_report_limits(session, findings)
     findings = _sort_findings(findings, taxonomy)
     data = {
-        "report_generated_at": datetime.utcnow().isoformat(),
+        "report_generated_at": datetime.now(timezone.utc).isoformat(),
         "taxonomy_version": taxonomy.version.version_number,
         "session": {
             "session_id": str(session.session_id),
@@ -296,7 +296,7 @@ def generate_pdf(
 <head><meta charset="utf-8"><style>{_PDF_CSS}</style></head>
 <body>
     <h1>Security Code Review Report</h1>
-    <p class="meta">Generated {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}</p>
+    <p class="meta">Generated {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}</p>
 
     <dl class="cover-info">
         <dt>Review Name</dt><dd>{safe_review_name}</dd>

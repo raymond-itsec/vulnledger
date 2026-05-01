@@ -33,6 +33,9 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 - Service discovery via env-driven hostnames (`data.vl.local`, `app.vl.local`, etc.) instead of bare docker service names.
 - DB schema rename per the Q1(b) redesign decision: `Clients` table → `Customers`, `ReviewSessions` table → `Projects`. API routes follow: `/api/clients` → `/api/customers`, `/api/sessions` → `/api/projects`. Touches backend models, alembic migration, API routes, frontend routes, and the API client. Migration runs automatically during the v0.3.0 fresh-deploy + restore flow.
 
+### Fixed
+- Phase 1.1 UTC datetime audit: replaced two `datetime.utcnow()` calls in `backend/app/services/reports.py` with `datetime.now(timezone.utc)`. The deprecated `utcnow()` returned a naive datetime that lost the UTC marker on JSON serialization (consumers parsing `report_generated_at` would have seen no `+00:00` suffix and could mis-interpret the timestamp as local time). All 21 Postgres datetime columns already use `TIMESTAMP WITH TIME ZONE`.
+
 ## [v0.2.2] - 2026-05-01
 
 ### Security
