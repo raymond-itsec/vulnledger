@@ -66,6 +66,9 @@ nav:
     - Overview: security.md
     - Findings register: SECURITY-FINDINGS.md
   - API Reference: api.md
+  - Project:
+    - Roadmap: Roadmap.md
+    - v0.3 plan: v0.3-plan.md
 
 extra:
   social:
