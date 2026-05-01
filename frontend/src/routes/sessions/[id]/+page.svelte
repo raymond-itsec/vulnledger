@@ -11,6 +11,7 @@
   import Badge from '$lib/components/Badge.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId, downloadResponseAsFile } from '$lib/util/dom';
+  import { copyToClipboard } from '$lib/util/clipboard';
 
   let session = $state<Session | null>(null);
   let findings = $state<Finding[]>([]);
@@ -92,6 +93,16 @@
 
   function shortSha256(value?: string | null) {
     return value ? `${value.slice(0, 12)}...${value.slice(-8)}` : '--';
+  }
+
+  async function copySha(value?: string | null) {
+    if (!value) return;
+    const ok = await copyToClipboard(value);
+    if (ok) {
+      toast.success('SHA256 copied to clipboard');
+    } else {
+      toast.error('Could not copy to clipboard');
+    }
   }
 
   async function handleSave() {
@@ -216,7 +227,25 @@
                 <td>{exportItem.file_name}</td>
                 <td>{exportItem.created_by_name || exportItem.created_by}</td>
                 <td>{formatFileSize(exportItem.size_bytes)}</td>
-                <td><code title={exportItem.sha256 || ''}>{shortSha256(exportItem.sha256)}</code></td>
+                <td>
+                  <span class="sha-cell">
+                    <code title={exportItem.sha256 || ''}>{shortSha256(exportItem.sha256)}</code>
+                    {#if exportItem.sha256}
+                      <button
+                        type="button"
+                        class="copy-btn"
+                        title="Copy full SHA256"
+                        aria-label="Copy full SHA256"
+                        onclick={() => copySha(exportItem.sha256)}
+                      >
+                        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                          <rect x="9" y="9" width="13" height="13" rx="2"/>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+                        </svg>
+                      </button>
+                    {/if}
+                  </span>
+                </td>
                 <td>{formatDateTime(exportItem.locked_until)}</td>
                 <td>
                   <button
@@ -256,3 +285,31 @@
     {/if}
   </div>
 {/if}
+
+<style>
+  .sha-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .copy-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    background: transparent;
+    border: 0;
+    border-radius: 0.25rem;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: background-color 0.15s, color 0.15s;
+  }
+  .copy-btn:hover {
+    background: rgba(120, 100, 160, 0.12);
+    color: var(--text-primary);
+  }
+  .copy-btn:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 1px;
+  }
+</style>
