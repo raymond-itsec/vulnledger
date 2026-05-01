@@ -2,19 +2,20 @@ from uuid import UUID
 import logging
 from tempfile import SpooledTemporaryFile
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.api.deps import ensure_client_access, get_current_user, require_role
+from app.api.deps import ensure_client_access, get_current_user, paginate, require_role
 from app.database import get_db
 from app.models.finding import Finding
 from app.models.finding_attachment import FindingAttachment
 from app.models.review_session import ReviewSession
 from app.models.user import User
 from app.schemas.attachment import AttachmentResponse
+from app.schemas.pagination import PaginatedResponse
 from app.services.antivirus import scan_file_stream
 from app.services.html_safety import content_disposition_attachment
 from app.services.storage import (
@@ -54,20 +55,22 @@ async def _get_accessible_finding(
 
 @router.get(
     "/findings/{finding_id}/attachments",
-    response_model=list[AttachmentResponse],
+    response_model=PaginatedResponse[AttachmentResponse],
 )
 async def list_attachments(
     finding_id: UUID,
+    page: int = Query(1, ge=1),
+    per_page: int = Query(25, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
     await _get_accessible_finding(finding_id, db, user)
-    result = await db.execute(
+    query = (
         select(FindingAttachment)
         .where(FindingAttachment.finding_id == finding_id)
         .order_by(FindingAttachment.uploaded_at.desc())
     )
-    return result.scalars().all()
+    return await paginate(db, query, page, per_page)
 
 
 @router.post(

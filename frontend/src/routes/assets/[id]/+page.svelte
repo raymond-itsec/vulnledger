@@ -49,7 +49,7 @@
       sessions = sRes.items;
       form = { asset_name: a.asset_name, asset_type: a.asset_type, description: a.description || '' };
       if (canEdit) {
-        try { reviewers = await usersApi.listReviewers(); } catch { /* ignore */ }
+        try { reviewers = (await usersApi.listReviewers()).items; } catch { /* ignore */ }
       }
     } catch {
       // Backend returned 404 (asset doesn't exist), 422 (malformed id), or

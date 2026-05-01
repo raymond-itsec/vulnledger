@@ -87,7 +87,7 @@
     try {
       const [sessionResponse, eventResponse] = await Promise.all([
         authApi.listSessions(),
-        authApi.listSecurityEvents(20),
+        authApi.listSecurityEvents(1, 20),
       ]);
       sessions = sessionResponse.items;
       securityEvents = eventResponse.items;

@@ -33,6 +33,15 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 - Service discovery via env-driven hostnames (`data.vl.local`, `app.vl.local`, etc.) instead of bare docker service names.
 - DB schema rename per the Q1(b) redesign decision: `Clients` table → `Customers`, `ReviewSessions` table → `Projects`. API routes follow: `/api/clients` → `/api/customers`, `/api/sessions` → `/api/projects`. Touches backend models, alembic migration, API routes, frontend routes, and the API client. Migration runs automatically during the v0.3.0 fresh-deploy + restore flow.
 
+### Changed
+- **Breaking (API):** Phase 1.2 pagination consistency audit. Five list endpoints that previously returned bare arrays or bespoke envelopes now return the standard `{items, total, page, per_page, pages}` shape used by every other list endpoint. Frontend updated in lockstep:
+  - `GET /api/findings/{id}/attachments` — was bare array, now paginated (`page`, `per_page` query params, default 25, max 100).
+  - `GET /api/taxonomy/versions` — was bare array, now paginated (default 50, max 200).
+  - `GET /api/users/reviewers` — was bare array, now paginated (default 100, max 200).
+  - `GET /api/auth/sessions` — was `{items}` only, now full envelope (default 50, max 200).
+  - `GET /api/auth/security-events` — was `{items, limit}`, now full envelope. The `limit` query param is renamed to `per_page` (same semantics, ge=1, le=200).
+  - Removed obsolete `SessionListResponse` and `SecurityEventListResponse` Pydantic schemas; both endpoints now declare `PaginatedResponse[SessionInfo]` / `PaginatedResponse[SecurityEventInfo]` directly.
+
 ### Fixed
 - Phase 1.1 UTC datetime audit: replaced two `datetime.utcnow()` calls in `backend/app/services/reports.py` with `datetime.now(timezone.utc)`. The deprecated `utcnow()` returned a naive datetime that lost the UTC marker on JSON serialization (consumers parsing `report_generated_at` would have seen no `+00:00` suffix and could mis-interpret the timestamp as local time). All 21 Postgres datetime columns already use `TIMESTAMP WITH TIME ZONE`.
 

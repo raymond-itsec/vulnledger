@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { PaginatedResponse } from './types';
 
 export type TaxonomyEntry = {
   taxonomy_entry_id: string;
@@ -22,5 +23,8 @@ export type TaxonomyVersion = {
 
 export const taxonomyApi = {
   current: () => api.get<TaxonomyVersion>('/api/taxonomy/current'),
-  versions: () => api.get<TaxonomyVersion[]>('/api/taxonomy/versions'),
+  versions: (page = 1, perPage = 50) =>
+    api.get<PaginatedResponse<TaxonomyVersion>>(
+      `/api/taxonomy/versions?page=${page}&per_page=${perPage}`,
+    ),
 };

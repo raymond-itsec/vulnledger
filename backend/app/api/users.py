@@ -28,17 +28,19 @@ async def list_users(
     return await paginate(db, query, page, per_page)
 
 
-@router.get("/reviewers", response_model=list[UserResponse])
+@router.get("/reviewers", response_model=PaginatedResponse[UserResponse])
 async def list_reviewers(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(100, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_role("admin", "reviewer")),
 ):
-    result = await db.execute(
+    query = (
         select(User)
         .where(User.is_active.is_(True), User.role.in_(("admin", "reviewer")))
         .order_by(User.full_name, User.username)
     )
-    return result.scalars().all()
+    return await paginate(db, query, page, per_page)
 
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

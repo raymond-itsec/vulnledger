@@ -51,7 +51,7 @@
       ]);
       finding = f;
       history = h;
-      attachments = a;
+      attachments = a.items;
       populateForm(f);
     } finally {
       loading = false;

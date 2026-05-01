@@ -14,13 +14,12 @@ from app.schemas.error import make_error_payload
 from app.schemas.auth import (
     LoginRequest,
     SecurityEventInfo,
-    SecurityEventListResponse,
     SessionInfo,
-    SessionListResponse,
     SessionRevokeAllResponse,
     SessionRevokeResponse,
     TokenResponse,
 )
+from app.schemas.pagination import PaginatedResponse
 from app.services.auth import (
     create_access_token,
     hash_password,
@@ -261,8 +260,10 @@ async def logout(
     return {"detail": "Logged out"}
 
 
-@router.get("/sessions", response_model=SessionListResponse)
+@router.get("/sessions", response_model=PaginatedResponse[SessionInfo])
 async def list_sessions(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
     refresh_token: str | None = Cookie(None),
@@ -273,16 +274,27 @@ async def list_sessions(
     )
     current_session_id, current_family_id = await _current_refresh_identity(db, refresh_token)
 
-    items: list[SessionInfo] = []
+    all_items: list[SessionInfo] = []
     for session in sessions:
         payload = describe_refresh_session(session)
         payload["is_current"] = (
             current_session_id == session.refresh_session_id
             or (current_family_id is not None and current_family_id == session.family_id)
         )
-        items.append(SessionInfo(**payload))
+        all_items.append(SessionInfo(**payload))
 
-    return SessionListResponse(items=items)
+    total = len(all_items)
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+    start = (page - 1) * per_page
+    items = all_items[start : start + per_page]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
 @router.post("/sessions/revoke-all", response_model=SessionRevokeAllResponse)
@@ -329,18 +341,21 @@ async def revoke_session(
     )
 
 
-@router.get("/security-events", response_model=SecurityEventListResponse)
+@router.get("/security-events", response_model=PaginatedResponse[SecurityEventInfo])
 async def list_security_events(
-    limit: int = Query(default=50, ge=1, le=200),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     user: User = Depends(get_current_user),
 ):
+    # Service caps internally; pull (page * per_page) so we can window the page slice.
+    fetch_cap = min(page * per_page, 200)
     events = await list_security_events_for_user(
         db,
         user_id=user.user_id,
-        limit=limit,
+        limit=fetch_cap,
     )
-    items = [
+    all_items = [
         SecurityEventInfo(
             security_event_id=event.security_event_id,
             event_type=event.event_type,
@@ -353,4 +368,15 @@ async def list_security_events(
         )
         for event in events
     ]
-    return SecurityEventListResponse(items=items, limit=limit)
+    total = len(all_items)
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+    start = (page - 1) * per_page
+    items = all_items[start : start + per_page]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }

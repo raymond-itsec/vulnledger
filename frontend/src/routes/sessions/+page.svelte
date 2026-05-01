@@ -72,7 +72,7 @@
         }
 
         if (reviewersResult.status === 'fulfilled') {
-          reviewers = reviewersResult.value.filter((u) => u.role !== 'client_user');
+          reviewers = reviewersResult.value.items.filter((u) => u.role !== 'client_user');
         } else {
           toast.error('Could not load reviewers for new session creation.');
         }

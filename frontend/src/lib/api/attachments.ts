@@ -1,6 +1,7 @@
 import { authorizedFetch } from './client';
 import { readPublicErrorMessage } from './errors';
 import { downloadBlob } from '$lib/util/dom';
+import type { PaginatedResponse } from './types';
 
 export interface Attachment {
   attachment_id: string;
@@ -13,8 +14,14 @@ export interface Attachment {
 }
 
 export const attachmentsApi = {
-  list: async (findingId: string): Promise<Attachment[]> => {
-    const res = await authorizedFetch(`/api/findings/${findingId}/attachments`);
+  list: async (
+    findingId: string,
+    page = 1,
+    perPage = 25,
+  ): Promise<PaginatedResponse<Attachment>> => {
+    const res = await authorizedFetch(
+      `/api/findings/${findingId}/attachments?page=${page}&per_page=${perPage}`,
+    );
     if (!res.ok) throw new Error(await readPublicErrorMessage(res, 'Failed to load attachments'));
     return res.json();
   },

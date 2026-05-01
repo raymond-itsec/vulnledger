@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
 
 
 class LoginRequest(BaseModel):
@@ -30,10 +30,6 @@ class SessionInfo(BaseModel):
     is_current: bool
 
 
-class SessionListResponse(BaseModel):
-    items: list[SessionInfo]
-
-
 class SessionRevokeResponse(BaseModel):
     revoked: bool
     refresh_session_id: UUID
@@ -52,8 +48,3 @@ class SecurityEventInfo(BaseModel):
     ip_address: str | None
     user_agent: str | None
     details: dict | None = None
-
-
-class SecurityEventListResponse(BaseModel):
-    items: list[SecurityEventInfo]
-    limit: int = Field(ge=1, le=200)

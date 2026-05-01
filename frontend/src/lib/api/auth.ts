@@ -1,4 +1,5 @@
 import { api } from './client';
+import type { PaginatedResponse } from './types';
 
 export interface SessionInfo {
   refresh_session_id: string;
@@ -8,10 +9,6 @@ export interface SessionInfo {
   ip_address: string | null;
   user_agent: string | null;
   is_current: boolean;
-}
-
-export interface SessionListResponse {
-  items: SessionInfo[];
 }
 
 export interface SessionRevokeResponse {
@@ -34,17 +31,17 @@ export interface SecurityEventInfo {
   details: Record<string, unknown> | null;
 }
 
-export interface SecurityEventListResponse {
-  items: SecurityEventInfo[];
-  limit: number;
-}
-
 export const authApi = {
-  listSessions: () => api.get<SessionListResponse>('/api/auth/sessions'),
+  listSessions: (page = 1, perPage = 50) =>
+    api.get<PaginatedResponse<SessionInfo>>(
+      `/api/auth/sessions?page=${page}&per_page=${perPage}`,
+    ),
   revokeSession: (refreshSessionId: string) =>
     api.post<SessionRevokeResponse>(`/api/auth/sessions/${refreshSessionId}/revoke`, {}),
   revokeAllSessions: () =>
     api.post<SessionRevokeAllResponse>('/api/auth/sessions/revoke-all', {}),
-  listSecurityEvents: (limit = 20) =>
-    api.get<SecurityEventListResponse>(`/api/auth/security-events?limit=${limit}`),
+  listSecurityEvents: (page = 1, perPage = 20) =>
+    api.get<PaginatedResponse<SecurityEventInfo>>(
+      `/api/auth/security-events?page=${page}&per_page=${perPage}`,
+    ),
 };

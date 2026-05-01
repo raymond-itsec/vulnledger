@@ -1,11 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from fastapi import APIRouter, Depends, HTTPException, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_current_user, require_role
 from app.database import get_db
 from app.models.taxonomy import TaxonomyVersion
 from app.models.user import User
+from app.schemas.pagination import PaginatedResponse
 from app.schemas.taxonomy import (
     TaxonomyEntryResponse,
     TaxonomyVersionActivate,
@@ -50,20 +51,33 @@ async def current_taxonomy(
     return _serialize_bundle(bundle)
 
 
-@router.get("/versions", response_model=list[TaxonomyVersionResponse])
+@router.get("/versions", response_model=PaginatedResponse[TaxonomyVersionResponse])
 async def list_taxonomy_versions(
+    page: int = Query(1, ge=1),
+    per_page: int = Query(50, ge=1, le=200),
     db: AsyncSession = Depends(get_db),
     _: User = Depends(require_role("admin")),
 ):
-    result = await db.execute(
-        select(TaxonomyVersion).order_by(TaxonomyVersion.version_number.desc())
-    )
-    versions = result.scalars().all()
-    response: list[TaxonomyVersionResponse] = []
+    base = select(TaxonomyVersion).order_by(TaxonomyVersion.version_number.desc())
+    total = (
+        await db.execute(select(func.count()).select_from(base.subquery()))
+    ).scalar() or 0
+    pages = (total + per_page - 1) // per_page if per_page > 0 else 0
+
+    paged = base.offset((page - 1) * per_page).limit(per_page)
+    versions = (await db.execute(paged)).scalars().all()
+    items: list[TaxonomyVersionResponse] = []
     for version in versions:
         bundle = await get_taxonomy_version(db, taxonomy_version_id=version.taxonomy_version_id)
-        response.append(_serialize_bundle(bundle))
-    return response
+        items.append(_serialize_bundle(bundle))
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "per_page": per_page,
+        "pages": pages,
+    }
 
 
 @router.post("/versions", response_model=TaxonomyVersionResponse)

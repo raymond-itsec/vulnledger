@@ -21,7 +21,8 @@ export interface UserSelfUpdate {
 export const usersApi = {
   list: (page = 1, perPage = 25) =>
     api.get<PaginatedResponse<User>>(`/api/users?page=${page}&per_page=${perPage}`),
-  listReviewers: () => api.get<User[]>('/api/users/reviewers'),
+  listReviewers: (page = 1, perPage = 100) =>
+    api.get<PaginatedResponse<User>>(`/api/users/reviewers?page=${page}&per_page=${perPage}`),
   getMe: () => api.get<User>('/api/users/me'),
   get: (id: string) => api.get<User>(`/api/users/${id}`),
   create: (data: Record<string, unknown>) => api.post<User>('/api/users', data),
