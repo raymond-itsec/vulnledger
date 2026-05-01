@@ -92,18 +92,18 @@ async def create_finding(
         await require_taxonomy_value(db, "remediation_status", body.remediation_status)
     except TaxonomyError as exc:
         raise taxonomy_http_error(exc) from exc
-    async with db.begin():
-        finding = Finding(
-            session_id=body.session_id,
-            title=body.title,
-            description=body.description,
-            risk_level=body.risk_level,
-            impact=body.impact,
-            recommendation=body.recommendation,
-            remediation_status=body.remediation_status,
-            references=body.references,
-        )
-        db.add(finding)
+    finding = Finding(
+        session_id=body.session_id,
+        title=body.title,
+        description=body.description,
+        risk_level=body.risk_level,
+        impact=body.impact,
+        recommendation=body.recommendation,
+        remediation_status=body.remediation_status,
+        references=body.references,
+    )
+    db.add(finding)
+    await db.commit()
     await db.refresh(finding)
 
     # Send email notification to session reviewer
@@ -174,26 +174,25 @@ async def update_finding(
     except TaxonomyError as exc:
         raise taxonomy_http_error(exc) from exc
 
-    async with db.begin():
-        # Track changes
-        for field in TRACKED_FIELDS:
-            if field not in update_data:
-                continue
-            old_val = getattr(finding, field)
-            new_val = update_data[field]
-            old_str = str(old_val) if old_val is not None else None
-            new_str = str(new_val) if new_val is not None else None
-            if old_str != new_str:
-                db.add(FindingHistory(
-                    finding_id=finding_id,
-                    changed_by=current_user.user_id,
-                    field_name=field,
-                    old_value=old_str,
-                    new_value=new_str,
-                ))
+    # Track changes
+    for field in TRACKED_FIELDS:
+        if field not in update_data:
+            continue
+        old_val = getattr(finding, field)
+        new_val = update_data[field]
+        old_str = str(old_val) if old_val is not None else None
+        new_str = str(new_val) if new_val is not None else None
+        if old_str != new_str:
+            db.add(FindingHistory(
+                finding_id=finding_id,
+                changed_by=current_user.user_id,
+                field_name=field,
+                old_value=old_str,
+                new_value=new_str,
+            ))
 
-        apply_update_fields(finding, update_data, TRACKED_FIELDS)
-
+    apply_update_fields(finding, update_data, TRACKED_FIELDS)
+    await db.commit()
     await db.refresh(finding)
 
     # Notify on status change
