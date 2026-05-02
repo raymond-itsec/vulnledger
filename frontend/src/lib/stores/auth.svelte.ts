@@ -81,12 +81,15 @@ function clearTokenRefreshTimer(): void {
  */
 function scheduleTokenRefresh(currentToken: string | null): void {
   clearTokenRefreshTimer();
-  if (!currentToken) return;
+  if (!currentToken) {
+    console.debug('[auth] scheduleTokenRefresh: no token, nothing to schedule');
+    return;
+  }
   if (typeof window === 'undefined') return;
 
   const expSeconds = decodeTokenExp(currentToken);
   if (expSeconds === null) {
-    // Can't decode - leave the reactive 401 retry to handle expiry.
+    console.debug('[auth] scheduleTokenRefresh: could not decode exp from token');
     return;
   }
 
@@ -94,13 +97,21 @@ function scheduleTokenRefresh(currentToken: string | null): void {
   const refreshAtMs = expMs - REFRESH_BUFFER_MS;
   const delayMs = refreshAtMs - Date.now();
 
+  console.debug(
+    '[auth] scheduleTokenRefresh:',
+    'exp =', new Date(expMs).toISOString(),
+    '| now =', new Date().toISOString(),
+    '| will refresh in', Math.round(delayMs / 1000), 's',
+  );
+
   if (delayMs <= 0) {
-    // Already past the refresh window. Fire now.
+    console.debug('[auth] scheduleTokenRefresh: past window, firing immediately');
     void refreshToken();
     return;
   }
 
   refreshTimerId = setTimeout(() => {
+    console.debug('[auth] scheduleTokenRefresh: timer fired, calling refreshToken now');
     refreshTimerId = null;
     void refreshToken();
   }, delayMs);
