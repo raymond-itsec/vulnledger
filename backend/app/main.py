@@ -20,6 +20,7 @@ from app.api import attachments, auth, assets, clients, findings, invites, onboa
 from app.config import settings, startup_config_source_report
 from app.database import engine
 from app.logging_config import configure_logging
+from app.middleware.request_id import RequestIDMiddleware
 from app.schemas.error import make_error_payload
 from app.services.antivirus import probe_scanner
 from app.services.seed import seed_admin_user, sync_builtin_templates
@@ -273,12 +274,13 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
 
 # Middleware. Starlette's `add_middleware` prepends, so the LAST added
-# is the OUTERMOST in the request flow. Adding in the order
-# Legacy -> DeprecatedHeaders -> CORS -> SecurityHeaders means
-# SecurityHeaders wraps everything (request flow: SecurityHeaders ->
-# CORS -> DeprecatedHeaders -> Legacy -> handler). This way, the 308
-# short-circuit response from Legacy still picks up CORS and security
-# headers on the way back out.
+# is the OUTERMOST in the request flow. Adding in this order makes
+# RequestID outermost (so its contextvars are set before any other
+# middleware or handler runs and every log record can pick them up),
+# then SecurityHeaders, CORS, DeprecatedVersionHeaders, Legacy. The
+# 308 short-circuit response from Legacy still picks up CORS, security
+# headers, AND the X-Request-ID / X-VL-Request-ID headers on the way
+# back out.
 app.add_middleware(LegacyApiRedirectMiddleware)
 app.add_middleware(DeprecatedVersionHeadersMiddleware)
 app.add_middleware(
@@ -289,6 +291,7 @@ app.add_middleware(
     allow_headers=settings.allowed_headers,
 )
 app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestIDMiddleware)
 
 # Mount every router from the API_VERSIONS registry under its version
 # prefix. Adding a new version is a registry change; the loop picks it up.
