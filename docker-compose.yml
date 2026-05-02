@@ -163,12 +163,16 @@ services:
       - ./.env:/run/config/vulnledger.env:ro
       - ./docker-compose.yml:/run/config/docker-compose.yml:ro
     healthcheck:
+      # Use the dedicated liveness probe under the v1 prefix. The endpoint
+      # is restricted to RFC1918 and loopback source IPs, so the in-container
+      # request from 127.0.0.1 is allowed. Closes #25 (swap healthcheck off
+      # /openapi.json now that the schema moved under /api/v1/).
       test:
         [
           "CMD",
           "python",
           "-c",
-          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/openapi.json', timeout=3)",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=3)",
         ]
       interval: 10s
       timeout: 5s

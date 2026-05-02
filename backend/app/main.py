@@ -1,5 +1,6 @@
 import logging
 import os
+import re
 import time
 import asyncio
 from contextlib import asynccontextmanager
@@ -79,24 +80,76 @@ async def lifespan(app: FastAPI):
     await engine.dispose()
 
 
-# API URL versioning. The canonical surface is `/api/v1/`. Unversioned
-# `/api/...` paths return HTTP 308 (preserves method + body, unlike 301)
-# to the v1 equivalent so transition is automatic for any external
-# consumer still hitting the unversioned URLs. The `Sunset` header tells
-# them when the shim goes away.
+# API URL versioning registry. Single source of truth for which API
+# versions exist, which one is current, and which are deprecated. Every
+# version's `routers` list is mounted under `/api/<version>/`. The
+# `LegacyApiRedirectMiddleware` redirects unversioned `/api/...` requests
+# to whatever is marked `current`. The `DeprecatedVersionHeadersMiddleware`
+# stamps `Deprecation: true` + `Sunset` headers on every response from a
+# deprecated version's prefix, so external clients get programmatic
+# notice both via the legacy redirect AND via direct calls to the
+# deprecated version itself.
+#
+# To deprecate v1 once v2 ships:
+#   API_VERSIONS["v1"]["current"] = False
+#   API_VERSIONS["v1"]["sunset"]  = "Mon, DD MMM YYYY 00:00:00 GMT"
+#   API_VERSIONS["v2"] = {"current": True, "sunset": None, "routers": [...]}
+# After the v1 sunset date passes, the v1 entry can be removed entirely.
 LEGACY_API_SUNSET_DATE = "Mon, 01 Jun 2026 00:00:00 GMT"
+
+API_VERSIONS: dict[str, dict] = {
+    "v1": {
+        "current": True,
+        "sunset": None,
+        "routers": [
+            auth.router,
+            invites.router,
+            onboarding.router,
+            users.router,
+            clients.router,
+            assets.router,
+            sessions.router,
+            findings.router,
+            templates.router,
+            taxonomy.router,
+            attachments.router,
+            reports.router,
+        ],
+    },
+}
+
+
+def current_api_version() -> str:
+    """Return the version key currently marked `current` in the registry."""
+    for version, meta in API_VERSIONS.items():
+        if meta.get("current"):
+            return version
+    raise RuntimeError("No API version marked current in API_VERSIONS")
+
+
+CURRENT_API_PREFIX = f"/api/{current_api_version()}"
+
+# Matches `/api/vN` and `/api/vN/...` for any positive integer N. Used by
+# the legacy redirect to recognize "this path is already version-prefixed,
+# do not redirect even if N is unknown to the registry" (unknown versions
+# fall through to FastAPI's natural 404).
+VERSION_SEGMENT_RE = re.compile(r"^/api/v\d+(/|$)")
 
 
 class LegacyApiRedirectMiddleware(BaseHTTPMiddleware):
-    """308 redirect any unversioned `/api/...` request to its `/api/v1/...`
-    equivalent. Adds `Deprecation: true` and `Sunset` headers so external
-    callers get programmatic notice. The frontend SPA calls `/api/v1/`
-    directly; this redirect exists for transition support only."""
+    """308 redirect any unversioned `/api/...` request to the current
+    versioned prefix. Preserves method + body (unlike 301). Adds
+    `Deprecation: true` and `Sunset` headers so external callers get
+    programmatic notice. The frontend SPA calls the current prefix
+    directly; this redirect exists for transition support only.
+    """
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
-        if path.startswith("/api/") and not path.startswith("/api/v1/"):
-            new_path = "/api/v1/" + path[len("/api/"):]
+        if path.startswith("/api/") and not VERSION_SEGMENT_RE.match(path):
+            # Strip the bare "/api" prefix and prepend the current versioned
+            # prefix. Example: "/api/users" -> "/api/v1/users".
+            new_path = CURRENT_API_PREFIX + path[len("/api"):]
             location = new_path
             if request.url.query:
                 location = f"{new_path}?{request.url.query}"
@@ -109,6 +162,31 @@ class LegacyApiRedirectMiddleware(BaseHTTPMiddleware):
                 },
             )
         return await call_next(request)
+
+
+class DeprecatedVersionHeadersMiddleware(BaseHTTPMiddleware):
+    """Stamp `Deprecation: true` + `Sunset` headers on every response
+    served from a deprecated API version's prefix (i.e. any version where
+    `current` is False and a `sunset` date is set). Today no version is
+    deprecated, so this middleware is a no-op. When v1 gets deprecated
+    after v2 ships, requests to `/api/v1/...` automatically receive the
+    headers without further code changes.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path
+        for version, meta in API_VERSIONS.items():
+            if meta.get("current"):
+                continue
+            sunset = meta.get("sunset")
+            if not sunset:
+                continue
+            if path.startswith(f"/api/{version}/") or path == f"/api/{version}":
+                response.headers["Deprecation"] = "true"
+                response.headers["Sunset"] = sunset
+                break
+        return response
 
 
 # Security headers middleware
@@ -139,6 +217,13 @@ app = FastAPI(
     title="Security Findings Manager",
     version=settings.app_version,
     lifespan=lifespan,
+    # OpenAPI schema + interactive docs live under the current API URL
+    # prefix so they are versioned alongside the routes they describe and
+    # reachable via the same Caddy `/api/*` reverse-proxy rule. When v2
+    # becomes current via API_VERSIONS, these paths flip automatically.
+    openapi_url=f"{CURRENT_API_PREFIX}/openapi.json",
+    docs_url=f"{CURRENT_API_PREFIX}/docs",
+    redoc_url=f"{CURRENT_API_PREFIX}/redoc",
 )
 
 # Rate limit error handler
@@ -187,8 +272,15 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
         ),
     )
 
-# Middleware (order matters: outermost first)
-app.add_middleware(SecurityHeadersMiddleware)
+# Middleware. Starlette's `add_middleware` prepends, so the LAST added
+# is the OUTERMOST in the request flow. Adding in the order
+# Legacy -> DeprecatedHeaders -> CORS -> SecurityHeaders means
+# SecurityHeaders wraps everything (request flow: SecurityHeaders ->
+# CORS -> DeprecatedHeaders -> Legacy -> handler). This way, the 308
+# short-circuit response from Legacy still picks up CORS and security
+# headers on the way back out.
+app.add_middleware(LegacyApiRedirectMiddleware)
+app.add_middleware(DeprecatedVersionHeadersMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.allowed_origins,
@@ -196,28 +288,22 @@ app.add_middleware(
     allow_methods=settings.allowed_methods,
     allow_headers=settings.allowed_headers,
 )
-# Legacy `/api/...` -> `/api/v1/...` 308 redirect with Deprecation +
-# Sunset headers. Innermost so the redirect response still picks up
-# CORS + security headers on the way out.
-app.add_middleware(LegacyApiRedirectMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
-app.include_router(auth.router, prefix="/api/v1")
-app.include_router(invites.router, prefix="/api/v1")
-app.include_router(onboarding.router, prefix="/api/v1")
-app.include_router(users.router, prefix="/api/v1")
-app.include_router(clients.router, prefix="/api/v1")
-app.include_router(assets.router, prefix="/api/v1")
-app.include_router(sessions.router, prefix="/api/v1")
-app.include_router(findings.router, prefix="/api/v1")
-app.include_router(templates.router, prefix="/api/v1")
-app.include_router(taxonomy.router, prefix="/api/v1")
-app.include_router(attachments.router, prefix="/api/v1")
-app.include_router(reports.router, prefix="/api/v1")
+# Mount every router from the API_VERSIONS registry under its version
+# prefix. Adding a new version is a registry change; the loop picks it up.
+for _version, _meta in API_VERSIONS.items():
+    _prefix = f"/api/{_version}"
+    for _router in _meta["routers"]:
+        app.include_router(_router, prefix=_prefix)
 
-# OIDC router (only if configured)
+# OIDC router is conditional on configuration. Today it lives under the
+# current version only; if v2 ships and OIDC routes change, add the v2
+# variant to API_VERSIONS["v2"]["routers"] and remove this conditional
+# block.
 if settings.oidc_enabled:
     from app.api import oidc
-    app.include_router(oidc.router, prefix="/api/v1")
+    app.include_router(oidc.router, prefix=CURRENT_API_PREFIX)
 
 
 def _effective_probe_ip(request: Request) -> str | None:
