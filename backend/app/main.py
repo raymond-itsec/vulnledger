@@ -253,11 +253,16 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    # Surface per-field validation issues in the structured `details`
+    # field so the frontend can highlight the offending fields without
+    # parsing free-form text. Each item is Pydantic's standard error
+    # dict: `{"loc": ["body", "field"], "msg": "...", "type": "..."}`.
     return JSONResponse(
         status_code=422,
         content=make_error_payload(
             code="validation_error",
             detail="Request validation failed.",
+            details={"errors": exc.errors()},
         ),
     )
 
