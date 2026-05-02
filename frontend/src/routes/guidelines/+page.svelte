@@ -41,5 +41,4 @@
   h2 { margin: 1.5rem 0 0.4rem; font-size: 1.05rem; font-weight: 700; color: #1a1d2e; }
   .lead { font-size: 1.05rem; font-weight: 500; color: #42455e; line-height: 1.7; margin: 0 0 1rem; }
   p { color: #42455e; line-height: 1.7; margin: 0 0 0.75rem; }
-  a { color: #ff6a3d; text-decoration: underline; }
 </style>
