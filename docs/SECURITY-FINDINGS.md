@@ -22,6 +22,7 @@ it was discovered and (when fixed) the date it was closed.
 | VL-2026-014 | Caddy session-hint gate hardcoded; drifts from backend env | Low | Fixed | 2026-05-01 | 2026-05-01 | [#31](../../issues/31) |
 | VL-2026-015 | Admin user create/update under-validated; 500s on duplicates | Medium | Fixed | 2026-05-01 | 2026-05-01 | [#32](../../issues/32) |
 | VL-2026-016 | SvelteKit auth checks are client-only; no server-side enforcement | Low | Open | 2026-05-01 | — | [#34](../../issues/34) |
+| VL-2026-017 | Invite redemption lacks row-level lock; relies on downstream unique constraint | Low | Open | 2026-05-02 | — | [#41](../../issues/41) |
 
 ## Scope of the register
 
