@@ -9,7 +9,7 @@ Two distinct identifiers per HTTP request, never conflated.
     customer's monitoring stack only ever sees IDs it generated itself.
 
 `X-VL-Request-ID` (internal VulnLedger lineage)
-    ALWAYS generated server-side as `vl-<uuid4>`. Always set on the response.
+    ALWAYS generated server-side as `VL-<uuid4>`. Always set on the response.
     Incoming `X-VL-Request-ID` headers are always ignored: only VulnLedger's
     own systems get to issue VL-prefixed IDs. Across multi-host (Phase 5+),
     VL services should forward `X-VL-Request-ID` to other VL services and
@@ -30,7 +30,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
-VL_REQUEST_ID_PREFIX = "vl-"
+VL_REQUEST_ID_PREFIX = "VL-"
 
 # Default `None` distinguishes "not in a request" from "in a request but the
 # upstream did not send a valid X-Request-ID" (in which case x_request_id_var
@@ -47,8 +47,8 @@ vl_request_id_var: ContextVar[Optional[str]] = ContextVar(
 def _is_valid_uuid(value: str) -> bool:
     """Return True iff value parses as a UUID of any version.
 
-    `uuid.UUID()` raises ValueError on malformed input, including the
-    `vl-...` injection attempt (which contains an extra dash group and
+    `uuid.UUID()` raises ValueError on malformed input, including any
+    `VL-...` injection attempt (which contains an extra dash group and
     leading non-hex chars).
     """
     try:
@@ -59,7 +59,7 @@ def _is_valid_uuid(value: str) -> bool:
 
 
 def _generate_vl_request_id() -> str:
-    """Generate a new VulnLedger-prefixed request ID. Format: `vl-<uuid4>`."""
+    """Generate a new VulnLedger-prefixed request ID. Format: `VL-<uuid4>`."""
     return f"{VL_REQUEST_ID_PREFIX}{uuid.uuid4()}"
 
 
@@ -69,7 +69,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
     Behavior:
       * Read `X-Request-ID` from the incoming request. If it is a valid
         UUID, propagate it; otherwise treat as absent.
-      * Always generate a fresh `vl-<uuid4>` for `X-VL-Request-ID`.
+      * Always generate a fresh `VL-<uuid4>` for `X-VL-Request-ID`.
       * Always ignore any incoming `X-VL-Request-ID` (security boundary -
         only our systems get to issue VL-prefixed IDs).
       * Set both contextvars before the downstream chain runs so handlers
