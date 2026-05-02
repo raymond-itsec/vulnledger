@@ -52,21 +52,19 @@ services:
         "-ip=seaweedfs",
         "-master.port=9333",
         "-volume.port=8080",
-        # Volume slots per volume server. Default 7 is too low when
+        # Volume slots per volume server. Default 8 is too low when
         # multiple S3 buckets exist (finding-attachments,
         # generated-reports, ...). Each bucket gets its own SeaweedFS
         # collection, and the master refuses to allocate volumes for
         # a new collection once the cap is hit, causing silent upload
         # failures with "No writable volumes and no free volumes
-        # left". Each volume is up to ~30GB, allocated lazily, so a
-        # high cap costs nothing if unused.
-        "-volume.max=30",
-        # When the master needs to grow a collection (no writable
-        # volumes available), allocate 4 new volumes at a time
-        # instead of the default 7. Smaller buffer keeps /data/
-        # tidier per collection while still avoiding write stalls
-        # for typical concurrency.
-        "-master.volumeGrowthCount=4",
+        # left". SeaweedFS hardcodes growth = 7 volumes per event for
+        # replication "000" (Copy1Count in weed/topology/volume_growth.go);
+        # not configurable in 4.20. So 3 collections × 7 = 21 at boot,
+        # +7 per regrowth. 100 gives ~11 growth events of headroom.
+        # Each volume is up to ~30GB, allocated lazily, so a high cap
+        # costs nothing if unused.
+        "-volume.max=100",
         "-filer.port=8888",
         # Disable directory listing in the filer web UI. The HTTP
         # endpoint stays up (the backend talks to it for file ops), but
