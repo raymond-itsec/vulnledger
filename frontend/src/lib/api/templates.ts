@@ -22,10 +22,10 @@ export const templatesApi = {
   list: (category?: string, page = 1, perPage = 100) => {
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
     if (category) qs.set('category', category);
-    return api.get<PaginatedResponse<Template>>(`/api/templates?${qs}`);
+    return api.get<PaginatedResponse<Template>>(`/api/v1/templates?${qs}`);
   },
-  get: (id: string) => api.get<Template>(`/api/templates/${id}`),
-  create: (data: Partial<Template>) => api.post<Template>('/api/templates', data),
-  update: (id: string, data: Partial<Template>) => api.patch<Template>(`/api/templates/${id}`, data),
-  delete: (id: string) => api.delete<void>(`/api/templates/${id}`),
+  get: (id: string) => api.get<Template>(`/api/v1/templates/${id}`),
+  create: (data: Partial<Template>) => api.post<Template>('/api/v1/templates', data),
+  update: (id: string, data: Partial<Template>) => api.patch<Template>(`/api/v1/templates/${id}`, data),
+  delete: (id: string) => api.delete<void>(`/api/v1/templates/${id}`),
 };

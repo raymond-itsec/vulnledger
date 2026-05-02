@@ -108,9 +108,12 @@
 		# cap apply exactly to the canonical upload path and nowhere else.
 		# Side benefit: closes the small DoS amplification surface where
 		# unauthenticated requests could push 30MB at non-existent routes.
-		@attachments path_regexp ^/api/findings/[^/]+/attachments$
+		# Match both the v1 path and the legacy unversioned path during the
+		# deprecation window. After Sunset, the unversioned half can be
+		# dropped from these regexps.
+		@attachments path_regexp ^/api/(?:v1/)?findings/[^/]+/attachments$
 		@not_attachments {
-			not path_regexp ^/api/findings/[^/]+/attachments$
+			not path_regexp ^/api/(?:v1/)?findings/[^/]+/attachments$
 		}
 		request_body @not_attachments {
 			max_size 1MB
@@ -123,15 +126,18 @@
 		# 1200 events/minute (20/sec average) is comfortable for an SPA that
 		# batches requests on page load and stays well above active-dev F5
 		# patterns. Endpoints excluded below:
-		#   /api/health, /api/health/live  — health probes, must never throttle
-		#   /api/auth/refresh              — requires a valid refresh-token cookie,
-		#                                    cannot be brute-forced, and a 429 here
-		#                                    forcibly logs the user out (catastrophic
-		#                                    UX). Brute-force protection lives on
-		#                                    /api/auth/login via login_zone below.
+		#   /api/health, /api/health/live  -- health probes, must never throttle
+		#   /api/auth/refresh              -- requires a valid refresh-token cookie,
+		#                                     cannot be brute-forced, and a 429 here
+		#                                     forcibly logs the user out (catastrophic
+		#                                     UX). Brute-force protection lives on
+		#                                     /api/auth/login via login_zone below.
+		# Both v1 and legacy unversioned paths are excluded during the
+		# deprecation window. After Sunset, drop the unversioned variants.
 		@api_limited {
 			path /api/*
 			not path /api/health /api/health/live /api/auth/refresh
+			not path /api/v1/health /api/v1/health/live /api/v1/auth/refresh
 		}
 		rate_limit @api_limited {
 			zone api_zone {
@@ -142,7 +148,7 @@
 		}
 
 		# Tighter bucket specifically on /api/auth/login to keep brute-force
-		# protection in place. Only login needs this — /refresh and /logout
+		# protection in place. Only login needs this. /refresh and /logout
 		# require an existing valid session (cookie or token) so they can't
 		# be brute-forced and fall under the general /api/* limit.
 		#
@@ -155,7 +161,11 @@
 		# normalized form. Verified empirically 2026-04-30: 31st rapid POST
 		# to /api//auth//login returned 429 from `login_zone`, confirming
 		# the strict bucket fires on the malformed variant.
-		@login_brute path_regexp (?i)^/api/auth/login/?$
+		#
+		# Matches both the v1 path and the legacy unversioned path during
+		# the deprecation window. After Sunset, drop the optional `(?:v1/)?`
+		# group.
+		@login_brute path_regexp (?i)^/api/(?:v1/)?auth/login/?$
 		rate_limit @login_brute {
 			zone login_zone {
 				key {remote_host}

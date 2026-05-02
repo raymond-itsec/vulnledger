@@ -60,7 +60,7 @@
     if (!session) return;
     exporting = format;
     try {
-      const res = await authorizedFetch(`/api/reports/sessions/${session.session_id}/${format}`);
+      const res = await authorizedFetch(`/api/v1/reports/sessions/${session.session_id}/${format}`);
       if (!res.ok) throw new Error('Export failed');
       await downloadResponseAsFile(res, `report.${format}`);
       storedExports = await reportsApi.list(session.session_id);

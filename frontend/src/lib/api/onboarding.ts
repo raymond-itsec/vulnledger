@@ -55,17 +55,17 @@ async function publicJsonRequest<T>(path: string, init: RequestInit): Promise<T>
 
 export const onboardingApi = {
   verifyInvite: (inviteCode: string) =>
-    publicJsonRequest<InviteVerifyResponse>('/api/invites/verify', {
+    publicJsonRequest<InviteVerifyResponse>('/api/v1/invites/verify', {
       method: 'POST',
       body: JSON.stringify({ invite_code: inviteCode }),
     }),
   getState: () =>
-    publicJsonRequest<OnboardingStateResponse>('/api/onboarding/state', {
+    publicJsonRequest<OnboardingStateResponse>('/api/v1/onboarding/state', {
       method: 'GET',
       headers: {},
     }),
   complete: (body: OnboardingCompleteRequest) =>
-    publicJsonRequest<OnboardingCompleteResponse>('/api/onboarding/complete', {
+    publicJsonRequest<OnboardingCompleteResponse>('/api/v1/onboarding/complete', {
       method: 'POST',
       body: JSON.stringify(body),
     }),

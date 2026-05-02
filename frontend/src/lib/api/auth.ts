@@ -34,14 +34,14 @@ export interface SecurityEventInfo {
 export const authApi = {
   listSessions: (page = 1, perPage = 50) =>
     api.get<PaginatedResponse<SessionInfo>>(
-      `/api/auth/sessions?page=${page}&per_page=${perPage}`,
+      `/api/v1/auth/sessions?page=${page}&per_page=${perPage}`,
     ),
   revokeSession: (refreshSessionId: string) =>
-    api.post<SessionRevokeResponse>(`/api/auth/sessions/${refreshSessionId}/revoke`, {}),
+    api.post<SessionRevokeResponse>(`/api/v1/auth/sessions/${refreshSessionId}/revoke`, {}),
   revokeAllSessions: () =>
-    api.post<SessionRevokeAllResponse>('/api/auth/sessions/revoke-all', {}),
+    api.post<SessionRevokeAllResponse>('/api/v1/auth/sessions/revoke-all', {}),
   listSecurityEvents: (page = 1, perPage = 20) =>
     api.get<PaginatedResponse<SecurityEventInfo>>(
-      `/api/auth/security-events?page=${page}&per_page=${perPage}`,
+      `/api/v1/auth/security-events?page=${page}&per_page=${perPage}`,
     ),
 };

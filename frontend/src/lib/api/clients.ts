@@ -13,8 +13,8 @@ export interface Client {
 
 export const clientsApi = {
   list: (page = 1, perPage = 25) =>
-    api.get<PaginatedResponse<Client>>(`/api/clients?page=${page}&per_page=${perPage}`),
-  get: (id: string) => api.get<Client>(`/api/clients/${id}`),
-  create: (data: Partial<Client>) => api.post<Client>('/api/clients', data),
-  update: (id: string, data: Partial<Client>) => api.patch<Client>(`/api/clients/${id}`, data),
+    api.get<PaginatedResponse<Client>>(`/api/v1/clients?page=${page}&per_page=${perPage}`),
+  get: (id: string) => api.get<Client>(`/api/v1/clients/${id}`),
+  create: (data: Partial<Client>) => api.post<Client>('/api/v1/clients', data),
+  update: (id: string, data: Partial<Client>) => api.patch<Client>(`/api/v1/clients/${id}`, data),
 };

@@ -17,8 +17,8 @@ export type ReportExport = {
 
 export const reportsApi = {
   list: (sessionId: string) =>
-    api.get<ReportExport[]>(`/api/reports/sessions/${sessionId}/exports`),
+    api.get<ReportExport[]>(`/api/v1/reports/sessions/${sessionId}/exports`),
 
   downloadStored: (exportId: string) =>
-    authorizedFetch(`/api/reports/exports/${exportId}/download`),
+    authorizedFetch(`/api/v1/reports/exports/${exportId}/download`),
 };

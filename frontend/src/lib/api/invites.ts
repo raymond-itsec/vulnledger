@@ -25,9 +25,9 @@ export interface InviteRevokeResponse {
 
 export const invitesApi = {
   list: (page = 1, perPage = 25) =>
-    api.get<PaginatedResponse<Invite>>(`/api/invites?page=${page}&per_page=${perPage}`),
+    api.get<PaginatedResponse<Invite>>(`/api/v1/invites?page=${page}&per_page=${perPage}`),
   create: (body: InviteCreateRequest) =>
-    api.post<Invite>('/api/invites', body),
+    api.post<Invite>('/api/v1/invites', body),
   revoke: (inviteId: string) =>
-    api.post<InviteRevokeResponse>(`/api/invites/${inviteId}/revoke`, {}),
+    api.post<InviteRevokeResponse>(`/api/v1/invites/${inviteId}/revoke`, {}),
 };

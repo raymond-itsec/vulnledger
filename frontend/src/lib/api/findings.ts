@@ -42,10 +42,10 @@ export const findingsApi = {
     if (params?.search) qs.set('search', params.search);
     qs.set('page', String(params?.page || 1));
     qs.set('per_page', String(params?.per_page || 25));
-    return api.get<PaginatedResponse<Finding>>(`/api/findings?${qs}`);
+    return api.get<PaginatedResponse<Finding>>(`/api/v1/findings?${qs}`);
   },
-  get: (id: string) => api.get<Finding>(`/api/findings/${id}`),
-  create: (data: Partial<Finding>) => api.post<Finding>('/api/findings', data),
-  update: (id: string, data: Partial<Finding>) => api.patch<Finding>(`/api/findings/${id}`, data),
-  history: (id: string) => api.get<FindingHistory[]>(`/api/findings/${id}/history`),
+  get: (id: string) => api.get<Finding>(`/api/v1/findings/${id}`),
+  create: (data: Partial<Finding>) => api.post<Finding>('/api/v1/findings', data),
+  update: (id: string, data: Partial<Finding>) => api.patch<Finding>(`/api/v1/findings/${id}`, data),
+  history: (id: string) => api.get<FindingHistory[]>(`/api/v1/findings/${id}/history`),
 };

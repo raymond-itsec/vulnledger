@@ -22,9 +22,9 @@ export type TaxonomyVersion = {
 };
 
 export const taxonomyApi = {
-  current: () => api.get<TaxonomyVersion>('/api/taxonomy/current'),
+  current: () => api.get<TaxonomyVersion>('/api/v1/taxonomy/current'),
   versions: (page = 1, perPage = 50) =>
     api.get<PaginatedResponse<TaxonomyVersion>>(
-      `/api/taxonomy/versions?page=${page}&per_page=${perPage}`,
+      `/api/v1/taxonomy/versions?page=${page}&per_page=${perPage}`,
     ),
 };

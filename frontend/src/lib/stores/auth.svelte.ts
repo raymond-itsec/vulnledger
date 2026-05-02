@@ -159,7 +159,7 @@ async function clearStaleSession(): Promise<void> {
 
   staleSessionCleanupPromise = (async () => {
     try {
-      await fetchWithAvailability('/api/auth/logout', {
+      await fetchWithAvailability('/api/v1/auth/logout', {
         method: 'POST',
         credentials: 'include',
       }, true);
@@ -177,7 +177,7 @@ async function clearStaleSession(): Promise<void> {
 }
 
 export async function login(username: string, password: string): Promise<void> {
-  const res = await fetchWithAvailability('/api/auth/login', {
+  const res = await fetchWithAvailability('/api/v1/auth/login', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
@@ -201,7 +201,7 @@ export async function login(username: string, password: string): Promise<void> {
 
 export async function fetchMe(): Promise<void> {
   if (!token) return;
-  const res = await fetchWithAvailability('/api/users/me', {
+  const res = await fetchWithAvailability('/api/v1/users/me', {
     headers: { Authorization: `Bearer ${token}` },
   }, true);
   if (res.ok) {
@@ -232,7 +232,7 @@ export async function refreshToken(): Promise<boolean> {
       // rather than instantly tripping it again.
       await awaitRateLimitCooling();
 
-      const res = await fetchWithAvailability('/api/auth/refresh', {
+      const res = await fetchWithAvailability('/api/v1/auth/refresh', {
         method: 'POST',
         credentials: 'include',
       }, true);
@@ -328,7 +328,7 @@ export async function logout(notifyFailure = true): Promise<boolean> {
   let revokeSucceeded = false;
   try {
     const res = await fetchWithAvailability(
-      '/api/auth/logout',
+      '/api/v1/auth/logout',
       { method: 'POST', credentials: 'include' },
       true,
     );

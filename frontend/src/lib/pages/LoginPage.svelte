@@ -72,7 +72,7 @@
       <div class="sso-divider">
         <span>or</span>
       </div>
-      <a href="/api/auth/oidc/login" class="btn btn-secondary login-btn sso-btn">
+      <a href="/api/v1/auth/oidc/login" class="btn btn-secondary login-btn sso-btn">
         Sign in with SSO
       </a>
     {/if}

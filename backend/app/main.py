@@ -13,6 +13,7 @@ from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from app.api import attachments, auth, assets, clients, findings, invites, onboarding, reports, sessions, taxonomy, templates, users
 from app.config import settings, startup_config_source_report
@@ -76,6 +77,38 @@ async def lifespan(app: FastAPI):
         logger.warning("Object storage not available -- file attachments and report storage disabled")
     yield
     await engine.dispose()
+
+
+# API URL versioning. The canonical surface is `/api/v1/`. Unversioned
+# `/api/...` paths return HTTP 308 (preserves method + body, unlike 301)
+# to the v1 equivalent so transition is automatic for any external
+# consumer still hitting the unversioned URLs. The `Sunset` header tells
+# them when the shim goes away.
+LEGACY_API_SUNSET_DATE = "Mon, 01 Jun 2026 00:00:00 GMT"
+
+
+class LegacyApiRedirectMiddleware(BaseHTTPMiddleware):
+    """308 redirect any unversioned `/api/...` request to its `/api/v1/...`
+    equivalent. Adds `Deprecation: true` and `Sunset` headers so external
+    callers get programmatic notice. The frontend SPA calls `/api/v1/`
+    directly; this redirect exists for transition support only."""
+
+    async def dispatch(self, request: Request, call_next):
+        path = request.url.path
+        if path.startswith("/api/") and not path.startswith("/api/v1/"):
+            new_path = "/api/v1/" + path[len("/api/"):]
+            location = new_path
+            if request.url.query:
+                location = f"{new_path}?{request.url.query}"
+            return Response(
+                status_code=308,
+                headers={
+                    "Location": location,
+                    "Deprecation": "true",
+                    "Sunset": LEGACY_API_SUNSET_DATE,
+                },
+            )
+        return await call_next(request)
 
 
 # Security headers middleware
@@ -163,24 +196,28 @@ app.add_middleware(
     allow_methods=settings.allowed_methods,
     allow_headers=settings.allowed_headers,
 )
+# Legacy `/api/...` -> `/api/v1/...` 308 redirect with Deprecation +
+# Sunset headers. Innermost so the redirect response still picks up
+# CORS + security headers on the way out.
+app.add_middleware(LegacyApiRedirectMiddleware)
 
-app.include_router(auth.router, prefix="/api")
-app.include_router(invites.router, prefix="/api")
-app.include_router(onboarding.router, prefix="/api")
-app.include_router(users.router, prefix="/api")
-app.include_router(clients.router, prefix="/api")
-app.include_router(assets.router, prefix="/api")
-app.include_router(sessions.router, prefix="/api")
-app.include_router(findings.router, prefix="/api")
-app.include_router(templates.router, prefix="/api")
-app.include_router(taxonomy.router, prefix="/api")
-app.include_router(attachments.router, prefix="/api")
-app.include_router(reports.router, prefix="/api")
+app.include_router(auth.router, prefix="/api/v1")
+app.include_router(invites.router, prefix="/api/v1")
+app.include_router(onboarding.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
+app.include_router(clients.router, prefix="/api/v1")
+app.include_router(assets.router, prefix="/api/v1")
+app.include_router(sessions.router, prefix="/api/v1")
+app.include_router(findings.router, prefix="/api/v1")
+app.include_router(templates.router, prefix="/api/v1")
+app.include_router(taxonomy.router, prefix="/api/v1")
+app.include_router(attachments.router, prefix="/api/v1")
+app.include_router(reports.router, prefix="/api/v1")
 
 # OIDC router (only if configured)
 if settings.oidc_enabled:
     from app.api import oidc
-    app.include_router(oidc.router, prefix="/api")
+    app.include_router(oidc.router, prefix="/api/v1")
 
 
 def _effective_probe_ip(request: Request) -> str | None:
@@ -259,7 +296,7 @@ async def _check_clamav_health() -> dict[str, object]:
     return payload
 
 
-@app.get("/api/health")
+@app.get("/api/v1/health")
 async def health():
     database_check, object_storage_check = await asyncio.gather(
         _check_database_health(),
@@ -289,7 +326,7 @@ async def health():
     )
 
 
-@app.get("/api/health/live")
+@app.get("/api/v1/health/live")
 async def health_live(request: Request):
     source_ip = _effective_probe_ip(request)
     if not is_rfc1918_or_loopback(source_ip):
@@ -300,7 +337,7 @@ async def health_live(request: Request):
     return {"status": "ok"}
 
 
-@app.get("/api/health/debug")
+@app.get("/api/v1/health/debug")
 async def health_debug(request: Request):
     source_ip = _effective_probe_ip(request)
     if not is_rfc1918_or_loopback(source_ip):

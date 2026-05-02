@@ -20,12 +20,12 @@ export interface UserSelfUpdate {
 
 export const usersApi = {
   list: (page = 1, perPage = 25) =>
-    api.get<PaginatedResponse<User>>(`/api/users?page=${page}&per_page=${perPage}`),
+    api.get<PaginatedResponse<User>>(`/api/v1/users?page=${page}&per_page=${perPage}`),
   listReviewers: (page = 1, perPage = 100) =>
-    api.get<PaginatedResponse<User>>(`/api/users/reviewers?page=${page}&per_page=${perPage}`),
-  getMe: () => api.get<User>('/api/users/me'),
-  get: (id: string) => api.get<User>(`/api/users/${id}`),
-  create: (data: Record<string, unknown>) => api.post<User>('/api/users', data),
-  updateMe: (data: UserSelfUpdate) => api.patch<User>('/api/users/me', data),
-  update: (id: string, data: Partial<User>) => api.patch<User>(`/api/users/${id}`, data),
+    api.get<PaginatedResponse<User>>(`/api/v1/users/reviewers?page=${page}&per_page=${perPage}`),
+  getMe: () => api.get<User>('/api/v1/users/me'),
+  get: (id: string) => api.get<User>(`/api/v1/users/${id}`),
+  create: (data: Record<string, unknown>) => api.post<User>('/api/v1/users', data),
+  updateMe: (data: UserSelfUpdate) => api.patch<User>('/api/v1/users/me', data),
+  update: (id: string, data: Partial<User>) => api.patch<User>(`/api/v1/users/${id}`, data),
 };

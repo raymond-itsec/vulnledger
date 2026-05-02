@@ -137,7 +137,7 @@ function isHealthProbeSuccess(
 ): boolean {
   if (!clearOnSuccess) return false;
   if (res.status < 200 || res.status >= 300) return false;
-  return requestPathname(input) === '/api/health';
+  return requestPathname(input) === '/api/v1/health';
 }
 
 export const appAvailability = {
@@ -198,7 +198,7 @@ export const appAvailability = {
     loginPageAppAvailabilityProbePromise = (async () => {
       try {
         const response = await fetchWithAvailability(
-          `/api/health?ts=${Date.now()}`,
+          `/api/v1/health?ts=${Date.now()}`,
           {
             method: 'GET',
             cache: 'no-store',
@@ -288,7 +288,7 @@ export const appAvailability = {
         }
 
         const response = await fetchWithAvailability(
-          `/api/health?ts=${Date.now()}`,
+          `/api/v1/health?ts=${Date.now()}`,
           requestInit,
           clearOnSuccess,
         );

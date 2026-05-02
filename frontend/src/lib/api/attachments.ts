@@ -20,7 +20,7 @@ export const attachmentsApi = {
     perPage = 25,
   ): Promise<PaginatedResponse<Attachment>> => {
     const res = await authorizedFetch(
-      `/api/findings/${findingId}/attachments?page=${page}&per_page=${perPage}`,
+      `/api/v1/findings/${findingId}/attachments?page=${page}&per_page=${perPage}`,
     );
     if (!res.ok) throw new Error(await readPublicErrorMessage(res, 'Failed to load attachments'));
     return res.json();
@@ -29,7 +29,7 @@ export const attachmentsApi = {
   upload: async (findingId: string, file: File): Promise<Attachment> => {
     const formData = new FormData();
     formData.append('file', file);
-    const res = await authorizedFetch(`/api/findings/${findingId}/attachments`, {
+    const res = await authorizedFetch(`/api/v1/findings/${findingId}/attachments`, {
       method: 'POST',
       body: formData,
     });
@@ -40,7 +40,7 @@ export const attachmentsApi = {
   },
 
   download: async (attachmentId: string, fileName: string): Promise<void> => {
-    const res = await authorizedFetch(`/api/attachments/${attachmentId}/download`);
+    const res = await authorizedFetch(`/api/v1/attachments/${attachmentId}/download`);
     if (!res.ok) {
       throw new Error(await readPublicErrorMessage(res, 'Failed to download attachment'));
     }
@@ -50,7 +50,7 @@ export const attachmentsApi = {
   },
 
   delete: async (attachmentId: string): Promise<void> => {
-    const res = await authorizedFetch(`/api/attachments/${attachmentId}`, {
+    const res = await authorizedFetch(`/api/v1/attachments/${attachmentId}`, {
       method: 'DELETE',
     });
     if (!res.ok) throw new Error(await readPublicErrorMessage(res, 'Failed to delete attachment'));

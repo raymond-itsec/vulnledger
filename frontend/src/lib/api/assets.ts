@@ -16,9 +16,9 @@ export const assetsApi = {
   list: (clientId?: string, page = 1, perPage = 25) => {
     const qs = new URLSearchParams({ page: String(page), per_page: String(perPage) });
     if (clientId) qs.set('client_id', clientId);
-    return api.get<PaginatedResponse<Asset>>(`/api/assets?${qs}`);
+    return api.get<PaginatedResponse<Asset>>(`/api/v1/assets?${qs}`);
   },
-  get: (id: string) => api.get<Asset>(`/api/assets/${id}`),
-  create: (data: Partial<Asset>) => api.post<Asset>('/api/assets', data),
-  update: (id: string, data: Partial<Asset>) => api.patch<Asset>(`/api/assets/${id}`, data),
+  get: (id: string) => api.get<Asset>(`/api/v1/assets/${id}`),
+  create: (data: Partial<Asset>) => api.post<Asset>('/api/v1/assets', data),
+  update: (id: string, data: Partial<Asset>) => api.patch<Asset>(`/api/v1/assets/${id}`, data),
 };
