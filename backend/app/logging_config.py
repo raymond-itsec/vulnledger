@@ -19,17 +19,15 @@ from app.middleware.request_id import vl_request_id_var, x_request_id_var
 
 class RequestIDFilter(logging.Filter):
     """Pull `x_request_id` and `vl_request_id` from contextvars onto the
-    record. Fields are set only when their contextvar holds a value, so
-    log lines emitted outside a request lifecycle stay clean.
+    record. Always sets both attributes, even when their contextvar is
+    None (e.g., log lines emitted outside an HTTP request lifecycle).
+    `pythonjsonlogger` renders `None` as JSON `null`, so log consumers
+    can distinguish "no value" from a real value unambiguously.
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
-        x_id = x_request_id_var.get()
-        vl_id = vl_request_id_var.get()
-        if x_id is not None:
-            record.x_request_id = x_id
-        if vl_id is not None:
-            record.vl_request_id = vl_id
+        record.x_request_id = x_request_id_var.get()
+        record.vl_request_id = vl_request_id_var.get()
         return True
 
 

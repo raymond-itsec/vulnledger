@@ -88,15 +88,16 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
         )
         vl_request_id: str = _generate_vl_request_id()
 
-        x_token = x_request_id_var.set(x_request_id)
-        vl_token = vl_request_id_var.set(vl_request_id)
-        try:
-            response: Response = await call_next(request)
-        finally:
-            # Reset to prevent contextvar leakage across requests sharing
-            # the same asyncio task (uvicorn worker reuse).
-            x_request_id_var.reset(x_token)
-            vl_request_id_var.reset(vl_token)
+        # Set the contextvars without a corresponding `reset()`. ContextVars
+        # in asyncio are task-local (PEP 567): each request gets its own
+        # task with its own context copy, so values do not leak across
+        # concurrent requests. Skipping the reset means uvicorn's access
+        # log line (which runs AFTER this middleware returns, in the same
+        # task) can still see the IDs from the contextvars.
+        x_request_id_var.set(x_request_id)
+        vl_request_id_var.set(vl_request_id)
+
+        response: Response = await call_next(request)
 
         if x_request_id is not None:
             response.headers["X-Request-ID"] = x_request_id
