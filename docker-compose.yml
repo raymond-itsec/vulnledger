@@ -61,6 +61,12 @@ services:
         # left". Each volume is up to ~30GB, allocated lazily, so a
         # high cap costs nothing if unused.
         "-volume.max=30",
+        # When the master needs to grow a collection (no writable
+        # volumes available), allocate 4 new volumes at a time
+        # instead of the default 7. Smaller buffer keeps /data/
+        # tidier per collection while still avoiding write stalls
+        # for typical concurrency.
+        "-master.volumeGrowthCount=4",
         "-filer.port=8888",
         # Disable directory listing in the filer web UI. The HTTP
         # endpoint stays up (the backend talks to it for file ops), but
