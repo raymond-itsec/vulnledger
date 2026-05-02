@@ -1,17 +1,23 @@
 import asyncio
-from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.config import settings
+from app.logging_config import configure_logging
 
 # Import all models so Base.metadata is fully populated
 from app.models import Base  # noqa: F401
 
+# Use the application's JSON logging instead of alembic.ini's bare-text
+# fileConfig. Alembic and SQLAlchemy loggers have no handlers of their own
+# and propagate to root, so configuring root with the JSON handler makes
+# their output structured too. Logs emitted during migrations have
+# x_request_id / vl_request_id as null because there is no HTTP request
+# in flight.
+configure_logging()
+
 config = context.config
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata
 
