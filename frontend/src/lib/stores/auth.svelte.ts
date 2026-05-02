@@ -39,6 +39,72 @@ let bootstrapPromise: Promise<void> | null = null;
 let bootstrapAttempted = false;
 let staleSessionCleanupPromise: Promise<void> | null = null;
 let lastRefreshFailurePermanent = false;
+let refreshTimerId: ReturnType<typeof setTimeout> | null = null;
+
+// Refresh the access token this many ms before its `exp` claim. Tolerates
+// modest clock skew between server and browser (±60s) and gives the network
+// round-trip time to land while the current token is still valid.
+const REFRESH_BUFFER_MS = 60_000;
+
+/**
+ * Decode the `exp` claim (Unix seconds) from a JWT payload without
+ * verifying the signature. Used only for client-side scheduling of
+ * proactive refreshes, never for security decisions. Returns null if the
+ * token is malformed, missing the claim, or `exp` isn't a number.
+ */
+function decodeTokenExp(jwt: string): number | null {
+  try {
+    const payload = jwt.split('.')[1];
+    if (!payload) return null;
+    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+    const claims = JSON.parse(json) as { exp?: unknown };
+    return typeof claims?.exp === 'number' ? claims.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearTokenRefreshTimer(): void {
+  if (refreshTimerId !== null) {
+    clearTimeout(refreshTimerId);
+    refreshTimerId = null;
+  }
+}
+
+/**
+ * Schedule a proactive `refreshToken()` call ~60s before the current
+ * token's `exp`. Cancels any previously-scheduled timer first. If the
+ * token is already past its refresh window (or has no decodable exp),
+ * fires a refresh immediately. The reactive 401 retry in
+ * `client.ts:authorizedFetch` stays as a fallback for cases where the
+ * timer misses (background tab throttling, large clock skew, etc.).
+ */
+function scheduleTokenRefresh(currentToken: string | null): void {
+  clearTokenRefreshTimer();
+  if (!currentToken) return;
+  if (typeof window === 'undefined') return;
+
+  const expSeconds = decodeTokenExp(currentToken);
+  if (expSeconds === null) {
+    // Can't decode - leave the reactive 401 retry to handle expiry.
+    return;
+  }
+
+  const expMs = expSeconds * 1000;
+  const refreshAtMs = expMs - REFRESH_BUFFER_MS;
+  const delayMs = refreshAtMs - Date.now();
+
+  if (delayMs <= 0) {
+    // Already past the refresh window. Fire now.
+    void refreshToken();
+    return;
+  }
+
+  refreshTimerId = setTimeout(() => {
+    refreshTimerId = null;
+    void refreshToken();
+  }, delayMs);
+}
 
 export const auth = {
   get token() { return token; },
@@ -100,6 +166,7 @@ async function clearStaleSession(): Promise<void> {
     } catch {
       // Best-effort cleanup only; local auth state is still cleared below.
     } finally {
+      clearTokenRefreshTimer();
       token = null;
       user = null;
       staleSessionCleanupPromise = null;
@@ -128,6 +195,7 @@ export async function login(username: string, password: string): Promise<void> {
   }
   bootstrapAttempted = true;
   token = data.access_token;
+  scheduleTokenRefresh(token);
   await fetchMe();
 }
 
@@ -185,6 +253,7 @@ export async function refreshToken(): Promise<boolean> {
       if (!data?.access_token) return false;
       bootstrapAttempted = true;
       token = data.access_token;
+      scheduleTokenRefresh(token);
       await fetchMe();
       return true;
     } catch {
@@ -242,6 +311,7 @@ export async function bootstrapAuth(): Promise<void> {
     // Either the refresh truly failed (401) or our single retry didn't help.
     // Mark bootstrapAttempted only on permanent (401) failures so a future
     // bootstrap can try again from scratch when transient.
+    clearTokenRefreshTimer();
     token = null;
     user = null;
     bootstrapAttempted = lastRefreshFailurePermanent;
@@ -276,6 +346,7 @@ export async function logout(notifyFailure = true): Promise<boolean> {
     }
   } finally {
     bootstrapAttempted = true;
+    clearTokenRefreshTimer();
     token = null;
     user = null;
     clearBrowserStateOnLogout();
