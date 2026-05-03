@@ -92,7 +92,7 @@ minio==7.2.20
     # via -r requirements.txt
 mistune==3.2.0
     # via -r requirements.txt
-packaging==26.1
+packaging==26.2
     # via limits
 pillow==12.2.0
     # via weasyprint
