@@ -1,6 +1,15 @@
 <script lang="ts">
+  import { fly } from 'svelte/transition';
+  import { flip } from 'svelte/animate';
   import { toast } from '$lib/stores/toast.svelte';
   import { copyToClipboard } from '$lib/util/clipboard';
+
+  // Animation tuning. Kept short and snappy so dismiss feels
+  // responsive even when several toasts get evicted at once (cap
+  // overflow, batch error cascade).
+  const DISMISS_MS = 180;
+  const ENTER_MS = 140;
+  const REFLOW_MS = 180;
 
   // Per-toast "Copied" feedback so the icon swaps to a checkmark
   // briefly after the user clicks. Keyed on the toast id; the entry
@@ -33,7 +42,14 @@
 
 <div class="toast-viewport" aria-live="polite" aria-atomic="true">
   {#each toast.items as item (item.id)}
-    <div class="toast" class:error={item.variant === 'error'} class:success={item.variant === 'success'}>
+    <div
+      class="toast"
+      class:error={item.variant === 'error'}
+      class:success={item.variant === 'success'}
+      in:fly={{ y: 12, duration: ENTER_MS }}
+      out:fly={{ y: 24, duration: DISMISS_MS }}
+      animate:flip={{ duration: REFLOW_MS }}
+    >
       <div class="body">
         <span class="message">{item.message}</span>
         {#if item.requestId}
