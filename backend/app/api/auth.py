@@ -33,6 +33,7 @@ from app.services.ip_utils import (
     resolve_request_ip,
 )
 from app.services.login_throttle import check_login_allowed
+from app.versioning import CURRENT_API_PREFIX, LEGACY_UNVERSIONED_API_PREFIX
 from app.services.refresh_sessions import (
     describe_refresh_session,
     exchange_refresh_token,
@@ -91,6 +92,14 @@ def _request_user_agent(request: Request) -> str | None:
     return request.headers.get("user-agent")
 
 
+# Cookie paths are derived from app.versioning so that a v2 cutover
+# only requires updating CURRENT_API_VERSION there; cookie paths and
+# router mounts then move together. See `app/versioning.py` for the
+# rationale and the startup sanity-check in app/main.py.
+_REFRESH_COOKIE_PATH = f"{CURRENT_API_PREFIX}/auth"
+_LEGACY_REFRESH_COOKIE_PATH = f"{LEGACY_UNVERSIONED_API_PREFIX}/auth"
+
+
 def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
     response.set_cookie(
         key="refresh_token",
@@ -99,14 +108,27 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
         secure=COOKIE_SECURE,
         samesite="strict",
         max_age=refresh_cookie_max_age_seconds(),
-        path="/api/auth",
+        path=_REFRESH_COOKIE_PATH,
     )
 
 
 def _clear_refresh_cookie(response: Response) -> None:
+    # Clear at both the current versioned path AND the legacy
+    # unversioned path so that users who logged in before Phase 1.4
+    # (when the cookie was scoped to /api/auth) don't end up with a
+    # phantom cookie sitting in their jar. Browsers do not auto-evict
+    # cookies just because the server stopped using a path; the legacy
+    # delete is idempotent for users who never had one there.
     response.delete_cookie(
         key="refresh_token",
-        path="/api/auth",
+        path=_REFRESH_COOKIE_PATH,
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        key="refresh_token",
+        path=_LEGACY_REFRESH_COOKIE_PATH,
         secure=COOKIE_SECURE,
         httponly=True,
         samesite="strict",

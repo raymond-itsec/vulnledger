@@ -1,8 +1,8 @@
 """Optional OIDC/SSO authentication flow.
 
 Only loaded when FINDINGS_OIDC_ENABLED=true. Provides:
-  GET  /api/auth/oidc/login    -- redirects to the IdP
-  GET  /api/auth/oidc/callback -- handles the IdP callback, creates/logs in user
+  GET  /api/v1/auth/oidc/login    -- redirects to the IdP
+  GET  /api/v1/auth/oidc/callback -- handles the IdP callback, creates/logs in user
 """
 
 import hmac
@@ -24,6 +24,7 @@ from app.services.refresh_sessions import (
     issue_refresh_session,
     refresh_cookie_max_age_seconds,
 )
+from app.versioning import CURRENT_API_PREFIX, LEGACY_UNVERSIONED_API_PREFIX
 
 logger = logging.getLogger(__name__)
 COOKIE_SECURE = settings.app_base_url.startswith("https://")
@@ -31,6 +32,12 @@ OIDC_TEMP_COOKIE_MAX_AGE = 600
 SESSION_HINT_COOKIE_NAME = "vl_session"  # VL-2026-014: hardcoded; see app/api/auth.py for rationale
 
 router = APIRouter(prefix="/auth/oidc", tags=["oidc"])
+
+# Cookie paths derived from the version registry. See
+# `app/versioning.py` and the matching pattern in app/api/auth.py.
+_OIDC_TEMP_COOKIE_PATH = f"{CURRENT_API_PREFIX}/auth/oidc"
+_LEGACY_OIDC_TEMP_COOKIE_PATH = f"{LEGACY_UNVERSIONED_API_PREFIX}/auth/oidc"
+_REFRESH_COOKIE_PATH = f"{CURRENT_API_PREFIX}/auth"
 
 oauth = OAuth()
 oauth.register(
@@ -154,7 +161,7 @@ def _set_oidc_temp_cookies(response, *, state_value: str, nonce_value: str) -> N
         secure=COOKIE_SECURE,
         samesite="lax",
         max_age=OIDC_TEMP_COOKIE_MAX_AGE,
-        path="/api/auth/oidc",
+        path=_OIDC_TEMP_COOKIE_PATH,
     )
     response.set_cookie(
         key="oidc_nonce",
@@ -163,13 +170,18 @@ def _set_oidc_temp_cookies(response, *, state_value: str, nonce_value: str) -> N
         secure=COOKIE_SECURE,
         samesite="lax",
         max_age=OIDC_TEMP_COOKIE_MAX_AGE,
-        path="/api/auth/oidc",
+        path=_OIDC_TEMP_COOKIE_PATH,
     )
 
 
 def _clear_oidc_temp_cookies(response) -> None:
-    response.delete_cookie("oidc_state", path="/api/auth/oidc")
-    response.delete_cookie("oidc_nonce", path="/api/auth/oidc")
+    # Clear at the current versioned path and at the legacy unversioned
+    # path so users with stale cookies from before Phase 1.4 get cleaned
+    # up. The legacy delete is a no-op when no such cookie exists.
+    response.delete_cookie("oidc_state", path=_OIDC_TEMP_COOKIE_PATH)
+    response.delete_cookie("oidc_nonce", path=_OIDC_TEMP_COOKIE_PATH)
+    response.delete_cookie("oidc_state", path=_LEGACY_OIDC_TEMP_COOKIE_PATH)
+    response.delete_cookie("oidc_nonce", path=_LEGACY_OIDC_TEMP_COOKIE_PATH)
 
 
 def _set_session_hint_cookie(response) -> None:
@@ -271,6 +283,10 @@ async def oidc_callback(
     base = settings.app_base_url.rstrip("/")
     redirect = RedirectResponse(url=f"{base}/", status_code=302)
     _clear_oidc_temp_cookies(redirect)
+    # Path must match _set_refresh_cookie in backend/app/api/auth.py so
+    # that a refresh issued via OIDC SSO is reachable from the same
+    # auth/refresh endpoint as a refresh issued via password login.
+    # Both paths are derived from app.versioning so they cannot drift.
     redirect.set_cookie(
         key="refresh_token",
         value=refresh_token,
@@ -278,7 +294,7 @@ async def oidc_callback(
         secure=COOKIE_SECURE,
         samesite="strict",
         max_age=refresh_cookie_max_age_seconds(),
-        path="/api/auth",
+        path=_REFRESH_COOKIE_PATH,
     )
     _set_session_hint_cookie(redirect)
     return redirect

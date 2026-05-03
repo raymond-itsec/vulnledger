@@ -47,6 +47,7 @@ from app.services.ip_utils import (
     rate_limit_ip_key,
 )
 from app.services.taxonomy import ensure_default_taxonomy_version
+from app.versioning import CURRENT_API_PREFIX
 
 configure_logging()
 
@@ -138,7 +139,17 @@ def current_api_version() -> str:
     raise RuntimeError("No API version marked current in API_VERSIONS")
 
 
-CURRENT_API_PREFIX = f"/api/{current_api_version()}"
+# Sanity: the value imported from app.versioning at module load (above)
+# must match the version the runtime registry marks current. Drift
+# here would mean cookie paths and router mounts disagree silently, as
+# happened during Phase 1.4 before this module split. Failing at
+# startup is loud; failing as a silent 401 hours later is not.
+if CURRENT_API_PREFIX != f"/api/{current_api_version()}":
+    raise RuntimeError(
+        f"API version mismatch: app.versioning.CURRENT_API_PREFIX is "
+        f"{CURRENT_API_PREFIX!r} but the registry's current version "
+        f"resolves to /api/{current_api_version()}. Update both to match."
+    )
 
 # Matches `/api/vN` and `/api/vN/...` for any positive integer N. Used by
 # the legacy redirect to recognize "this path is already version-prefixed,
