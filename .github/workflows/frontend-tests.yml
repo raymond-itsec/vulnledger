@@ -24,5 +24,14 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - name: Install dependencies
         run: npm ci
+      - name: Generate SvelteKit type files
+        # frontend/tsconfig.json extends ./.svelte-kit/tsconfig.json,
+        # which SvelteKit generates lazily during `vite build` or
+        # `svelte-kit sync`. Without it, vitest's oxc transformer fails
+        # to load tsconfig and every test file errors with
+        # `[TSCONFIG_ERROR] Tsconfig not found`. Locally this is masked
+        # by a prior dev/build run leaving `.svelte-kit/` populated;
+        # on a fresh CI clone it must be generated explicitly.
+        run: npx svelte-kit sync
       - name: Run vitest
         run: npm test
