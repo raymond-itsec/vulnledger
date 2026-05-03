@@ -103,18 +103,18 @@ jobs:
           # Filter to Semgrep alerts (OSS + PRO). gh --paginate
           # concatenates JSON arrays into a single stream, so we wrap
           # with `[inputs]` via -s.
-          semgrep_alerts=$(jq -s '[.[][] | select(.tool.name | test("^Semgrep"))]' /tmp/cs-alerts.json)
-          total=$(echo "$semgrep_alerts" | jq 'length')
-          if [ "$total" -eq 0 ]; then
+          semgrep_alerts=$(jq -s '[.[][] | select(.tool.name | test("^Semgrep"))]' /tmp/cs-alerts.json 2>/dev/null || echo '[]')
+          total=$(echo "$semgrep_alerts" | jq 'length' 2>/dev/null || echo 0)
+          if [ "${total:-0}" = "0" ]; then
             {
               echo "## ✅ Semgrep"
               echo ""
               echo "**No open findings.** (Dismissed alerts are excluded from this view.)"
             } >> "$GITHUB_STEP_SUMMARY"
           else
-            error_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "error")] | length')
-            warn_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "warning")] | length')
-            note_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "note")] | length')
+            error_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "error")] | length' 2>/dev/null || echo 0)
+            warn_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "warning")] | length' 2>/dev/null || echo 0)
+            note_count=$(echo "$semgrep_alerts" | jq '[.[] | select(.rule.severity == "note")] | length' 2>/dev/null || echo 0)
             {
               echo "## ⚠️ Semgrep"
               echo ""

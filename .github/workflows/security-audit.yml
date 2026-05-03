@@ -50,9 +50,9 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 0
           fi
-          vuln_count=$(jq '[.dependencies[]?.vulns[]?] | length' /tmp/pip-audit.json)
-          pkg_count=$(jq '.dependencies | length' /tmp/pip-audit.json)
-          if [ "$vuln_count" -eq 0 ]; then
+          vuln_count=$(jq '[.dependencies[]?.vulns[]?] | length' /tmp/pip-audit.json 2>/dev/null || echo 0)
+          pkg_count=$(jq '.dependencies | length' /tmp/pip-audit.json 2>/dev/null || echo 0)
+          if [ "${vuln_count:-0}" = "0" ]; then
             {
               echo "## ✅ pip-audit (backend)"
               echo ""
@@ -109,14 +109,14 @@ jobs:
             exit 0
           fi
           # `npm audit --json` shape: .metadata.vulnerabilities = { info, low, moderate, high, critical, total }
-          info=$(jq '.metadata.vulnerabilities.info // 0' /tmp/npm-audit.json)
-          low=$(jq '.metadata.vulnerabilities.low // 0' /tmp/npm-audit.json)
-          moderate=$(jq '.metadata.vulnerabilities.moderate // 0' /tmp/npm-audit.json)
-          high=$(jq '.metadata.vulnerabilities.high // 0' /tmp/npm-audit.json)
-          critical=$(jq '.metadata.vulnerabilities.critical // 0' /tmp/npm-audit.json)
-          total=$(jq '.metadata.vulnerabilities.total // 0' /tmp/npm-audit.json)
-          deps=$(jq '.metadata.dependencies.prod // .metadata.totalDependencies // 0' /tmp/npm-audit.json)
-          if [ "$total" -eq 0 ]; then
+          info=$(jq '.metadata.vulnerabilities.info // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          low=$(jq '.metadata.vulnerabilities.low // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          moderate=$(jq '.metadata.vulnerabilities.moderate // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          high=$(jq '.metadata.vulnerabilities.high // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          critical=$(jq '.metadata.vulnerabilities.critical // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          total=$(jq '.metadata.vulnerabilities.total // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          deps=$(jq '.metadata.dependencies.prod // .metadata.totalDependencies // 0' /tmp/npm-audit.json 2>/dev/null || echo 0)
+          if [ "${total:-0}" = "0" ]; then
             {
               echo "## ✅ npm audit (frontend, prod)"
               echo ""
@@ -236,10 +236,10 @@ jobs:
             } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' /tmp/trivy.json)
-          high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' /tmp/trivy.json)
-          total=$((critical + high))
-          if [ "$total" -eq 0 ]; then
+          critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' /tmp/trivy.json 2>/dev/null || echo 0)
+          high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' /tmp/trivy.json 2>/dev/null || echo 0)
+          total=$(( ${critical:-0} + ${high:-0} ))
+          if [ "${total:-0}" = "0" ]; then
             {
               echo "## ✅ Trivy (backend image)"
               echo ""

@@ -32,18 +32,37 @@ jobs:
         # warnings (red) regardless of whether the previous step
         # succeeded. Re-runs stylelint in JSON mode; on a small
         # frontend this is sub-second.
+        #
+        # Uses stylelint's `--output-file` flag rather than a shell
+        # `>` redirect: the runner shell's stdout buffering combined
+        # with `bash -eo pipefail` made the redirect produce an empty
+        # file in CI even though the tool succeeded. `--output-file`
+        # has stylelint write the JSON itself, no shell plumbing.
+        # Stylelint exits non-zero when issues are found, which is
+        # fine for the summary path (we want to report them); use
+        # `|| true` so this step's exit code does not gate the job.
         if: always()
         run: |
-          set +e
-          npx stylelint 'src/**/*.{css,svelte}' --formatter json > /tmp/stylelint.json
-          set -e
-          files=$(jq 'length' /tmp/stylelint.json)
-          issues=$(jq '[.[].warnings | length] | add // 0' /tmp/stylelint.json)
-          if [ "$issues" -eq 0 ]; then
+          npx stylelint 'src/**/*.{css,svelte}' \
+            --formatter json --output-file /tmp/stylelint.json || true
+          if [ ! -s /tmp/stylelint.json ]; then
+            {
+              echo "## ⚠️ Stylelint"
+              echo ""
+              echo "Stylelint produced no JSON output."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          files=$(jq 'length' /tmp/stylelint.json 2>/dev/null || echo 0)
+          issues=$(jq '[.[].warnings | length] | add // 0' /tmp/stylelint.json 2>/dev/null || echo 0)
+          # String comparison (not -eq) so an unexpected empty
+          # capture lands in the success branch instead of crashing
+          # the script with "integer expression expected".
+          if [ "${issues:-0}" = "0" ]; then
             {
               echo "## ✅ Stylelint"
               echo ""
-              echo "**No issues found** in $files files."
+              echo "**No issues found** in ${files:-0} files."
             } >> "$GITHUB_STEP_SUMMARY"
           else
             {
