@@ -11,6 +11,15 @@ interface ToastItem {
    * the toast text.
    */
   requestId: string | null;
+  /**
+   * Wall-clock timestamp (epoch ms) at which this toast will auto-
+   * dismiss. Computed at push time as `max(now + ownDuration,
+   * previousToast.dismissAt + FIFO_GAP_MS)` so toasts always expire in
+   * the order they were pushed, even when a short-duration toast lands
+   * after a long-duration one. Manual `dismiss(id)` and cap eviction
+   * still bypass this and remove immediately.
+   */
+  dismissAt: number;
 }
 
 let nextId = 1;
@@ -27,7 +36,7 @@ const timers = new Map<number, ReturnType<typeof setTimeout>>();
  * trains users to ignore them. The `×` button still dismisses
  * manually at any time.
  */
-const DEFAULT_DURATION_MS: Record<ToastVariant, number | null> = {
+const DEFAULT_DURATION_MS: Record<ToastVariant, number> = {
   error: 15000,
   info: 3200,
   success: 3200,
@@ -40,6 +49,15 @@ const DEFAULT_DURATION_MS: Record<ToastVariant, number | null> = {
  * typical browser chrome heights without overflowing the viewport.
  */
 const MAX_OPEN_TOASTS = 5;
+
+/**
+ * Minimum spacing between sequential FIFO auto-dismiss times. Without
+ * a gap, a burst of toasts pushed in the same tick would all expire
+ * simultaneously, defeating the slide-down + reflow animation. Small
+ * enough to not feel laggy when the queue drains; large enough that
+ * each dismiss is visually distinct.
+ */
+const FIFO_GAP_MS = 120;
 
 /**
  * Pull a trailing `(Error ID: VL-...)` suffix off the message so the
@@ -76,12 +94,26 @@ function push(rawMessage: string, variant: ToastVariant, duration?: number) {
 
   const id = nextId++;
   const { message, requestId } = parseRequestId(rawMessage);
-  items = [...items, { id, message, variant, requestId }];
-  const effectiveDuration = duration ?? DEFAULT_DURATION_MS[variant];
-  if (effectiveDuration !== null) {
-    const timer = setTimeout(() => remove(id), effectiveDuration);
-    timers.set(id, timer);
-  }
+
+  // FIFO dismiss ordering: the new toast's dismiss-at time is at
+  // least one FIFO_GAP_MS after the previous toast's dismiss-at,
+  // even if its own duration would have it expiring sooner. This
+  // means a 3.2s success pushed right after a 15s error waits behind
+  // the error rather than vanishing first. Result: visual order on
+  // screen (oldest at the top of the stack) matches the order in
+  // which they disappear.
+  const now = Date.now();
+  const ownDuration = duration ?? DEFAULT_DURATION_MS[variant];
+  const ownDismissAt = now + ownDuration;
+  const lastDismissAt = items.length > 0 ? items[items.length - 1].dismissAt : 0;
+  const dismissAt = Math.max(ownDismissAt, lastDismissAt + FIFO_GAP_MS);
+
+  items = [...items, { id, message, variant, requestId, dismissAt }];
+
+  const delay = Math.max(0, dismissAt - now);
+  const timer = setTimeout(() => remove(id), delay);
+  timers.set(id, timer);
+
   return id;
 }
 

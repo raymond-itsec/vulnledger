@@ -148,6 +148,61 @@ describe('toast store', () => {
     expect(toast.items.map((i) => i.message)).not.toContain('fill-0');
   });
 
+  it('FIFO: a short success pushed after a long error waits behind the error', () => {
+    toast.error('long-running error'); // 15s
+    vi.advanceTimersByTime(10);        // simulate the same-tick / near-tick push
+    toast.success('quick success');    // own duration: 3.2s
+
+    // At t=3.2s: success would normally be gone, but FIFO holds it
+    // because the error (older) has not yet expired.
+    vi.advanceTimersByTime(3200);
+    expect(toast.items.map((i) => i.message)).toEqual([
+      'long-running error',
+      'quick success',
+    ]);
+
+    // Just past the error's 15s expiry: error goes first, success
+    // still waits for its FIFO_GAP_MS slot.
+    vi.advanceTimersByTime(15000 - 3200 - 10 + 1);
+    expect(toast.items.map((i) => i.message)).toEqual(['quick success']);
+
+    // Within FIFO_GAP_MS (120ms), the success follows.
+    vi.advanceTimersByTime(120);
+    expect(toast.items).toHaveLength(0);
+  });
+
+  it('FIFO: a long error pushed after a short success does NOT delay the success', () => {
+    toast.success('quick success'); // own duration: 3.2s
+    toast.error('long error');      // own duration: 15s, naturally later anyway
+
+    // The success is the older one and goes first, on its own 3.2s.
+    vi.advanceTimersByTime(3200);
+    expect(toast.items.map((i) => i.message)).toEqual(['long error']);
+
+    // Error then expires on its own schedule.
+    vi.advanceTimersByTime(15000);
+    expect(toast.items).toHaveLength(0);
+  });
+
+  it('FIFO: a burst of three success toasts in the same tick expires oldest-first with gap', () => {
+    toast.success('a');
+    toast.success('b');
+    toast.success('c');
+
+    // At 3.2s: only 'a' has reached its own dismiss-at; 'b' and 'c'
+    // are still in their FIFO_GAP queue.
+    vi.advanceTimersByTime(3200);
+    expect(toast.items.map((i) => i.message)).toEqual(['b', 'c']);
+
+    // After one gap (120ms), 'b' goes.
+    vi.advanceTimersByTime(120);
+    expect(toast.items.map((i) => i.message)).toEqual(['c']);
+
+    // After one more gap, 'c' goes.
+    vi.advanceTimersByTime(120);
+    expect(toast.items).toHaveLength(0);
+  });
+
   it('handles trailing whitespace and punctuation around the suffix', () => {
     toast.error('Boom.   (Error ID:  VL-abc-123 )   ');
 
