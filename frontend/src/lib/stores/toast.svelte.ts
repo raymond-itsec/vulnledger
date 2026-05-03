@@ -20,18 +20,26 @@ const timers = new Map<number, ReturnType<typeof setTimeout>>();
 /**
  * Default visible-time per variant.
  *
- * Errors persist until the user dismisses them. They are rare, they
- * usually carry the request ID the user needs to copy into a bug
- * report, and auto-dismissing them after a few seconds means a slow
- * reader watches the message disappear before they can do anything
- * with it. Info / success toasts still auto-dismiss because they are
- * disposable confirmations.
+ * Errors stay on screen longer (15s) than info/success (3.2s) because
+ * they usually carry the request ID the user needs to copy into a bug
+ * report, and a too-short window makes that impossible. They are not
+ * permanent though - leaving stale red toasts on screen forever
+ * trains users to ignore them. The `×` button still dismisses
+ * manually at any time.
  */
 const DEFAULT_DURATION_MS: Record<ToastVariant, number | null> = {
-  error: null,
+  error: 15000,
   info: 3200,
   success: 3200,
 };
+
+/**
+ * Maximum number of toasts visible at once across all variants.
+ * Pushing past this dismisses the oldest one(s) first so the screen
+ * does not stack up an unreadable column. Five fits comfortably above
+ * typical browser chrome heights without overflowing the viewport.
+ */
+const MAX_OPEN_TOASTS = 5;
 
 /**
  * Pull a trailing `(Error ID: VL-...)` suffix off the message so the
@@ -59,6 +67,13 @@ function remove(id: number) {
 }
 
 function push(rawMessage: string, variant: ToastVariant, duration?: number) {
+  // Cap the visible stack. Items are appended in chronological order
+  // (nextId is monotonic), so items[0] is always the oldest. Drop
+  // oldest ones first until we have room for the incoming toast.
+  while (items.length >= MAX_OPEN_TOASTS) {
+    remove(items[0].id);
+  }
+
   const id = nextId++;
   const { message, requestId } = parseRequestId(rawMessage);
   items = [...items, { id, message, variant, requestId }];
