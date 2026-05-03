@@ -21,3 +21,8 @@ authlib==1.7.0
 httpx==0.28.1
 clamd==1.0.2
 python-json-logger==4.1.0
+# Prometheus metrics. Used by app/middleware/metrics.py to expose
+# /api/v1/metrics for vmagent (lands with the Phase 8 observability
+# stack). Single-process mode today; switch to multiprocess mode when
+# we run >1 uvicorn worker per container.
+prometheus-client==0.21.1

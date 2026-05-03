@@ -6,21 +6,31 @@ import asyncio
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 
-from fastapi import FastAPI, HTTPException, Request, status
+from fastapi import Depends, FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from slowapi import Limiter
 from slowapi.errors import RateLimitExceeded
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from app.api import attachments, auth, assets, clients, findings, invites, onboarding, reports, sessions, taxonomy, templates, users
 from app.config import settings, startup_config_source_report
-from app.database import engine
+from app.database import engine, get_db
 from app.logging_config import configure_logging
+from app.middleware.metrics import (
+    CONTENT_TYPE_LATEST,
+    HTTP_ERRORS_TOTAL,
+    MetricsMiddleware,
+    collect_pool_metrics,
+    init_app_info,
+    render_metrics,
+)
 from app.middleware.request_id import RequestIDMiddleware
+from app.services.business_metrics import collect_business_metrics
 from app.schemas.error import make_error_payload
 from app.services.antivirus import probe_scanner
 from app.services.seed import seed_admin_user, sync_builtin_templates
@@ -222,14 +232,17 @@ app = FastAPI(
     # prefix so they are versioned alongside the routes they describe and
     # reachable via the same Caddy `/api/*` reverse-proxy rule. When v2
     # becomes current via API_VERSIONS, these paths flip automatically.
+    # Swagger UI and ReDoc each toggle off by setting their URL to None
+    # (per FastAPI convention).
     openapi_url=f"{CURRENT_API_PREFIX}/openapi.json",
-    docs_url=f"{CURRENT_API_PREFIX}/docs",
-    redoc_url=f"{CURRENT_API_PREFIX}/redoc",
+    docs_url=f"{CURRENT_API_PREFIX}/docs" if settings.swagger_ui_enabled else None,
+    redoc_url=f"{CURRENT_API_PREFIX}/redoc" if settings.redoc_enabled else None,
 )
 
 # Rate limit error handler
 @app.exception_handler(RateLimitExceeded)
 async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    HTTP_ERRORS_TOTAL.labels(code="rate_limited").inc()
     return JSONResponse(
         status_code=429,
         content=make_error_payload(
@@ -245,6 +258,7 @@ app.state.limiter = limiter
 async def http_exception_handler(request: Request, exc: HTTPException):
     detail = exc.detail if isinstance(exc.detail, str) else "Request failed."
     code = detail.lower().replace(" ", "_").replace(".", "")[:64] or "http_error"
+    HTTP_ERRORS_TOTAL.labels(code=code).inc()
     return JSONResponse(
         status_code=exc.status_code,
         content=make_error_payload(code=code, detail=detail),
@@ -257,6 +271,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
     # field so the frontend can highlight the offending fields without
     # parsing free-form text. Each item is Pydantic's standard error
     # dict: `{"loc": ["body", "field"], "msg": "...", "type": "..."}`.
+    HTTP_ERRORS_TOTAL.labels(code="validation_error").inc()
     return JSONResponse(
         status_code=422,
         content=make_error_payload(
@@ -270,6 +285,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled error at %s", request.url.path)
+    HTTP_ERRORS_TOTAL.labels(code="internal_error").inc()
     return JSONResponse(
         status_code=500,
         content=make_error_payload(
@@ -286,6 +302,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # 308 short-circuit response from Legacy still picks up CORS, security
 # headers, AND the X-Request-ID / X-VL-Request-ID headers on the way
 # back out.
+app.add_middleware(MetricsMiddleware)  # innermost: route is resolved by the time it reads request.scope["route"]
 app.add_middleware(LegacyApiRedirectMiddleware)
 app.add_middleware(DeprecatedVersionHeadersMiddleware)
 app.add_middleware(
@@ -297,6 +314,9 @@ app.add_middleware(
 )
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestIDMiddleware)
+
+# Stamp app_info gauge once at startup so it appears in every scrape.
+init_app_info(settings.app_version)
 
 # Mount every router from the API_VERSIONS registry under its version
 # prefix. Adding a new version is a registry change; the loop picks it up.
@@ -429,6 +449,34 @@ async def health_live(request: Request):
             detail="Probe endpoint is restricted to internal networks.",
         )
     return {"status": "ok"}
+
+
+@app.get(f"{CURRENT_API_PREFIX}/metrics")
+async def metrics_endpoint(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Prometheus scrape target. Restricted to RFC1918 + loopback source
+    IPs (same pattern as the liveness probe). vmagent will scrape this
+    when the Phase 8 observability stack lands. Path follows
+    `CURRENT_API_PREFIX` so it auto-versions when v2 launches; vmagent
+    scrape config will need updating at that cutover (see
+    api_v2_launch_checklist.md).
+    """
+    source_ip = _effective_probe_ip(request)
+    if not is_rfc1918_or_loopback(source_ip):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Metrics endpoint is restricted to internal networks.",
+        )
+
+    # Pull live values into the gauges, then render. The HTTP and error
+    # counters/histograms are updated by middleware/handlers throughout
+    # the request lifecycle and are already current.
+    collect_pool_metrics()
+    await collect_business_metrics(db)
+
+    return Response(content=render_metrics(), media_type=CONTENT_TYPE_LATEST)
 
 
 @app.get("/api/v1/health/debug")
