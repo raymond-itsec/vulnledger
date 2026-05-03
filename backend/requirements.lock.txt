@@ -96,6 +96,8 @@ packaging==26.1
     # via limits
 pillow==12.2.0
     # via weasyprint
+prometheus-client==0.21.1
+    # via -r requirements.txt
 pycparser==3.0
     # via cffi
 pycryptodome==3.23.0
