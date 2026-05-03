@@ -26,3 +26,33 @@ jobs:
         run: npm ci
       - name: Run stylelint
         run: npm run lint:css
+      - name: Stylelint summary
+        # Always emit a summary so the GitHub Actions Summary tab
+        # reports either "no issues" (green) or a per-file table of
+        # warnings (red) regardless of whether the previous step
+        # succeeded. Re-runs stylelint in JSON mode; on a small
+        # frontend this is sub-second.
+        if: always()
+        run: |
+          set +e
+          npx stylelint 'src/**/*.{css,svelte}' --formatter json > /tmp/stylelint.json
+          set -e
+          files=$(jq 'length' /tmp/stylelint.json)
+          issues=$(jq '[.[].warnings | length] | add // 0' /tmp/stylelint.json)
+          if [ "$issues" -eq 0 ]; then
+            {
+              echo "## ✅ Stylelint"
+              echo ""
+              echo "**No issues found** in $files files."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ Stylelint"
+              echo ""
+              echo "**$issues issue(s)** across $files files."
+              echo ""
+              echo "| File | Line | Severity | Rule | Message |"
+              echo "|---|---|---|---|---|"
+              jq -r '.[] | .source as $src | .warnings[] | "| \($src) | \(.line) | \(.severity) | \(.rule) | \(.text | gsub("\\|"; "\\\\|")) |"' /tmp/stylelint.json
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

@@ -63,3 +63,57 @@ jobs:
         with:
           sarif_file: semgrep.sarif
         if: always()
+
+      - name: Semgrep summary
+        # Parses the SARIF for finding counts so the GitHub Actions
+        # Summary tab gives a one-glance pass/fail with severity
+        # breakdown. The full set of findings still flows into the
+        # repo's Code Scanning tab via the upload-sarif step above.
+        if: always()
+        run: |
+          if [ ! -s semgrep.sarif ]; then
+            {
+              echo "## ⚠️ Semgrep"
+              echo ""
+              echo "Scan produced no SARIF output (skipped or failed before producing results)."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # SARIF level values per spec: error / warning / note / none.
+          # Treat error+warning as the actionable count; note is
+          # informational and not gating.
+          error_count=$(jq '[.runs[]?.results[]? | select(.level == "error")] | length' semgrep.sarif)
+          warn_count=$(jq '[.runs[]?.results[]? | select(.level == "warning")] | length' semgrep.sarif)
+          note_count=$(jq '[.runs[]?.results[]? | select(.level == "note")] | length' semgrep.sarif)
+          # Default level when not set is "warning" per SARIF; fold
+          # those counts into warnings.
+          unset_count=$(jq '[.runs[]?.results[]? | select(.level == null)] | length' semgrep.sarif)
+          warn_count=$((warn_count + unset_count))
+          total=$((error_count + warn_count + note_count))
+          if [ "$total" -eq 0 ]; then
+            {
+              echo "## ✅ Semgrep"
+              echo ""
+              echo "**No findings.**"
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ⚠️ Semgrep"
+              echo ""
+              echo "**$total finding(s)** — error: $error_count, warning: $warn_count, note: $note_count."
+              echo ""
+              echo "Top rules by hit count:"
+              echo ""
+              echo "| Count | Rule |"
+              echo "|---|---|"
+              jq -r '
+                [.runs[]?.results[]?.ruleId // "?"]
+                | group_by(.) | map({rule: .[0], count: length})
+                | sort_by(-.count)
+                | .[]
+                | "| \(.count) | \(.rule) |"
+              ' semgrep.sarif | head -10
+              echo ""
+              echo "Full detail: see the **Code Scanning** tab on the repository."
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi

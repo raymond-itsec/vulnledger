@@ -30,7 +30,55 @@ jobs:
       - name: Install mkdocs-material
         run: pip install --upgrade pip mkdocs-material
       - name: Build site
-        run: mkdocs build --strict
+        # Tee mkdocs output so the warning lines stay visible in the
+        # job log AND can be parsed by the summary step. `--strict`
+        # already fails the job on any warning, so the build step
+        # itself gates correctness; the summary just describes what
+        # was built (or which warning broke it).
+        run: |
+          set -o pipefail
+          mkdocs build --strict 2>&1 | tee /tmp/mkdocs.log
+      - name: Docs build summary
+        if: always()
+        run: |
+          if [ ! -f /tmp/mkdocs.log ]; then
+            {
+              echo "## ⚠️ mkdocs build"
+              echo ""
+              echo "Build did not produce a log file."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # Page count from the built site dir; falls back to log
+          # parsing if the site dir is missing (build failed before
+          # writing any pages).
+          if [ -d site ]; then
+            pages=$(find site -name 'index.html' | wc -l | tr -d ' ')
+          else
+            pages=0
+          fi
+          warnings=$(grep -cE 'WARNING|ERROR' /tmp/mkdocs.log || true)
+          if [ "$warnings" -eq 0 ]; then
+            {
+              echo "## ✅ mkdocs build"
+              echo ""
+              echo "**Built $pages page(s)** with no warnings."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ mkdocs build"
+              echo ""
+              echo "**$warnings warning/error line(s)** during build of $pages page(s)."
+              echo ""
+              echo "<details><summary>Warnings</summary>"
+              echo ""
+              echo '```'
+              grep -E 'WARNING|ERROR' /tmp/mkdocs.log | head -30
+              echo '```'
+              echo ""
+              echo "</details>"
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
       - uses: actions/configure-pages@v6
         with:
           enablement: true

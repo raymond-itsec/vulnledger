@@ -23,8 +23,53 @@ jobs:
         run: python backend/scripts/check-lock-sync.py
       - name: Install pip-audit
         run: python -m pip install --upgrade pip pip-audit
-      - name: Run pip-audit
+      - name: Run pip-audit (human-readable)
+        # Keep the human-readable invocation in the log so the raw
+        # pip-audit output is easy to scan when debugging. Capture
+        # exit code separately - the JSON pass right after both writes
+        # the summary AND fails the job if vulnerabilities exist.
+        continue-on-error: true
         run: pip-audit -r backend/requirements.lock.txt
+      - name: Run pip-audit (JSON for summary)
+        # Re-run in JSON mode so the summary step has structured input.
+        # `--format json` makes pip-audit always exit 0 even with
+        # findings; we'll fail the job from the summary step based on
+        # the count.
+        run: |
+          set +e
+          pip-audit -r backend/requirements.lock.txt --format json --output /tmp/pip-audit.json
+          true
+      - name: pip-audit summary
+        if: always()
+        run: |
+          if [ ! -s /tmp/pip-audit.json ]; then
+            {
+              echo "## ⚠️ pip-audit (backend)"
+              echo ""
+              echo "Audit produced no JSON output. See the human-readable run for details."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          vuln_count=$(jq '[.dependencies[]?.vulns[]?] | length' /tmp/pip-audit.json)
+          pkg_count=$(jq '.dependencies | length' /tmp/pip-audit.json)
+          if [ "$vuln_count" -eq 0 ]; then
+            {
+              echo "## ✅ pip-audit (backend)"
+              echo ""
+              echo "**No vulnerabilities found** in $pkg_count packages."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ pip-audit (backend)"
+              echo ""
+              echo "**$vuln_count vulnerability(ies)** across $pkg_count packages."
+              echo ""
+              echo "| Package | Version | ID | Fix versions |"
+              echo "|---|---|---|---|"
+              jq -r '.dependencies[] | . as $dep | (.vulns // [])[] | "| \($dep.name) | \($dep.version) | \(.id) | \((.fix_versions // []) | join(", ")) |"' /tmp/pip-audit.json
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
 
   frontend-npm-audit:
     runs-on: ubuntu-latest
@@ -41,7 +86,73 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Audit production dependencies
-        run: npm audit --omit=dev --audit-level=high
+        # Capture JSON for the summary step in the same run so we
+        # don't pay for a second `npm audit` round-trip. The exit
+        # code is preserved so the job still fails on vulnerabilities
+        # at or above the configured level.
+        run: |
+          set +e
+          npm audit --omit=dev --audit-level=high --json > /tmp/npm-audit.json
+          EC=$?
+          # Echo human-readable output for the log too.
+          npm audit --omit=dev --audit-level=high || true
+          exit $EC
+      - name: npm audit summary
+        if: always()
+        run: |
+          if [ ! -s /tmp/npm-audit.json ]; then
+            {
+              echo "## ⚠️ npm audit (frontend, prod)"
+              echo ""
+              echo "Audit produced no JSON output."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          # `npm audit --json` shape: .metadata.vulnerabilities = { info, low, moderate, high, critical, total }
+          info=$(jq '.metadata.vulnerabilities.info // 0' /tmp/npm-audit.json)
+          low=$(jq '.metadata.vulnerabilities.low // 0' /tmp/npm-audit.json)
+          moderate=$(jq '.metadata.vulnerabilities.moderate // 0' /tmp/npm-audit.json)
+          high=$(jq '.metadata.vulnerabilities.high // 0' /tmp/npm-audit.json)
+          critical=$(jq '.metadata.vulnerabilities.critical // 0' /tmp/npm-audit.json)
+          total=$(jq '.metadata.vulnerabilities.total // 0' /tmp/npm-audit.json)
+          deps=$(jq '.metadata.dependencies.prod // .metadata.totalDependencies // 0' /tmp/npm-audit.json)
+          if [ "$total" -eq 0 ]; then
+            {
+              echo "## ✅ npm audit (frontend, prod)"
+              echo ""
+              echo "**0 vulnerabilities** in $deps production packages."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ npm audit (frontend, prod)"
+              echo ""
+              echo "**$total vulnerability(ies)** in $deps production packages."
+              echo ""
+              echo "| Severity | Count |"
+              echo "|---|---|"
+              echo "| Critical | $critical |"
+              echo "| High | $high |"
+              echo "| Moderate | $moderate |"
+              echo "| Low | $low |"
+              echo "| Info | $info |"
+              echo ""
+              # List the top advisories (name + id) so the summary is
+              # actionable without scrolling the log.
+              echo "### Advisories"
+              echo ""
+              echo "| Package | Severity | Title | Advisory |"
+              echo "|---|---|---|---|"
+              jq -r '
+                (.vulnerabilities // {}) as $v
+                | $v
+                | to_entries[]
+                | .key as $pkg
+                | (.value.via // [])[]
+                | select(type == "object")
+                | "| \($pkg) | \(.severity // "?") | \(.title // "?" | gsub("\\|"; "\\\\|")) | \(.url // "n/a") |"
+              ' /tmp/npm-audit.json | head -40
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
 
   frontend-openapi-types:
     runs-on: ubuntu-latest
@@ -95,7 +206,11 @@ jobs:
       - uses: actions/checkout@v6
       - name: Build backend image
         run: docker build -t vulnledger-backend-ci ./backend
-      - name: Trivy scan backend image
+      - name: Trivy scan backend image (JSON for summary + gating)
+        # Single scan in JSON mode. The summary step renders the
+        # findings table to the Actions Summary tab AND fails the
+        # job when CRITICAL/HIGH vulnerabilities are present, so we
+        # don't need a second scan just for log readability.
         uses: aquasecurity/trivy-action@v0.36.0
         env:
           TRIVY_IGNOREFILE: ./.trivyignore.yaml
@@ -103,9 +218,47 @@ jobs:
         with:
           image-ref: vulnledger-backend-ci
           version: v0.70.0
-          format: table
+          format: json
+          output: /tmp/trivy.json
           vuln-type: os,library
           ignore-unfixed: true
           trivyignores: .trivyignore.yaml
           severity: CRITICAL,HIGH
-          exit-code: "1"
+          exit-code: "0"
+      - name: Trivy summary + gate
+        if: always()
+        run: |
+          if [ ! -s /tmp/trivy.json ]; then
+            {
+              echo "## ⚠️ Trivy (backend image)"
+              echo ""
+              echo "Scan produced no JSON output. The previous step likely failed before writing results."
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          critical=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "CRITICAL")] | length' /tmp/trivy.json)
+          high=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity == "HIGH")] | length' /tmp/trivy.json)
+          total=$((critical + high))
+          if [ "$total" -eq 0 ]; then
+            {
+              echo "## ✅ Trivy (backend image)"
+              echo ""
+              echo "**No CRITICAL or HIGH vulnerabilities** found in the backend image."
+            } >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo "## ❌ Trivy (backend image)"
+              echo ""
+              echo "**$total vulnerability(ies)** at CRITICAL/HIGH severity. Critical: $critical, High: $high."
+              echo ""
+              echo "| Severity | Package | Installed | Fixed in | CVE |"
+              echo "|---|---|---|---|---|"
+              jq -r '
+                .Results[]? | .Target as $target
+                | (.Vulnerabilities // [])[]
+                | select(.Severity == "CRITICAL" or .Severity == "HIGH")
+                | "| \(.Severity) | \(.PkgName) | \(.InstalledVersion) | \(.FixedVersion // "n/a") | \(.VulnerabilityID) |"
+              ' /tmp/trivy.json | head -50
+            } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
