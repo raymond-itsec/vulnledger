@@ -43,7 +43,7 @@ def configure_logging() -> None:
             },
             "formatters": {
                 "json": {
-                    "()": "pythonjsonlogger.jsonlogger.JsonFormatter",
+                    "()": "pythonjsonlogger.json.JsonFormatter",
                     # The format string declares *which* fields the
                     # formatter is willing to emit; missing attributes on
                     # a record are silently omitted from the output, so

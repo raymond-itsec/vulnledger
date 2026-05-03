@@ -91,9 +91,13 @@ jobs:
           PYTHONPATH: ${{ github.workspace }}/backend
         # JUnit XML feeds the summary step with a structured per-suite
         # breakdown without re-parsing pytest's stdout format.
+        # Tee stdout into /tmp/pytest.log so the warnings summary
+        # block (which pytest prints to stdout, NOT into the JUnit
+        # XML by default) can be parsed alongside.
         run: |
+          set -o pipefail
           cd backend
-          pytest tests/ -v --junit-xml=/tmp/pytest.xml
+          pytest tests/ -v --junit-xml=/tmp/pytest.xml 2>&1 | tee /tmp/pytest.log
 
       - name: Pytest summary
         if: always()
@@ -108,8 +112,16 @@ jobs:
           fi
           # Python is already on the runner from setup-python; use it
           # to parse JUnit XML rather than wrestling with xmllint.
+          # Pytest's JUnit XML doesn't include the warnings block by
+          # default (only failures/errors/skips), so the summary step
+          # also greps the captured stdout for the warnings section
+          # to surface DeprecationWarning / PendingDeprecationWarning
+          # noise. Per the "never step over warnings" rule, ✅ flips
+          # to ⚠️ when warnings are present even if every test passed.
           python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import re
           import xml.etree.ElementTree as ET
+          from pathlib import Path
 
           tree = ET.parse('/tmp/pytest.xml')
           root = tree.getroot()
@@ -124,15 +136,39 @@ jobs:
           skipped = total('skipped')
           passed = tests - failures - errors - skipped
 
-          if failures + errors == 0:
-              print(f"## ✅ Backend pytest")
-              print()
-              print(f"**{passed} passed**, {skipped} skipped, 0 failed, 0 errors (out of {tests} collected).")
-          else:
+          # Parse warnings out of the captured stdout. Pytest prints
+          # them between "warnings summary" and either "short test
+          # summary info", "passed", or end-of-stream. Each warning
+          # block starts with a path:line followed by the warning
+          # class and message.
+          log_text = Path('/tmp/pytest.log').read_text(errors='replace') if Path('/tmp/pytest.log').exists() else ''
+          warning_count = 0
+          warning_lines: list[tuple[str, str, str]] = []  # (location, klass, message)
+          m = re.search(
+              r'={3,} warnings summary ={3,}\n(.*?)(?=\n-- Docs:|\n={3,}|\Z)',
+              log_text,
+              re.DOTALL,
+          )
+          if m:
+              block = m.group(1)
+              # Look for "<path>:<line>: <Warning>: <message>" lines.
+              for line in block.splitlines():
+                  match = re.match(r'\s*(\S+:\d+):\s*(\w+(?:Warning|Error)):\s*(.+)$', line)
+                  if match:
+                      warning_count += 1
+                      warning_lines.append((match.group(1), match.group(2), match.group(3).strip()))
+              # Pytest also prints a count line e.g. "1 warning". Use
+              # it as a fallback when the per-line parser misses
+              # multi-line messages.
+              count_match = re.search(r'(\d+)\s+warning', block)
+              if count_match:
+                  warning_count = max(warning_count, int(count_match.group(1)))
+
+          if failures + errors > 0:
               print(f"## ❌ Backend pytest")
               print()
               print(f"**{failures + errors} failure(s)** — {passed} passed, {skipped} skipped, "
-                    f"{failures} failed, {errors} errors (out of {tests} collected).")
+                    f"{failures} failed, {errors} errors, {warning_count} warning(s) (out of {tests} collected).")
               print()
               print("| Suite | Test | Type | Message |")
               print("|---|---|---|---|")
@@ -146,4 +182,21 @@ jobs:
                           if len(msg) > 200:
                               msg = msg[:200] + '...'
                           print(f"| {s.get('name', '?')} | {case.get('classname', '?')}::{case.get('name', '?')} | {kind} | {msg} |")
+          elif warning_count > 0:
+              print(f"## ⚠️ Backend pytest")
+              print()
+              print(f"**{passed} passed**, {skipped} skipped, but {warning_count} warning(s) — "
+                    f"see table below. (out of {tests} collected)")
+              print()
+              print("| Location | Type | Message |")
+              print("|---|---|---|")
+              for loc, klass, msg in warning_lines[:30]:
+                  msg = msg.replace('|', '\\|')
+                  if len(msg) > 200:
+                      msg = msg[:200] + '...'
+                  print(f"| {loc} | {klass} | {msg} |")
+          else:
+              print(f"## ✅ Backend pytest")
+              print()
+              print(f"**{passed} passed**, {skipped} skipped, 0 failed, 0 errors, 0 warnings (out of {tests} collected).")
           PY
