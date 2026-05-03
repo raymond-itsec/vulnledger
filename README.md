@@ -13,6 +13,10 @@ A self-hosted security review platform for tracking vulnerability findings, mana
 - [Deployment](https://raymond-itsec.github.io/vulnledger/deployment/) — single-server and multi-host options
 - [Security](https://raymond-itsec.github.io/vulnledger/security/) — security model end to end
 
+## Changelog
+
+📋 **[CHANGELOG.md](CHANGELOG.md)** — release notes for every version.
+
 ## Sponsor this project
 
 ❤️  Support development via the **Sponsor** button at the top of this repository, or directly on [GitHub Sponsors](https://github.com/sponsors/raymond-itsec).

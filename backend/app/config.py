@@ -94,6 +94,13 @@ class Settings(BaseSettings):
     # Rate limiting
     rate_limit_login: str = "5/minute"
     rate_limit_api: str = "60/minute"
+    # Auto-generated API documentation. Both default ON for developer
+    # convenience. Turn OFF in hardened deployments where exposing the
+    # full endpoint inventory to unauthenticated scanners is a concern.
+    # Setting either to False unmounts the corresponding URL entirely
+    # (FastAPI returns 404 on the path).
+    swagger_ui_enabled: bool = True
+    redoc_enabled: bool = True
     # OIDC SSO (optional -- leave empty to disable)
     oidc_enabled: bool = False
     oidc_client_id: str = ""
