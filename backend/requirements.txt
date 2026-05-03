@@ -25,4 +25,4 @@ python-json-logger==4.1.0
 # /api/v1/metrics for vmagent (lands with the Phase 8 observability
 # stack). Single-process mode today; switch to multiprocess mode when
 # we run >1 uvicorn worker per container.
-prometheus-client==0.21.1
+prometheus-client==0.25.0
