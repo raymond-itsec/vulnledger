@@ -1,5 +1,10 @@
 # VulnLedger
 
+[![CodeQL](https://github.com/raymond-itsec/vulnledger/actions/workflows/github-code-scanning/codeql/badge.svg)](https://github.com/raymond-itsec/vulnledger/actions/workflows/github-code-scanning/codeql)
+[![Dependabot Updates](https://github.com/raymond-itsec/vulnledger/actions/workflows/dependabot/dependabot-updates/badge.svg)](https://github.com/raymond-itsec/vulnledger/actions/workflows/dependabot/dependabot-updates)
+[![Security Audits](https://github.com/raymond-itsec/vulnledger/actions/workflows/security-audit.yml/badge.svg)](https://github.com/raymond-itsec/vulnledger/actions/workflows/security-audit.yml)
+[![Semgrep](https://github.com/raymond-itsec/vulnledger/actions/workflows/semgrep.yml/badge.svg)](https://github.com/raymond-itsec/vulnledger/actions/workflows/semgrep.yml)
+
 A self-hosted security review platform for tracking vulnerability findings, managing review sessions, and producing client-ready reports.
 
 **Fully self-hostable. No US Cloud Act dependencies. Your data stays yours.**
