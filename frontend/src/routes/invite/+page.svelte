@@ -1,13 +1,16 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import PublicShell from '$lib/components/PublicShell.svelte';
   import { LOGIN_PATH, ONBOARDING_PATH } from '$lib/config/routes';
   import { onboardingApi } from '$lib/api/onboarding';
+  import { handleFormError } from '$lib/api/errors';
   import { toast } from '$lib/stores/toast.svelte';
 
   let inviteCode = $state('');
   let verifying = $state(false);
+  let fieldErrors = $state<Record<string, string>>({});
 
   async function verifyInvite() {
     const normalizedCode = inviteCode.trim();
@@ -19,9 +22,14 @@
     verifying = true;
     try {
       await onboardingApi.verifyInvite(normalizedCode);
+      fieldErrors = {};
       await goto(ONBOARDING_PATH, { replaceState: true });
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not verify invite code.');
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not verify invite code.',
+      });
     } finally {
       verifying = false;
     }
@@ -49,7 +57,9 @@
           placeholder="Paste your invite code"
           autocomplete="one-time-code"
           required
+          aria-invalid={!!fieldErrors.invite_code}
         />
+        <FieldError message={fieldErrors.invite_code} />
       </div>
       <button class="btn btn-primary full-width" type="submit" disabled={verifying}>
         {verifying ? 'Checking...' : 'Continue to onboarding'}

@@ -1,4 +1,4 @@
-import { readPublicErrorMessage } from '$lib/api/errors';
+import { ApiError } from '$lib/api/errors';
 import {
   APPLICATION_UNAVAILABLE_MESSAGE,
   appAvailability,
@@ -47,7 +47,7 @@ async function publicJsonRequest<T>(path: string, init: RequestInit): Promise<T>
     if (appAvailability.unavailable) {
       throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
     }
-    throw new Error(await readPublicErrorMessage(response));
+    throw await ApiError.fromResponse(response);
   }
 
   return parseJson<T>(response);

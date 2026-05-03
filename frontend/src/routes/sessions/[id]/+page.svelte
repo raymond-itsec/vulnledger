@@ -5,10 +5,12 @@
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { reportsApi, type ReportExport } from '$lib/api/reports';
   import { authorizedFetch } from '$lib/api/client';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId, downloadResponseAsFile } from '$lib/util/dom';
   import { copyToClipboard } from '$lib/util/clipboard';
@@ -21,6 +23,7 @@
   let exporting = $state('');
   let storedExports = $state<ReportExport[]>([]);
   let form = $state({ review_name: '', status: 'planned', notes: '' });
+  let fieldErrors = $state<Record<string, string>>({});
 
   const reviewNameFieldId = fieldId('session-review-name');
   const sessionStatusFieldId = fieldId('session-status');
@@ -111,8 +114,13 @@
     try {
       session = await sessionsApi.update(session.session_id, form);
       editing = false;
-    } catch (e: any) {
-      toast.error(e.message || 'Could not save session changes.');
+      fieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not save session changes.',
+      });
     } finally {
       saving = false;
     }
@@ -141,19 +149,22 @@
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
           <label for={reviewNameFieldId}>Review Name</label>
-          <input id={reviewNameFieldId} bind:value={form.review_name} required />
+          <input id={reviewNameFieldId} bind:value={form.review_name} required aria-invalid={!!fieldErrors.review_name} />
+          <FieldError message={fieldErrors.review_name} />
         </div>
         <div class="form-group">
           <label for={sessionStatusFieldId}>Status</label>
-          <select id={sessionStatusFieldId} bind:value={form.status}>
+          <select id={sessionStatusFieldId} bind:value={form.status} aria-invalid={!!fieldErrors.status}>
             {#each sessionStatuses as s}
               <option value={s.value}>{s.label}</option>
             {/each}
           </select>
+          <FieldError message={fieldErrors.status} />
         </div>
         <div class="form-group">
           <label for={sessionNotesFieldId}>Notes (Markdown)</label>
-          <textarea id={sessionNotesFieldId} bind:value={form.notes}></textarea>
+          <textarea id={sessionNotesFieldId} bind:value={form.notes} aria-invalid={!!fieldErrors.notes}></textarea>
+          <FieldError message={fieldErrors.notes} />
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>

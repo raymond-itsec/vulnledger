@@ -5,10 +5,12 @@
   import { assetsApi, type Asset } from '$lib/api/assets';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { usersApi, type User } from '$lib/api/users';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
@@ -33,6 +35,7 @@
     status: 'planned',
     notes: '',
   });
+  let fieldErrors = $state<Record<string, string>>({});
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasAssets = $derived(assets.length > 0);
@@ -126,8 +129,13 @@
         status: 'planned',
         notes: '',
       };
-    } catch (e: any) {
-      toast.error(e.message || 'Could not create session.');
+      fieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create session.',
+      });
     } finally {
       saving = false;
     }
@@ -188,41 +196,47 @@
     <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
       <div class="form-group">
         <label for={assetFieldId}>Asset *</label>
-        <select id={assetFieldId} bind:value={form.asset_id} required>
+        <select id={assetFieldId} bind:value={form.asset_id} required aria-invalid={!!fieldErrors.asset_id}>
           <option value="" disabled>Select asset</option>
           {#each assets as asset}
             <option value={asset.asset_id}>{asset.asset_name}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.asset_id} />
       </div>
       <div class="form-group">
         <label for={reviewNameFieldId}>Review Name *</label>
-        <input id={reviewNameFieldId} bind:value={form.review_name} required />
+        <input id={reviewNameFieldId} bind:value={form.review_name} required aria-invalid={!!fieldErrors.review_name} />
+        <FieldError message={fieldErrors.review_name} />
       </div>
       <div class="form-group">
         <label for={reviewDateFieldId}>Date *</label>
-        <input id={reviewDateFieldId} type="date" bind:value={form.review_date} required />
+        <input id={reviewDateFieldId} type="date" bind:value={form.review_date} required aria-invalid={!!fieldErrors.review_date} />
+        <FieldError message={fieldErrors.review_date} />
       </div>
       <div class="form-group">
         <label for={reviewerFieldId}>Reviewer *</label>
-        <select id={reviewerFieldId} bind:value={form.reviewer_id} required>
+        <select id={reviewerFieldId} bind:value={form.reviewer_id} required aria-invalid={!!fieldErrors.reviewer_id}>
           <option value="" disabled>Select reviewer</option>
           {#each reviewers as reviewer}
             <option value={reviewer.user_id}>{reviewer.full_name || reviewer.username}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.reviewer_id} />
       </div>
       <div class="form-group">
         <label for={statusFieldId}>Status</label>
-        <select id={statusFieldId} bind:value={form.status}>
+        <select id={statusFieldId} bind:value={form.status} aria-invalid={!!fieldErrors.status}>
           {#each sessionStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.status} />
       </div>
       <div class="form-group">
         <label for={notesFieldId}>Notes</label>
-        <textarea id={notesFieldId} bind:value={form.notes}></textarea>
+        <textarea id={notesFieldId} bind:value={form.notes} aria-invalid={!!fieldErrors.notes}></textarea>
+        <FieldError message={fieldErrors.notes} />
       </div>
       <FormActions
         {saving}

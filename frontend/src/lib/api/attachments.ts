@@ -1,5 +1,5 @@
 import { authorizedFetch } from './client';
-import { readPublicErrorMessage } from './errors';
+import { ApiError } from './errors';
 import { downloadBlob } from '$lib/util/dom';
 import type { PaginatedResponse } from './types';
 
@@ -22,7 +22,7 @@ export const attachmentsApi = {
     const res = await authorizedFetch(
       `/api/v1/findings/${findingId}/attachments?page=${page}&per_page=${perPage}`,
     );
-    if (!res.ok) throw new Error(await readPublicErrorMessage(res, 'Failed to load attachments'));
+    if (!res.ok) throw await ApiError.fromResponse(res, 'Failed to load attachments');
     return res.json();
   },
 
@@ -34,7 +34,7 @@ export const attachmentsApi = {
       body: formData,
     });
     if (!res.ok) {
-      throw new Error(await readPublicErrorMessage(res, 'Upload failed. Please try again later.'));
+      throw await ApiError.fromResponse(res, 'Upload failed. Please try again later.');
     }
     return res.json();
   },
@@ -42,7 +42,7 @@ export const attachmentsApi = {
   download: async (attachmentId: string, fileName: string): Promise<void> => {
     const res = await authorizedFetch(`/api/v1/attachments/${attachmentId}/download`);
     if (!res.ok) {
-      throw new Error(await readPublicErrorMessage(res, 'Failed to download attachment'));
+      throw await ApiError.fromResponse(res, 'Failed to download attachment');
     }
 
     const blob = await res.blob();
@@ -53,7 +53,7 @@ export const attachmentsApi = {
     const res = await authorizedFetch(`/api/v1/attachments/${attachmentId}`, {
       method: 'DELETE',
     });
-    if (!res.ok) throw new Error(await readPublicErrorMessage(res, 'Failed to delete attachment'));
+    if (!res.ok) throw await ApiError.fromResponse(res, 'Failed to delete attachment');
   },
 };
 

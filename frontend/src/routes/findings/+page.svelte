@@ -5,10 +5,12 @@
   import { findingsApi, type Finding } from '$lib/api/findings';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { templatesApi, type Template } from '$lib/api/templates';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
   import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import Modal from '$lib/components/Modal.svelte';
@@ -42,6 +44,7 @@
     remediation_status: 'open',
     references: '',
   });
+  let fieldErrors = $state<Record<string, string>>({});
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const hasSessions = $derived(sessions.length > 0);
@@ -152,7 +155,14 @@
         references: refs.length > 0 ? refs : undefined,
       });
       showModal = false;
+      fieldErrors = {};
       await loadFindings(page);
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create finding.',
+      });
     } finally {
       saving = false;
     }
@@ -242,39 +252,47 @@
       {/if}
       <div class="form-group">
         <label for={sessionFieldId}>Session *</label>
-        <select id={sessionFieldId} bind:value={form.session_id} required>
+        <select id={sessionFieldId} bind:value={form.session_id} required aria-invalid={!!fieldErrors.session_id}>
           <option value="" disabled>Select session</option>
           {#each sessions as s}
             <option value={s.session_id}>{s.review_name}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.session_id} />
       </div>
       <div class="form-group">
         <label for={titleFieldId}>Title *</label>
-        <input id={titleFieldId} bind:value={form.title} required />
+        <input id={titleFieldId} bind:value={form.title} required aria-invalid={!!fieldErrors.title} />
+        <FieldError message={fieldErrors.title} />
       </div>
       <div class="form-group">
         <label for={riskLevelFieldId}>Risk Level *</label>
-        <select id={riskLevelFieldId} bind:value={form.risk_level}>
+        <select id={riskLevelFieldId} bind:value={form.risk_level} aria-invalid={!!fieldErrors.risk_level}>
           {#each riskLevels as r}
             <option value={r.value}>{r.label}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.risk_level} />
       </div>
       <MarkdownEditor label="Description * (Markdown)" bind:value={form.description} required />
+      <FieldError message={fieldErrors.description} />
       <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
+      <FieldError message={fieldErrors.impact} />
       <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
+      <FieldError message={fieldErrors.recommendation} />
       <div class="form-group">
         <label for={remediationStatusFieldId}>Remediation Status</label>
-        <select id={remediationStatusFieldId} bind:value={form.remediation_status}>
+        <select id={remediationStatusFieldId} bind:value={form.remediation_status} aria-invalid={!!fieldErrors.remediation_status}>
           {#each remediationStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
+        <FieldError message={fieldErrors.remediation_status} />
       </div>
       <div class="form-group">
         <label for={referencesFieldId}>References (one per line)</label>
-        <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
+        <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..." aria-invalid={!!fieldErrors.references}></textarea>
+        <FieldError message={fieldErrors.references} />
       </div>
       <FormActions
         {saving}

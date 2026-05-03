@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { templatesApi, type Template } from '$lib/api/templates';
+  import { handleFormError, toToastMessage } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
@@ -19,6 +22,7 @@
   let editingTemplate = $state<Template | null>(null);
   let saving = $state(false);
   let deleteConfirm = $state('');
+  let fieldErrors = $state<Record<string, string>>({});
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const isAdmin = $derived(auth.user?.role === 'admin');
@@ -127,6 +131,13 @@
         selected = created;
       }
       showModal = false;
+      fieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: editingTemplate ? 'Could not save template.' : 'Could not create template.',
+      });
     } finally {
       saving = false;
     }
@@ -142,8 +153,8 @@
       templates = templates.filter((x) => x.template_id !== t.template_id);
       if (selected?.template_id === t.template_id) selected = null;
       deleteConfirm = '';
-    } catch {
-      // ignore
+    } catch (e) {
+      toast.error(toToastMessage(e, 'Could not delete template.'));
     }
   }
 
@@ -264,35 +275,44 @@
     {#if !editingTemplate}
       <div class="form-group">
         <label for={stableIdFieldId}>Stable ID *</label>
-        <input id={stableIdFieldId} bind:value={form.stable_id} required placeholder="e.g. custom/my-finding-type" />
+        <input id={stableIdFieldId} bind:value={form.stable_id} required placeholder="e.g. custom/my-finding-type" aria-invalid={!!fieldErrors.stable_id} />
+        <FieldError message={fieldErrors.stable_id} />
       </div>
     {/if}
     <div class="form-group">
       <label for={nameFieldId}>Name *</label>
-      <input id={nameFieldId} bind:value={form.name} required placeholder="e.g. My Custom Finding" />
+      <input id={nameFieldId} bind:value={form.name} required placeholder="e.g. My Custom Finding" aria-invalid={!!fieldErrors.name} />
+      <FieldError message={fieldErrors.name} />
     </div>
     <div class="form-group">
       <label for={categoryFieldId}>Category</label>
-      <input id={categoryFieldId} bind:value={form.category} placeholder="e.g. custom, injection, authentication" />
+      <input id={categoryFieldId} bind:value={form.category} placeholder="e.g. custom, injection, authentication" aria-invalid={!!fieldErrors.category} />
+      <FieldError message={fieldErrors.category} />
     </div>
     <div class="form-group">
       <label for={titleFieldId}>Finding Title</label>
-      <input id={titleFieldId} bind:value={form.title} placeholder="Default title when applied" />
+      <input id={titleFieldId} bind:value={form.title} placeholder="Default title when applied" aria-invalid={!!fieldErrors.title} />
+      <FieldError message={fieldErrors.title} />
     </div>
     <div class="form-group">
       <label for={riskLevelFieldId}>Risk Level</label>
-      <select id={riskLevelFieldId} bind:value={form.risk_level}>
+      <select id={riskLevelFieldId} bind:value={form.risk_level} aria-invalid={!!fieldErrors.risk_level}>
         {#each riskLevels as r}
           <option value={r.value}>{r.label}</option>
         {/each}
       </select>
+      <FieldError message={fieldErrors.risk_level} />
     </div>
     <MarkdownEditor label="Description (Markdown)" bind:value={form.description} />
+    <FieldError message={fieldErrors.description} />
     <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
+    <FieldError message={fieldErrors.impact} />
     <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
+    <FieldError message={fieldErrors.recommendation} />
     <div class="form-group">
       <label for={referencesFieldId}>References (one per line)</label>
-      <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..."></textarea>
+      <textarea id={referencesFieldId} bind:value={form.references} placeholder="CWE-79&#10;https://owasp.org/..." aria-invalid={!!fieldErrors.references}></textarea>
+      <FieldError message={fieldErrors.references} />
     </div>
     <FormActions
       {saving}

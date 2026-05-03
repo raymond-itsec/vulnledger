@@ -3,17 +3,20 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import PublicShell from '$lib/components/PublicShell.svelte';
   import { login as doLogin } from '$lib/stores/auth.svelte';
   import { appAvailability } from '$lib/stores/app-availability.svelte';
   import { APP_BASE_PATH, INVITE_PATH } from '$lib/config/routes';
   import { toast } from '$lib/stores/toast.svelte';
+  import { handleFormError } from '$lib/api/errors';
   import { fieldId } from '$lib/util/dom';
 
   let username = $state('');
   let password = $state('');
   let loggingIn = $state(false);
   let oidcAvailable = $state(false);
+  let fieldErrors = $state<Record<string, string>>({});
 
   const usernameFieldId = fieldId('login-username');
   const passwordFieldId = fieldId('login-password');
@@ -23,9 +26,13 @@
     try {
       await doLogin(username, password);
       await goto(APP_BASE_PATH, { replaceState: true });
-    } catch (e: any) {
+    } catch (e) {
       if (!appAvailability.unavailable) {
-        toast.error(e.message || 'Login failed. Please try again later.');
+        handleFormError(e, {
+          setFieldErrors: (m) => (fieldErrors = m),
+          onToast: toast.error,
+          fallback: 'Login failed. Please try again later.',
+        });
       }
     } finally {
       loggingIn = false;
@@ -58,11 +65,27 @@
     <form onsubmit={(e) => { e.preventDefault(); handleLogin(); }}>
       <div class="form-group">
         <label for={usernameFieldId}>Username</label>
-        <input id={usernameFieldId} type="text" bind:value={username} required autocomplete="username" />
+        <input
+          id={usernameFieldId}
+          type="text"
+          bind:value={username}
+          required
+          autocomplete="username"
+          aria-invalid={!!fieldErrors.username}
+        />
+        <FieldError message={fieldErrors.username} />
       </div>
       <div class="form-group">
         <label for={passwordFieldId}>Password</label>
-        <input id={passwordFieldId} type="password" bind:value={password} required autocomplete="current-password" />
+        <input
+          id={passwordFieldId}
+          type="password"
+          bind:value={password}
+          required
+          autocomplete="current-password"
+          aria-invalid={!!fieldErrors.password}
+        />
+        <FieldError message={fieldErrors.password} />
       </div>
       <button class="btn btn-primary login-btn" type="submit" disabled={loggingIn}>
         {loggingIn ? 'Signing in...' : 'Sign In'}

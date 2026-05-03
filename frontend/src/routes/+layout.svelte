@@ -9,6 +9,7 @@
   import AppSidebar from '$lib/components/AppSidebar.svelte';
   import type { NavItem } from '$lib/components/AppSidebar.svelte';
   import AppTopbar from '$lib/components/AppTopbar.svelte';
+  import ErrorBoundary from '$lib/components/ErrorBoundary.svelte';
   import PublicFooter from '$lib/components/PublicFooter.svelte';
   import ToastViewport from '$lib/components/ToastViewport.svelte';
   import { APP_SHELL_CONTEXT_KEY } from '$lib/components/app-shell-context';
@@ -179,7 +180,11 @@
   </main>
 {:else if !auth.isAuthenticated}
   {#if isPublicRoute(page.url.pathname)}
-    {@render children()}
+    <ErrorBoundary
+      onError={(e) => console.error('[error-boundary] public route render failed', e)}
+    >
+      {@render children()}
+    </ErrorBoundary>
   {:else}
     <main class="content loading-shell">
       <p>Redirecting to login...</p>
@@ -206,7 +211,11 @@
         {/snippet}
       </AppTopbar>
       <div class="content-inner">
-        {@render children()}
+        <ErrorBoundary
+          onError={(e) => console.error('[error-boundary] app route render failed', e)}
+        >
+          {@render children()}
+        </ErrorBoundary>
       </div>
       <PublicFooter />
     </main>

@@ -3,10 +3,13 @@
   import { page } from '$app/state';
   import { clientsApi, type Client } from '$lib/api/clients';
   import { assetsApi, type Asset } from '$lib/api/assets';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import { fieldId } from '$lib/util/dom';
 
   let client = $state<Client | null>(null);
@@ -18,6 +21,8 @@
 
   let showAssetModal = $state(false);
   let assetForm = $state({ asset_name: '', asset_type: 'web_application', description: '' });
+  let clientFieldErrors = $state<Record<string, string>>({});
+  let assetFieldErrors = $state<Record<string, string>>({});
 
   const companyNameFieldId = fieldId('client-company-name');
   const primaryContactFieldId = fieldId('client-primary-contact');
@@ -50,7 +55,14 @@
     saving = true;
     try {
       client = await clientsApi.update(client.client_id, form);
+      clientFieldErrors = {};
       editing = false;
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (clientFieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not save client.',
+      });
     } finally {
       saving = false;
     }
@@ -64,6 +76,13 @@
       assets = [...assets, a];
       showAssetModal = false;
       assetForm = { asset_name: '', asset_type: 'web_application', description: '' };
+      assetFieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (assetFieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create asset.',
+      });
     } finally {
       saving = false;
     }
@@ -87,15 +106,32 @@
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
           <label for={companyNameFieldId}>Company Name</label>
-          <input id={companyNameFieldId} bind:value={form.company_name} required />
+          <input
+            id={companyNameFieldId}
+            bind:value={form.company_name}
+            required
+            aria-invalid={!!clientFieldErrors.company_name}
+          />
+          <FieldError message={clientFieldErrors.company_name} />
         </div>
         <div class="form-group">
           <label for={primaryContactFieldId}>Primary Contact</label>
-          <input id={primaryContactFieldId} bind:value={form.primary_contact_name} />
+          <input
+            id={primaryContactFieldId}
+            bind:value={form.primary_contact_name}
+            aria-invalid={!!clientFieldErrors.primary_contact_name}
+          />
+          <FieldError message={clientFieldErrors.primary_contact_name} />
         </div>
         <div class="form-group">
           <label for={emailFieldId}>Email</label>
-          <input id={emailFieldId} type="email" bind:value={form.primary_contact_email} />
+          <input
+            id={emailFieldId}
+            type="email"
+            bind:value={form.primary_contact_email}
+            aria-invalid={!!clientFieldErrors.primary_contact_email}
+          />
+          <FieldError message={clientFieldErrors.primary_contact_email} />
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
@@ -144,19 +180,35 @@
     <form onsubmit={(e) => { e.preventDefault(); handleCreateAsset(); }}>
       <div class="form-group">
         <label for={assetNameFieldId}>Asset Name *</label>
-        <input id={assetNameFieldId} bind:value={assetForm.asset_name} required />
+        <input
+          id={assetNameFieldId}
+          bind:value={assetForm.asset_name}
+          required
+          aria-invalid={!!assetFieldErrors.asset_name}
+        />
+        <FieldError message={assetFieldErrors.asset_name} />
       </div>
       <div class="form-group">
         <label for={assetTypeFieldId}>Type</label>
-        <select id={assetTypeFieldId} bind:value={assetForm.asset_type}>
+        <select
+          id={assetTypeFieldId}
+          bind:value={assetForm.asset_type}
+          aria-invalid={!!assetFieldErrors.asset_type}
+        >
           {#each assetTypes as t}
             <option value={t.value}>{t.label}</option>
           {/each}
         </select>
+        <FieldError message={assetFieldErrors.asset_type} />
       </div>
       <div class="form-group">
         <label for={assetDescriptionFieldId}>Description</label>
-        <textarea id={assetDescriptionFieldId} bind:value={assetForm.description}></textarea>
+        <textarea
+          id={assetDescriptionFieldId}
+          bind:value={assetForm.description}
+          aria-invalid={!!assetFieldErrors.description}
+        ></textarea>
+        <FieldError message={assetFieldErrors.description} />
       </div>
       <FormActions {saving} saveLabel="Create" savingLabel="Creating..." oncancel={() => (showAssetModal = false)} />
     </form>

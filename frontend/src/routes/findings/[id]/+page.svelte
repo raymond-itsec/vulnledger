@@ -3,9 +3,12 @@
   import { page } from '$app/state';
   import { findingsApi, type Finding, type FindingHistory } from '$lib/api/findings';
   import { attachmentsApi, formatFileSize, type Attachment } from '$lib/api/attachments';
+  import { handleFormError, toToastMessage } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import MarkdownEditor from '$lib/components/MarkdownEditor.svelte';
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId } from '$lib/util/dom';
@@ -31,6 +34,7 @@
     remediation_status: 'open',
     references: '',
   });
+  let fieldErrors = $state<Record<string, string>>({});
 
   const canEdit = $derived(auth.user?.role === 'admin' || auth.user?.role === 'reviewer');
   const riskLevels = $derived(taxonomy.activeEntries('risk_level'));
@@ -90,6 +94,13 @@
       });
       history = await findingsApi.history(finding.finding_id);
       editing = false;
+      fieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not save finding.',
+      });
     } finally {
       saving = false;
     }
@@ -104,8 +115,8 @@
     try {
       const a = await attachmentsApi.upload(finding.finding_id, file);
       attachments = [a, ...attachments];
-    } catch (err: any) {
-      uploadError = err.message;
+    } catch (err) {
+      uploadError = toToastMessage(err, 'Upload failed.');
     } finally {
       uploading = false;
       input.value = '';
@@ -116,16 +127,16 @@
     try {
       await attachmentsApi.delete(id);
       attachments = attachments.filter((a) => a.attachment_id !== id);
-    } catch {
-      // ignore
+    } catch (err) {
+      toast.error(toToastMessage(err, 'Could not delete attachment.'));
     }
   }
 
   async function handleDownloadAttachment(att: Attachment) {
     try {
       await attachmentsApi.download(att.attachment_id, att.file_name);
-    } catch (err: any) {
-      uploadError = err.message;
+    } catch (err) {
+      uploadError = toToastMessage(err, 'Could not download attachment.');
     }
   }
 </script>
@@ -153,30 +164,37 @@
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
           <label for={titleFieldId}>Title *</label>
-          <input id={titleFieldId} bind:value={form.title} required />
+          <input id={titleFieldId} bind:value={form.title} required aria-invalid={!!fieldErrors.title} />
+          <FieldError message={fieldErrors.title} />
         </div>
         <div class="form-group">
           <label for={riskLevelFieldId}>Risk Level *</label>
-          <select id={riskLevelFieldId} bind:value={form.risk_level}>
+          <select id={riskLevelFieldId} bind:value={form.risk_level} aria-invalid={!!fieldErrors.risk_level}>
             {#each riskLevels as r}
               <option value={r.value}>{r.label}</option>
             {/each}
           </select>
+          <FieldError message={fieldErrors.risk_level} />
         </div>
         <MarkdownEditor label="Description * (Markdown)" bind:value={form.description} required minHeight="150px" />
+        <FieldError message={fieldErrors.description} />
         <MarkdownEditor label="Impact (Markdown)" bind:value={form.impact} />
+        <FieldError message={fieldErrors.impact} />
         <MarkdownEditor label="Recommendation (Markdown)" bind:value={form.recommendation} />
+        <FieldError message={fieldErrors.recommendation} />
         <div class="form-group">
           <label for={remediationStatusFieldId}>Remediation Status</label>
-          <select id={remediationStatusFieldId} bind:value={form.remediation_status}>
+          <select id={remediationStatusFieldId} bind:value={form.remediation_status} aria-invalid={!!fieldErrors.remediation_status}>
             {#each remediationStatuses as s}
               <option value={s.value}>{s.label}</option>
             {/each}
           </select>
+          <FieldError message={fieldErrors.remediation_status} />
         </div>
         <div class="form-group">
           <label for={referencesFieldId}>References (one per line)</label>
-          <textarea id={referencesFieldId} bind:value={form.references}></textarea>
+          <textarea id={referencesFieldId} bind:value={form.references} aria-invalid={!!fieldErrors.references}></textarea>
+          <FieldError message={fieldErrors.references} />
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>

@@ -3,9 +3,11 @@
   import { page } from '$app/state';
   import { onMount } from 'svelte';
   import BrandLockup from '$lib/components/BrandLockup.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import PublicShell from '$lib/components/PublicShell.svelte';
   import { INVITE_PATH, LOGIN_PATH } from '$lib/config/routes';
   import { onboardingApi } from '$lib/api/onboarding';
+  import { handleFormError } from '$lib/api/errors';
   import { toast } from '$lib/stores/toast.svelte';
 
   let loading = $state(true);
@@ -16,6 +18,7 @@
   let confirmPassword = $state('');
   let fullName = $state('');
   let companyName = $state('');
+  let fieldErrors = $state<Record<string, string>>({});
 
   onMount(async () => {
     try {
@@ -31,7 +34,8 @@
 
   async function completeOnboarding() {
     if (password !== confirmPassword) {
-      toast.error('Passwords do not match.');
+      // Surface inline so users see it next to the field, not just as a toast.
+      fieldErrors = { password_confirm: 'Passwords do not match.' };
       return;
     }
 
@@ -43,12 +47,17 @@
         full_name: fullName || null,
         company_name: companyName || null,
       });
+      fieldErrors = {};
       const loginUrl = new URL(LOGIN_PATH, page.url.origin);
       loginUrl.searchParams.set('username', result.username);
       loginUrl.searchParams.set('welcome', '1');
       await goto(`${loginUrl.pathname}${loginUrl.search}`, { replaceState: true });
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not complete onboarding.');
+    } catch (error) {
+      handleFormError(error, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not complete onboarding.',
+      });
     } finally {
       submitting = false;
     }
@@ -76,23 +85,28 @@
         </div>
         <div class="form-group">
           <label for="onboarding-username">Username</label>
-          <input id="onboarding-username" type="text" bind:value={username} minlength="3" maxlength="100" required />
+          <input id="onboarding-username" type="text" bind:value={username} minlength="3" maxlength="100" required aria-invalid={!!fieldErrors.username} />
+          <FieldError message={fieldErrors.username} />
         </div>
         <div class="form-group">
           <label for="onboarding-password">Password</label>
-          <input id="onboarding-password" type="password" bind:value={password} minlength="12" autocomplete="new-password" required />
+          <input id="onboarding-password" type="password" bind:value={password} minlength="12" autocomplete="new-password" required aria-invalid={!!fieldErrors.password} />
+          <FieldError message={fieldErrors.password} />
         </div>
         <div class="form-group">
           <label for="onboarding-password-confirm">Confirm password</label>
-          <input id="onboarding-password-confirm" type="password" bind:value={confirmPassword} minlength="12" autocomplete="new-password" required />
+          <input id="onboarding-password-confirm" type="password" bind:value={confirmPassword} minlength="12" autocomplete="new-password" required aria-invalid={!!fieldErrors.password_confirm} />
+          <FieldError message={fieldErrors.password_confirm} />
         </div>
         <div class="form-group">
           <label for="onboarding-full-name">Full name</label>
-          <input id="onboarding-full-name" type="text" bind:value={fullName} maxlength="255" />
+          <input id="onboarding-full-name" type="text" bind:value={fullName} maxlength="255" aria-invalid={!!fieldErrors.full_name} />
+          <FieldError message={fieldErrors.full_name} />
         </div>
         <div class="form-group">
           <label for="onboarding-company">Company</label>
-          <input id="onboarding-company" type="text" bind:value={companyName} maxlength="255" />
+          <input id="onboarding-company" type="text" bind:value={companyName} maxlength="255" aria-invalid={!!fieldErrors.company_name} />
+          <FieldError message={fieldErrors.company_name} />
         </div>
         <button class="btn btn-primary full-width" type="submit" disabled={submitting}>
           {submitting ? 'Creating account...' : 'Create account'}

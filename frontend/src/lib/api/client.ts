@@ -4,7 +4,7 @@ import {
   appAvailability,
   fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
-import { readPublicErrorMessage } from '$lib/api/errors';
+import { ApiError } from '$lib/api/errors';
 import { awaitRateLimitCooling, parseRetryAfter, startCooling } from '$lib/api/rate-limit';
 
 // Maximum 429 retries per request before giving up. With Retry-After-aware
@@ -79,7 +79,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     if (appAvailability.unavailable) {
       throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
     }
-    throw new Error(await readPublicErrorMessage(res));
+    throw await ApiError.fromResponse(res);
   }
 
   if (res.status === 204) return undefined as T;

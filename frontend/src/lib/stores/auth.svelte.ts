@@ -3,7 +3,7 @@ import {
   appAvailability,
   fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
-import { readPublicErrorMessage } from '$lib/api/errors';
+import { ApiError } from '$lib/api/errors';
 import {
   awaitRateLimitCooling,
   parseRetryAfter,
@@ -187,7 +187,7 @@ export async function login(username: string, password: string): Promise<void> {
     if (appAvailability.unavailable) {
       throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
     }
-    throw new Error(await readPublicErrorMessage(res, 'Login failed. Please try again later.'));
+    throw await ApiError.fromResponse(res, 'Login failed. Please try again later.');
   }
   const data = await parseJsonSafely<{ access_token?: string }>(res);
   if (!data?.access_token) {
@@ -333,9 +333,9 @@ export async function logout(notifyFailure = true): Promise<boolean> {
       true,
     );
     if (!res.ok) {
-      const detail = await readPublicErrorMessage(res, 'Could not revoke server session during logout.');
+      const err = await ApiError.fromResponse(res, 'Could not revoke server session during logout.');
       if (notifyFailure) {
-        toast.error(detail);
+        toast.error(err.toUserMessage());
       }
     } else {
       revokeSucceeded = true;

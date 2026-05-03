@@ -3,7 +3,9 @@
   import { auth } from '$lib/stores/auth.svelte';
   import { usersApi, type User } from '$lib/api/users';
   import { invitesApi, type Invite } from '$lib/api/invites';
+  import { handleFormError, toToastMessage } from '$lib/api/errors';
   import { toast } from '$lib/stores/toast.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
 
   let loading = $state(true);
   let users = $state<User[]>([]);
@@ -13,6 +15,7 @@
   let creatingInvite = $state(false);
   let revokingInviteId = $state<string | null>(null);
   let inviteEmail = $state('');
+  let inviteFieldErrors = $state<Record<string, string>>({});
 
   const isAdmin = $derived(auth.user?.role === 'admin');
 
@@ -38,8 +41,8 @@
     try {
       const data = await invitesApi.list(1, 20);
       invites = data.items;
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not load invites.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not load invites.'));
     } finally {
       invitesLoading = false;
     }
@@ -58,8 +61,8 @@
       ]);
       users = data.items;
       totalUsers = data.total;
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not load admin data.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not load admin data.'));
     } finally {
       loading = false;
     }
@@ -76,10 +79,15 @@
     try {
       const invite = await invitesApi.create({ email: normalizedEmail });
       inviteEmail = '';
+      inviteFieldErrors = {};
       toast.success(`Invite created for ${invite.email}.`);
       await loadInvites();
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not create invite.');
+    } catch (error) {
+      handleFormError(error, {
+        setFieldErrors: (m) => (inviteFieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create invite.',
+      });
     } finally {
       creatingInvite = false;
     }
@@ -92,8 +100,8 @@
       await invitesApi.revoke(invite.invite_id);
       toast.success('Invite revoked.');
       await loadInvites();
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not revoke invite.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not revoke invite.'));
     } finally {
       revokingInviteId = null;
     }
@@ -130,7 +138,9 @@
             bind:value={inviteEmail}
             placeholder="person@company.com"
             required
+            aria-invalid={!!inviteFieldErrors.email}
           />
+          <FieldError message={inviteFieldErrors.email} />
         </div>
         <button class="btn btn-primary" type="submit" disabled={creatingInvite}>
           {creatingInvite ? 'Creating...' : 'Create invite'}

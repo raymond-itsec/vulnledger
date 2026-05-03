@@ -5,6 +5,8 @@
   import { toast } from '$lib/stores/toast.svelte';
   import { usersApi, type User } from '$lib/api/users';
   import { authApi, type SecurityEventInfo, type SessionInfo } from '$lib/api/auth';
+  import { handleFormError, toToastMessage } from '$lib/api/errors';
+  import FieldError from '$lib/components/FieldError.svelte';
   // TODO: Add password and MFA controls once backend endpoints are available.
 
   let loading = $state(true);
@@ -22,6 +24,7 @@
   let fullName = $state('');
   let companyName = $state('');
   let email = $state('');
+  let fieldErrors = $state<Record<string, string>>({});
 
   function buildFieldId(name: string): string {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -91,8 +94,8 @@
       ]);
       sessions = sessionResponse.items;
       securityEvents = eventResponse.items;
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not load session security data.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not load session security data.'));
     } finally {
       sessionsLoading = false;
       eventsLoading = false;
@@ -104,8 +107,8 @@
       const me = await usersApi.getMe();
       applyProfile(me);
       await loadAuthSecurityData();
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not load profile settings.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not load profile settings.'));
     } finally {
       loading = false;
     }
@@ -121,9 +124,14 @@
       });
       applyProfile(updated);
       await fetchMe();
+      fieldErrors = {};
       toast.success('Profile updated.');
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not save profile settings.');
+    } catch (error) {
+      handleFormError(error, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not save profile settings.',
+      });
     } finally {
       saving = false;
     }
@@ -147,8 +155,8 @@
       }
       toast.success('Session revoked.');
       await loadAuthSecurityData();
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not revoke session.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not revoke session.'));
     } finally {
       revokingSessionId = null;
     }
@@ -162,8 +170,8 @@
       toast.success(`Revoked ${result.revoked_count} session(s). Signing out...`);
       await logout();
       await goto('/login', { replaceState: true });
-    } catch (error: any) {
-      toast.error(error?.message || 'Could not revoke all sessions.');
+    } catch (error) {
+      toast.error(toToastMessage(error, 'Could not revoke all sessions.'));
     } finally {
       revokingAll = false;
     }
@@ -193,17 +201,20 @@
       <div class="field-grid">
         <div class="form-group">
           <label for={fullNameFieldId}>Full name</label>
-          <input id={fullNameFieldId} type="text" bind:value={fullName} placeholder="Your name" />
+          <input id={fullNameFieldId} type="text" bind:value={fullName} placeholder="Your name" aria-invalid={!!fieldErrors.full_name} />
+          <FieldError message={fieldErrors.full_name} />
         </div>
         <div class="form-group">
           <label for={companyNameFieldId}>Company</label>
-          <input id={companyNameFieldId} type="text" bind:value={companyName} placeholder="Your company" />
+          <input id={companyNameFieldId} type="text" bind:value={companyName} placeholder="Your company" aria-invalid={!!fieldErrors.company_name} />
+          <FieldError message={fieldErrors.company_name} />
         </div>
       </div>
 
       <div class="form-group">
         <label for={emailFieldId}>Email</label>
-        <input id={emailFieldId} type="email" bind:value={email} required />
+        <input id={emailFieldId} type="email" bind:value={email} required aria-invalid={!!fieldErrors.email} />
+        <FieldError message={fieldErrors.email} />
       </div>
 
       <div class="actions">

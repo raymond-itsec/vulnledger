@@ -4,9 +4,12 @@
   import { assetsApi, type Asset } from '$lib/api/assets';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { usersApi, type User } from '$lib/api/users';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
+  import { toast } from '$lib/stores/toast.svelte';
   import Badge from '$lib/components/Badge.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import { fieldId } from '$lib/util/dom';
@@ -18,6 +21,9 @@
   let editing = $state(false);
   let form = $state({ asset_name: '', asset_type: 'web_application', description: '' });
   let saving = $state(false);
+
+  let assetFieldErrors = $state<Record<string, string>>({});
+  let sessionFieldErrors = $state<Record<string, string>>({});
 
   let showSessionModal = $state(false);
   let sessionForm = $state({
@@ -67,7 +73,14 @@
     saving = true;
     try {
       asset = await assetsApi.update(asset.asset_id, form);
+      assetFieldErrors = {};
       editing = false;
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (assetFieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not save asset.',
+      });
     } finally {
       saving = false;
     }
@@ -80,6 +93,13 @@
       const s = await sessionsApi.create({ ...sessionForm, asset_id: asset.asset_id });
       sessions = [s, ...sessions];
       showSessionModal = false;
+      sessionFieldErrors = {};
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (sessionFieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create session.',
+      });
     } finally {
       saving = false;
     }
@@ -103,19 +123,22 @@
       <form onsubmit={(e) => { e.preventDefault(); handleSave(); }}>
         <div class="form-group">
           <label for={assetNameFieldId}>Asset Name</label>
-          <input id={assetNameFieldId} bind:value={form.asset_name} required />
+          <input id={assetNameFieldId} bind:value={form.asset_name} required aria-invalid={!!assetFieldErrors.asset_name} />
+          <FieldError message={assetFieldErrors.asset_name} />
         </div>
         <div class="form-group">
           <label for={assetTypeFieldId}>Type</label>
-          <select id={assetTypeFieldId} bind:value={form.asset_type}>
+          <select id={assetTypeFieldId} bind:value={form.asset_type} aria-invalid={!!assetFieldErrors.asset_type}>
             {#each assetTypes as t}
               <option value={t.value}>{t.label}</option>
             {/each}
           </select>
+          <FieldError message={assetFieldErrors.asset_type} />
         </div>
         <div class="form-group">
           <label for={assetDescriptionFieldId}>Description</label>
-          <textarea id={assetDescriptionFieldId} bind:value={form.description}></textarea>
+          <textarea id={assetDescriptionFieldId} bind:value={form.description} aria-invalid={!!assetFieldErrors.description}></textarea>
+          <FieldError message={assetFieldErrors.description} />
         </div>
         <div style="display:flex;gap:0.5rem;">
           <button class="btn btn-primary" type="submit" disabled={saving}>Save</button>
@@ -165,36 +188,41 @@
     <form onsubmit={(e) => { e.preventDefault(); handleCreateSession(); }}>
       <div class="form-group">
         <label for={sessionReviewNameFieldId}>Review Name *</label>
-        <input id={sessionReviewNameFieldId} bind:value={sessionForm.review_name} required />
+        <input id={sessionReviewNameFieldId} bind:value={sessionForm.review_name} required aria-invalid={!!sessionFieldErrors.review_name} />
+        <FieldError message={sessionFieldErrors.review_name} />
       </div>
       <div class="form-group">
         <label for={sessionReviewDateFieldId}>Date *</label>
-        <input id={sessionReviewDateFieldId} type="date" bind:value={sessionForm.review_date} required />
+        <input id={sessionReviewDateFieldId} type="date" bind:value={sessionForm.review_date} required aria-invalid={!!sessionFieldErrors.review_date} />
+        <FieldError message={sessionFieldErrors.review_date} />
       </div>
       <div class="form-group">
         <label for={sessionReviewerFieldId}>Reviewer *</label>
         {#if reviewers.length > 0}
-          <select id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} required>
+          <select id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} required aria-invalid={!!sessionFieldErrors.reviewer_id}>
             <option value="" disabled>Select reviewer</option>
             {#each reviewers.filter((u) => u.role !== 'client_user') as u}
               <option value={u.user_id}>{u.full_name || u.username}</option>
             {/each}
           </select>
         {:else}
-          <input id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} placeholder="Reviewer user ID" required />
+          <input id={sessionReviewerFieldId} bind:value={sessionForm.reviewer_id} placeholder="Reviewer user ID" required aria-invalid={!!sessionFieldErrors.reviewer_id} />
         {/if}
+        <FieldError message={sessionFieldErrors.reviewer_id} />
       </div>
       <div class="form-group">
         <label for={sessionStatusFieldId}>Status</label>
-        <select id={sessionStatusFieldId} bind:value={sessionForm.status}>
+        <select id={sessionStatusFieldId} bind:value={sessionForm.status} aria-invalid={!!sessionFieldErrors.status}>
           {#each sessionStatuses as s}
             <option value={s.value}>{s.label}</option>
           {/each}
         </select>
+        <FieldError message={sessionFieldErrors.status} />
       </div>
       <div class="form-group">
         <label for={sessionNotesFieldId}>Notes</label>
-        <textarea id={sessionNotesFieldId} bind:value={sessionForm.notes}></textarea>
+        <textarea id={sessionNotesFieldId} bind:value={sessionForm.notes} aria-invalid={!!sessionFieldErrors.notes}></textarea>
+        <FieldError message={sessionFieldErrors.notes} />
       </div>
       <FormActions {saving} saveLabel="Create" savingLabel="Creating..." oncancel={() => (showSessionModal = false)} />
     </form>

@@ -2,8 +2,10 @@
   import { onMount } from 'svelte';
   import { page as pageState } from '$app/state';
   import { clientsApi, type Client } from '$lib/api/clients';
+  import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { toast } from '$lib/stores/toast.svelte';
+  import FieldError from '$lib/components/FieldError.svelte';
   import FormActions from '$lib/components/FormActions.svelte';
   import Modal from '$lib/components/Modal.svelte';
   import Pagination from '$lib/components/Pagination.svelte';
@@ -18,6 +20,7 @@
   let showModal = $state(false);
   let form = $state({ company_name: '', primary_contact_name: '', primary_contact_email: '' });
   let saving = $state(false);
+  let fieldErrors = $state<Record<string, string>>({});
 
   const companyNameFieldId = fieldId('client-company-name');
   const contactNameFieldId = fieldId('client-contact-name');
@@ -51,9 +54,14 @@
       await clientsApi.create(form);
       showModal = false;
       form = { company_name: '', primary_contact_name: '', primary_contact_email: '' };
+      fieldErrors = {};
       await load(page);
-    } catch (e: any) {
-      toast.error(e.message || 'Could not create client.');
+    } catch (e) {
+      handleFormError(e, {
+        setFieldErrors: (m) => (fieldErrors = m),
+        onToast: toast.error,
+        fallback: 'Could not create client.',
+      });
     } finally {
       saving = false;
     }
@@ -99,15 +107,32 @@
   <form onsubmit={(e) => { e.preventDefault(); handleCreate(); }}>
     <div class="form-group">
       <label for={companyNameFieldId}>Company Name *</label>
-      <input id={companyNameFieldId} bind:value={form.company_name} required />
+      <input
+        id={companyNameFieldId}
+        bind:value={form.company_name}
+        required
+        aria-invalid={!!fieldErrors.company_name}
+      />
+      <FieldError message={fieldErrors.company_name} />
     </div>
     <div class="form-group">
       <label for={contactNameFieldId}>Primary Contact Name</label>
-      <input id={contactNameFieldId} bind:value={form.primary_contact_name} />
+      <input
+        id={contactNameFieldId}
+        bind:value={form.primary_contact_name}
+        aria-invalid={!!fieldErrors.primary_contact_name}
+      />
+      <FieldError message={fieldErrors.primary_contact_name} />
     </div>
     <div class="form-group">
       <label for={contactEmailFieldId}>Primary Contact Email</label>
-      <input id={contactEmailFieldId} type="email" bind:value={form.primary_contact_email} />
+      <input
+        id={contactEmailFieldId}
+        type="email"
+        bind:value={form.primary_contact_email}
+        aria-invalid={!!fieldErrors.primary_contact_email}
+      />
+      <FieldError message={fieldErrors.primary_contact_email} />
     </div>
     <FormActions
       {saving}
