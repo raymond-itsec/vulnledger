@@ -9,31 +9,25 @@ omitted it). De-duplicated 2026-05-05.
 
 These tests assert two things:
 
-1. The backend does NOT emit any of the security headers Caddy owns.
-   Re-adding one would silently re-introduce duplicate headers in
-   front of Caddy.
+1. The backend's CacheControlMiddleware does NOT emit any of the
+   security headers Caddy owns. Re-adding one would silently
+   re-introduce duplicate headers in front of Caddy.
 
-2. The backend DOES emit Cache-Control: no-store on /api/* responses.
-   That's app-aware caching policy that travels with the code.
+2. The middleware DOES emit Cache-Control: no-store on /api/*
+   responses, but NOT on non-/api/ responses. That's app-aware
+   caching policy that travels with the code.
 
-Tests use FastAPI's TestClient so the full middleware stack is
-exercised, not just unit-level helpers. Module-skipped when the
-TEST_DATABASE_URL is not set, matching conftest's gate for tests
-that require the full app + Postgres stack (the lifespan startup
-hook seeds taxonomy / admin / templates).
+Tests build a minimal FastAPI app with only the CacheControlMiddleware
+applied, so they exercise the exact middleware logic without dragging
+in the full app's lifespan startup (DB seeding, taxonomy bootstrap,
+S3 buckets, etc.). That keeps the tests fast, self-contained, and
+runnable without any FINDINGS_* / POSTGRES_* env stack.
 """
 
-import os
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
 
-import pytest
-
-# Module-level skip mirrors conftest.py's `db_session` gate. CI
-# workflow backend-tests.yml sets TEST_DATABASE_URL alongside the
-# full FINDINGS_* env. Local pytest runs without those skip cleanly.
-pytestmark = pytest.mark.skipif(
-    not os.getenv("TEST_DATABASE_URL"),
-    reason="Requires TEST_DATABASE_URL + full FINDINGS_* env stack (backend CI provides both)",
-)
+from app.main import CacheControlMiddleware
 
 
 # Headers the backend MUST NOT set (Caddy owns them all). If any of
@@ -53,23 +47,30 @@ CADDY_OWNED_HEADERS = (
 )
 
 
-@pytest.fixture(scope="module")
-def client():
-    # Import inside the fixture so the FINDINGS_* env vars + Postgres
-    # are in place before app.config + app.main load. The TestClient
-    # context manager runs the lifespan startup hook (DB seed,
-    # taxonomy bootstrap, etc.) so middleware tests exercise the
-    # exact stack that production hits.
-    from fastapi.testclient import TestClient
+def _build_minimal_app() -> FastAPI:
+    """Tiny FastAPI app with only the middleware-under-test wired up.
 
-    from app.main import app
+    Two routes mirror the predicate the middleware branches on so
+    the tests can hit each side: a `/api/*` path (should get
+    no-store) and a non-`/api/` path (should not).
+    """
+    app = FastAPI()
+    app.add_middleware(CacheControlMiddleware)
 
-    with TestClient(app) as test_client:
-        yield test_client
+    @app.get("/api/v1/health/live")
+    async def api_route():
+        return {"status": "ok"}
+
+    @app.get("/some-non-api-path")
+    async def non_api_route():
+        return {"hello": "world"}
+
+    return app
 
 
-def test_backend_does_not_emit_caddy_owned_security_headers(client):
-    """Hit a public health endpoint; assert no Caddy-owned headers leak."""
+def test_backend_does_not_emit_caddy_owned_security_headers():
+    """Hit an /api/* route; assert no Caddy-owned headers leak."""
+    client = TestClient(_build_minimal_app())
     response = client.get("/api/v1/health/live")
     assert response.status_code == 200
 
@@ -83,8 +84,9 @@ def test_backend_does_not_emit_caddy_owned_security_headers(client):
     )
 
 
-def test_backend_sets_cache_control_no_store_on_api_paths(client):
+def test_backend_sets_cache_control_no_store_on_api_paths():
     """App-aware caching directive should still travel with backend code."""
+    client = TestClient(_build_minimal_app())
     response = client.get("/api/v1/health/live")
     assert response.status_code == 200
     assert response.headers.get("Cache-Control") == "no-store", (
@@ -95,13 +97,15 @@ def test_backend_sets_cache_control_no_store_on_api_paths(client):
     )
 
 
-def test_backend_does_not_force_cache_control_on_non_api_paths(client):
+def test_backend_does_not_force_cache_control_on_non_api_paths():
     """The /api/* gate exists for a reason: only API paths should be
     locked to no-store. The CacheControlMiddleware predicate must not
     accidentally cover non-API paths."""
-    response = client.get("/definitely-not-an-api-path")
-    # Whatever the status (likely 404), the Cache-Control should NOT
-    # have been set to no-store by our middleware.
+    client = TestClient(_build_minimal_app())
+    response = client.get("/some-non-api-path")
+    assert response.status_code == 200
+    # Whatever Cache-Control comes from FastAPI's defaults, it should
+    # NOT have been set to no-store by our middleware.
     assert response.headers.get("Cache-Control") != "no-store", (
         "CacheControlMiddleware should only set no-store on /api/* "
         "paths. If a non-/api/ path is getting no-store, the predicate "
