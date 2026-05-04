@@ -15,7 +15,7 @@ weasyprint==68.1
 pydyf==0.12.1
 mailjet-rest==1.6.0
 slowapi==0.1.9
-authlib==1.7.0
+authlib==1.7.1
 # httpx pinned explicitly because authlib uses it for OIDC discovery + token exchange.
 # Not imported directly by application code.
 httpx==0.28.1
