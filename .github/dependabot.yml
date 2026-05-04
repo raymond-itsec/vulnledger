@@ -17,7 +17,7 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "05:15"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -30,7 +30,7 @@ updates:
     directory: "/backup"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "05:30"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -43,7 +43,7 @@ updates:
     directory: "/caddy"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "05:45"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -56,7 +56,7 @@ updates:
     directory: "/"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "06:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -69,7 +69,7 @@ updates:
     directory: "/backend"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "06:15"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -82,7 +82,7 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "daily"
-      time: "05:00"
+      time: "06:30"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
