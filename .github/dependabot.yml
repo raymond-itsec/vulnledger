@@ -3,8 +3,7 @@ updates:
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
+      interval: "daily"
       time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
@@ -17,9 +16,8 @@ updates:
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:03"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -31,9 +29,8 @@ updates:
   - package-ecosystem: "docker"
     directory: "/backup"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:06"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -45,9 +42,8 @@ updates:
   - package-ecosystem: "docker"
     directory: "/caddy"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:09"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -59,9 +55,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:15"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -73,9 +68,8 @@ updates:
   - package-ecosystem: "pip"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:30"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
@@ -87,9 +81,8 @@ updates:
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "05:45"
+      interval: "daily"
+      time: "05:00"
       timezone: "Europe/Amsterdam"
     target-branch: "main"
     labels:
