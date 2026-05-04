@@ -211,27 +211,34 @@ class DeprecatedVersionHeadersMiddleware(BaseHTTPMiddleware):
         return response
 
 
-# Security headers middleware
-class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+# Backend response-policy middleware.
+#
+# Security headers (X-Content-Type-Options, X-Frame-Options,
+# Referrer-Policy, Permissions-Policy, Content-Security-Policy,
+# Cross-Origin-Opener-Policy, Cross-Origin-Resource-Policy,
+# X-Permitted-Cross-Domain-Policies, Strict-Transport-Security) are
+# OWNED BY CADDY at the edge (see Caddyfile `header { ... }` block).
+# The backend used to set its own copies, which produced duplicate
+# response headers (sometimes with conflicting values, e.g. our
+# Permissions-Policy needs `clipboard-write=(self)` for the copy
+# buttons but the backend version omitted it). Caddy now wins; this
+# middleware only sets directives that are app-aware.
+#
+# Cache-Control on /api/*: backend KNOWS its responses are dynamic
+# JSON / file streams and should never be cached. Keeping this here
+# rather than in Caddy means it travels with the app code and
+# applies even if the deployment topology changes (Caddy bypassed,
+# different edge proxy, etc.).
+#
+# X-XSS-Protection was also dropped: deprecated and ignored by every
+# modern browser since 2020 (Chrome removed the auditor entirely;
+# Firefox / Safari never implemented it). Caddy doesn't set it
+# either - it would be misleading to leave a header that does nothing.
+class CacheControlMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         response = await call_next(request)
-        response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["X-Frame-Options"] = "DENY"
-        response.headers["X-XSS-Protection"] = "1; mode=block"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
-        response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
         if request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-store"
-        else:
-            response.headers["Content-Security-Policy"] = (
-                "default-src 'self'; "
-                "script-src 'self' 'unsafe-inline'; "
-                "style-src 'self' 'unsafe-inline'; "
-                "img-src 'self' data: blob:; "
-                "font-src 'self'; "
-                "connect-src 'self'; "
-                "frame-ancestors 'none'"
-            )
         return response
 
 
@@ -309,10 +316,11 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 # is the OUTERMOST in the request flow. Adding in this order makes
 # RequestID outermost (so its contextvars are set before any other
 # middleware or handler runs and every log record can pick them up),
-# then SecurityHeaders, CORS, DeprecatedVersionHeaders, Legacy. The
-# 308 short-circuit response from Legacy still picks up CORS, security
-# headers, AND the X-Request-ID / X-VL-Request-ID headers on the way
-# back out.
+# then CacheControl, CORS, DeprecatedVersionHeaders, Legacy. The 308
+# short-circuit response from Legacy still picks up CORS, the
+# Cache-Control on /api/*, AND the X-Request-ID / X-VL-Request-ID
+# headers on the way back out. Security headers are set by Caddy at
+# the edge - see the comment on CacheControlMiddleware above.
 app.add_middleware(MetricsMiddleware)  # innermost: route is resolved by the time it reads request.scope["route"]
 app.add_middleware(LegacyApiRedirectMiddleware)
 app.add_middleware(DeprecatedVersionHeadersMiddleware)
@@ -323,7 +331,7 @@ app.add_middleware(
     allow_methods=settings.allowed_methods,
     allow_headers=settings.allowed_headers,
 )
-app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(CacheControlMiddleware)
 app.add_middleware(RequestIDMiddleware)
 
 # Stamp app_info gauge once at startup so it appears in every scrape.
