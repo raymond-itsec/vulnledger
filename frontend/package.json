@@ -22,7 +22,7 @@
     "jsdom": "^25.0.1",
     "postcss": "^8.4.47",
     "postcss-html": "^1.7.0",
-    "stylelint": "^16.10.0",
+    "stylelint": "^17.10.0",
     "svelte": "^5.55.5",
     "svelte-check": "^4.4.6",
     "typescript": "^6.0.3",
