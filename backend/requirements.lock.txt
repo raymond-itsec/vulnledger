@@ -60,7 +60,7 @@ fastapi==0.136.1
     # via -r requirements.txt
 fonttools==4.62.1
     # via weasyprint
-greenlet==3.4.0
+greenlet==3.5.0
     # via sqlalchemy
 h11==0.16.0
     # via
