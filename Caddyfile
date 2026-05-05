@@ -198,14 +198,12 @@
 				# header rewrite within the proxy handler) because the
 				# site-level `header` directive gets overwritten by
 				# Caddy's response writer on the way out.
-				header_down -Server
 				header_down Server "VulnLedger"
 			}
 		}
 
 		handle {
 			reverse_proxy frontend:5173 {
-				header_down -Server
 				header_down Server "VulnLedger"
 			}
 		}
