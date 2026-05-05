@@ -1,0 +1,146 @@
+# App tier - stateless services.
+#
+# Runs:
+#   - backend (FastAPI/uvicorn)
+#   - frontend (SvelteKit static, served by Vite preview)
+#
+# In allinone mode (single dev box): runs alongside data + edge tiers
+# on the same Docker daemon.
+#
+# In multihost mode (4 ESXi VMs): runs alone on `vl-app`. Backend
+# reaches Postgres on `vl-data` via `vl-data.vuln.lan` (resolves to
+# vlan-backend underlay IP `10.30.0.2`). Caddy on `vl-edge` reaches
+# backend at `vl-app.vuln.lan:8000`.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  backend:
+    build:
+      context: ../../backend
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    ports:
+      - "127.0.0.1:${BACKEND_PORT:-8000}:8000"
+    environment:
+      FINDINGS_LOG_LEVEL: ${FINDINGS_LOG_LEVEL:-INFO}
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-development}
+      POSTGRES_HOST: ${POSTGRES_HOST:?Set POSTGRES_HOST in .env}
+      POSTGRES_SERVICE_PORT: ${POSTGRES_SERVICE_PORT:?Set POSTGRES_SERVICE_PORT in .env}
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
+      FINDINGS_TRUST_PROXY_HEADERS: ${FINDINGS_TRUST_PROXY_HEADERS:-true}
+      FINDINGS_ALLOWED_ORIGINS: ${FINDINGS_ALLOWED_ORIGINS:-["http://localhost:5173","http://localhost:3000"]}
+      FINDINGS_ALLOWED_METHODS: ${FINDINGS_ALLOWED_METHODS:-["GET","POST","PATCH","DELETE","OPTIONS"]}
+      FINDINGS_ALLOWED_HEADERS: ${FINDINGS_ALLOWED_HEADERS:-["Authorization","Content-Type","Accept","If-None-Match"]}
+      FINDINGS_OBJECT_STORAGE_ENDPOINT: ${FINDINGS_OBJECT_STORAGE_ENDPOINT:-seaweedfs:8333}
+      FINDINGS_OBJECT_STORAGE_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY:?Set SEAWEEDFS_S3_ACCESS_KEY in .env}
+      FINDINGS_OBJECT_STORAGE_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY:?Set SEAWEEDFS_S3_SECRET_KEY in .env}
+      FINDINGS_OBJECT_STORAGE_SECURE: ${FINDINGS_OBJECT_STORAGE_SECURE:-false}
+      FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET: ${FINDINGS_OBJECT_STORAGE_EVIDENCE_BUCKET:-finding-attachments}
+      FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET: ${FINDINGS_OBJECT_STORAGE_REPORTS_BUCKET:-generated-reports}
+      FINDINGS_REPORT_RETENTION_DAYS: ${FINDINGS_REPORT_RETENTION_DAYS:-365}
+      FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB: ${FINDINGS_ATTACHMENT_MAX_FILE_SIZE_MB:-25}
+      FINDINGS_REPORT_MAX_FINDINGS: ${FINDINGS_REPORT_MAX_FINDINGS:-250}
+      FINDINGS_REPORT_MAX_INPUT_CHARS: ${FINDINGS_REPORT_MAX_INPUT_CHARS:-200000}
+      FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB: ${FINDINGS_REPORT_MAX_OUTPUT_SIZE_MB:-25}
+      FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES: ${FINDINGS_ACCESS_TOKEN_EXPIRE_MINUTES:-5}
+      FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS: ${FINDINGS_REFRESH_TOKEN_EXPIRE_DAYS:-7}
+      FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS: ${FINDINGS_REFRESH_TOKEN_FAMILY_MAX_LIFETIME_DAYS:-30}
+      FINDINGS_REFRESH_SESSION_RETENTION_DAYS: ${FINDINGS_REFRESH_SESSION_RETENTION_DAYS:-}
+      FINDINGS_RATE_LIMIT_LOGIN: ${FINDINGS_RATE_LIMIT_LOGIN:-5/minute}
+      FINDINGS_RATE_LIMIT_API: ${FINDINGS_RATE_LIMIT_API:-60/minute}
+      FINDINGS_MAILJET_API_KEY: ${FINDINGS_MAILJET_API_KEY:-}
+      FINDINGS_MAILJET_API_SECRET: ${FINDINGS_MAILJET_API_SECRET:-}
+      FINDINGS_MAILJET_FROM_EMAIL: ${FINDINGS_MAILJET_FROM_EMAIL:-noreply@findings.local}
+      FINDINGS_MAILJET_FROM_NAME: ${FINDINGS_MAILJET_FROM_NAME:-VulnLedger}
+      FINDINGS_APP_BASE_URL: ${FINDINGS_APP_BASE_URL:-http://localhost}
+      FINDINGS_INITIAL_ADMIN_USERNAME: ${FINDINGS_INITIAL_ADMIN_USERNAME:?Set FINDINGS_INITIAL_ADMIN_USERNAME in .env}
+      FINDINGS_INITIAL_ADMIN_PASSWORD: ${FINDINGS_INITIAL_ADMIN_PASSWORD:?Set FINDINGS_INITIAL_ADMIN_PASSWORD in .env}
+      FINDINGS_INITIAL_ADMIN_EMAIL: ${FINDINGS_INITIAL_ADMIN_EMAIL:?Set FINDINGS_INITIAL_ADMIN_EMAIL in .env}
+      FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:?Set FINDINGS_INITIAL_ADMIN_FULL_NAME in .env}
+      FINDINGS_APP_VERSION: ${APP_VERSION}
+      FINDINGS_CLAMAV_HOST: ${FINDINGS_CLAMAV_HOST:-clamav}
+      FINDINGS_CLAMAV_PORT: ${FINDINGS_CLAMAV_PORT:-3310}
+      FINDINGS_JWT_ISSUER: ${FINDINGS_JWT_ISSUER:?Set FINDINGS_JWT_ISSUER in .env}
+      FINDINGS_JWT_AUDIENCE: ${FINDINGS_JWT_AUDIENCE:?Set FINDINGS_JWT_AUDIENCE in .env}
+      FINDINGS_JWT_PRIVATE_KEY_PEM: ${FINDINGS_JWT_PRIVATE_KEY_PEM:-}
+      FINDINGS_JWT_PUBLIC_KEY_PEM: ${FINDINGS_JWT_PUBLIC_KEY_PEM:-}
+      FINDINGS_JWT_PRIVATE_KEY_FILE: ${FINDINGS_JWT_PRIVATE_KEY_FILE:-}
+      FINDINGS_JWT_PUBLIC_KEY_FILE: ${FINDINGS_JWT_PUBLIC_KEY_FILE:-}
+      FINDINGS_OIDC_ENABLED: ${FINDINGS_OIDC_ENABLED:-false}
+      FINDINGS_OIDC_CLIENT_ID: ${FINDINGS_OIDC_CLIENT_ID:-}
+      FINDINGS_OIDC_CLIENT_SECRET: ${FINDINGS_OIDC_CLIENT_SECRET:-}
+      FINDINGS_OIDC_DISCOVERY_URL: ${FINDINGS_OIDC_DISCOVERY_URL:-}
+      FINDINGS_OIDC_REDIRECT_URI: ${FINDINGS_OIDC_REDIRECT_URI:-}
+      FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST: ${FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST:-[]}
+      FINDINGS_OIDC_REQUIRE_NONCE: ${FINDINGS_OIDC_REQUIRE_NONCE:-true}
+      FINDINGS_OIDC_DEFAULT_ROLE: ${FINDINGS_OIDC_DEFAULT_ROLE:-reviewer}
+    volumes:
+      - ../../secrets:/run/secrets:ro
+      - ../../.env:/run/config/vulnledger.env:ro
+      - ../../docker-compose.yml:/run/config/docker-compose.yml:ro
+    networks:
+      - frontend_net    # caddy (on edge tier) reaches backend here
+      - backend_net     # backend reaches db / seaweedfs / clamav (on data tier) here
+    healthcheck:
+      # Use the dedicated liveness probe under the v1 prefix. The endpoint
+      # is restricted to RFC1918 and loopback source IPs, so the in-container
+      # request from 127.0.0.1 is allowed. Closes #25 (swap healthcheck off
+      # /openapi.json now that the schema moved under /api/v1/).
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health/live', timeout=3)",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 15s
+
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        APP_VERSION: ${APP_VERSION}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    environment:
+      VITE_API_PROXY_TARGET: ${VITE_API_PROXY_TARGET:-http://backend:8000}
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-5173}:5173"
+    networks:
+      - frontend_net    # caddy (on edge tier) reaches frontend SPA here
+
+networks:
+  # Each tier file declares the networks it uses with a stable
+  # `name:`. In allinone mode (`include:` merges all 4 tier files)
+  # Compose deduplicates identical declarations across files. In
+  # multihost mode each tier file is its own compose project on its
+  # own VM and creates the network locally. Same compose source,
+  # both modes work.
+  frontend_net:
+    name: vulnledger_frontend_net
+  backend_net:
+    name: vulnledger_backend_net
