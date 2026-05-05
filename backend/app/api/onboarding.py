@@ -147,7 +147,20 @@ async def verify_invite(
         or invite.revoked_at is not None
         or (invite.expires_at is not None and invite.expires_at <= now)
     ):
-        raise HTTPException(status_code=404, detail="Invite code is invalid or expired")
+        # 401, not 404. The URL `/api/v1/invites/verify` exists; what
+        # failed is credential validation (the invite code is the
+        # bootstrapping credential for an unauthenticated user). 404
+        # would imply the route is missing, which it isn't, and
+        # confuses both clients and security tooling.
+        #
+        # The single uniform message ("invalid or expired") covers
+        # all four cases (never existed / claimed / revoked / expired)
+        # so attackers cannot enumerate valid codes by classifying
+        # responses. Same shape as the login endpoint's uniform 401.
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invite code is invalid or expired",
+        )
 
     existing_user = await db.execute(select(User).where(User.email == invite.email))
     if existing_user.scalar_one_or_none():
