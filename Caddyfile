@@ -19,18 +19,10 @@
 
 	# Baseline edge hardening headers.
 	header {
-		# Strip the upstream `Server: uvicorn` (and Caddy's own default
-		# `Server: Caddy`) so responses don't advertise the backend stack
-		# or the proxy. Free hardening: removes a "what's running behind
-		# this URL" signal for opportunistic scanners. Re-set to a generic
-		# product name so the header still exists (some clients log a
-		# warning on missing `Server`).
-		#
-		# The `>` prefix is critical: without it Caddy's `header`
-		# directive runs BEFORE handlers, and the reverse_proxy / Caddy's
-		# own response writer overwrites Server later. `>Server` defers
-		# the set until after handlers so it wins.
-		>Server "VulnLedger"
+		# Server header override lives inside the reverse_proxy / handle
+		# blocks below (header_down). Setting it here at site-block level
+		# was getting overwritten by Caddy's response writer on the way
+		# out, even with the `>` defer prefix.
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), clipboard-write=(self)"
@@ -200,11 +192,22 @@
 		redir @protected_without_session /login 302
 
 		handle /api/* {
-			reverse_proxy backend:8000
+			reverse_proxy backend:8000 {
+				# Strip upstream `Server: uvicorn` and replace with a
+				# generic product string. Done in `header_down` (response
+				# header rewrite within the proxy handler) because the
+				# site-level `header` directive gets overwritten by
+				# Caddy's response writer on the way out.
+				header_down -Server
+				header_down Server "VulnLedger"
+			}
 		}
 
 		handle {
-			reverse_proxy frontend:5173
+			reverse_proxy frontend:5173 {
+				header_down -Server
+				header_down Server "VulnLedger"
+			}
 		}
 	}
 }
