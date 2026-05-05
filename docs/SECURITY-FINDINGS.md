@@ -23,6 +23,7 @@ it was discovered and (when fixed) the date it was closed.
 | VL-2026-015 | Admin user create/update under-validated; 500s on duplicates | Medium | Fixed | 2026-05-01 | 2026-05-01 | [#32](../../issues/32) |
 | VL-2026-016 | SvelteKit auth checks are client-only; no server-side enforcement | Low | Open | 2026-05-01 | — | [#34](../../issues/34) |
 | VL-2026-017 | Invite redemption lacks row-level lock; relies on downstream unique constraint | Low | Open | 2026-05-02 | — | [#41](../../issues/41) |
+| VL-2026-018 | Onboarding cookie scoped to wrong path; whole invited-user signup flow returns 401 | High (functional) | Fixed | 2026-05-05 | 2026-05-05 | [#59](../../issues/59) |
 
 ## Scope of the register
 

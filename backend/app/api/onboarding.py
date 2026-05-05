@@ -24,9 +24,20 @@ from app.services.onboarding import (
     create_onboarding_token,
     decode_onboarding_token,
 )
+from app.versioning import CURRENT_API_PREFIX, LEGACY_UNVERSIONED_API_PREFIX
 
 router = APIRouter(tags=["onboarding"])
 COOKIE_SECURE = settings.cookie_secure  # see settings.cookie_secure docstring
+
+# VL-2026-018: cookie paths derive from app.versioning so they cannot
+# drift from the actual mounted router prefix. Hardcoding "/api/onboarding"
+# (as this module did before the fix) breaks browsers under RFC 6265
+# strict path-matching: a cookie at "/api/onboarding" is NOT sent on
+# requests to "/api/v1/onboarding/...", so the verify-invite -> state
+# -> complete flow returns 401 on every call after the first.
+# Same fix shape as auth.py / oidc.py.
+_ONBOARDING_COOKIE_PATH = f"{CURRENT_API_PREFIX}/onboarding"
+_LEGACY_ONBOARDING_COOKIE_PATH = f"{LEGACY_UNVERSIONED_API_PREFIX}/onboarding"
 
 
 def _set_onboarding_cookie(response: Response, token: str) -> None:
@@ -37,14 +48,27 @@ def _set_onboarding_cookie(response: Response, token: str) -> None:
         secure=COOKIE_SECURE,
         samesite="strict",
         max_age=ONBOARDING_TOKEN_TTL_MINUTES * 60,
-        path="/api/onboarding",
+        path=_ONBOARDING_COOKIE_PATH,
     )
 
 
 def _clear_onboarding_cookie(response: Response) -> None:
+    # Clear at both the current versioned path AND the legacy unversioned
+    # path so users carrying a phantom cookie from before the VL-2026-018
+    # fix (or from before the /api/v1 URL migration) get cleaned up.
+    # Browsers do not auto-evict cookies just because the server stopped
+    # using a path; the legacy delete is replay-safe for users who never
+    # had one there.
     response.delete_cookie(
         key=ONBOARDING_COOKIE_NAME,
-        path="/api/onboarding",
+        path=_ONBOARDING_COOKIE_PATH,
+        secure=COOKIE_SECURE,
+        httponly=True,
+        samesite="strict",
+    )
+    response.delete_cookie(
+        key=ONBOARDING_COOKIE_NAME,
+        path=_LEGACY_ONBOARDING_COOKIE_PATH,
         secure=COOKIE_SECURE,
         httponly=True,
         samesite="strict",
