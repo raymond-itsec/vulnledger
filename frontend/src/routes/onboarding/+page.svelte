@@ -78,24 +78,31 @@
       <p class="intro">
         This invite is reserved for <strong>{inviteEmail}</strong>.
       </p>
-      <form onsubmit={(event) => { event.preventDefault(); completeOnboarding(); }}>
+      <!-- novalidate: route every error through the unified FieldError
+           system instead of the browser's native popup, which short-
+           circuits our submit handler and never lets the backend run
+           policy validation. The minlength="12" hint that used to live
+           on the password fields was also lying about the policy
+           (FINDINGS_PASSWORD_MIN_LENGTH defaults to 16); dropped to
+           keep the backend as the single source of truth. -->
+      <form novalidate onsubmit={(event) => { event.preventDefault(); completeOnboarding(); }}>
         <div class="form-group">
           <label for="invite-email">Invited email</label>
           <input id="invite-email" type="email" value={inviteEmail} disabled />
         </div>
         <div class="form-group">
           <label for="onboarding-username">Username</label>
-          <input id="onboarding-username" type="text" bind:value={username} minlength="3" maxlength="100" required aria-invalid={!!fieldErrors.username} />
+          <input id="onboarding-username" type="text" bind:value={username} maxlength="100" required aria-invalid={!!fieldErrors.username} />
           <FieldError message={fieldErrors.username} />
         </div>
         <div class="form-group">
           <label for="onboarding-password">Password</label>
-          <input id="onboarding-password" type="password" bind:value={password} minlength="12" autocomplete="new-password" required aria-invalid={!!fieldErrors.password} />
+          <input id="onboarding-password" type="password" bind:value={password} autocomplete="new-password" required aria-invalid={!!fieldErrors.password} />
           <FieldError message={fieldErrors.password} />
         </div>
         <div class="form-group">
           <label for="onboarding-password-confirm">Confirm password</label>
-          <input id="onboarding-password-confirm" type="password" bind:value={confirmPassword} minlength="12" autocomplete="new-password" required aria-invalid={!!fieldErrors.password_confirm} />
+          <input id="onboarding-password-confirm" type="password" bind:value={confirmPassword} autocomplete="new-password" required aria-invalid={!!fieldErrors.password_confirm} />
           <FieldError message={fieldErrors.password_confirm} />
         </div>
         <div class="form-group">
