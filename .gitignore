@@ -25,9 +25,10 @@ secrets/
 # Docker
 docker-compose.override.yml
 
-# IDE
+# IDE / local working directories
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 *~

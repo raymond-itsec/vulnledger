@@ -1,8 +1,8 @@
 # Monitoring tier - empty stub.
 #
-# This file exists so the per-tier compose split is complete from
-# Phase 2 onward (Make targets and the multihost deploy script can
-# reference it without conditional logic). Phase 8 fills in:
+# This file exists so the per-tier compose split is complete (Make
+# targets and the multihost deploy script can reference it without
+# conditional logic). The observability stack work fills it in with:
 #
 #   - VictoriaMetrics (TSDB)
 #   - vmagent (scrapes /api/v1/metrics on backend, plus per-VM
@@ -19,4 +19,5 @@
 
 services: {}
 
-# No volumes or networks declared yet - Phase 8 will add them.
+# No volumes or networks declared yet - the observability stack
+# work will add them when it ships.

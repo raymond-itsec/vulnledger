@@ -5,7 +5,7 @@
 /* Design system tokens (colors, spacing, type, shadows). Namespaced under
    --color-*, --fg*, --bg-*, --space-*, --radius-*, --shadow-*, --text-* (sizes),
    --weight-*, --leading-*, --tracking-* — no collision with the legacy vars
-   below. Phase 1+ will progressively migrate components to these tokens. */
+   below. Components migrate to these tokens progressively over time. */
 @import './lib/styles/design-tokens.css';
 
 :root {

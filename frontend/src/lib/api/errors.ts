@@ -41,7 +41,7 @@ export interface ApiErrorBody {
 /** Outer envelope. */
 export interface ApiErrorEnvelope {
   error?: ApiErrorBody;
-  /** Legacy flat shape (pre Phase 1.6). Reader still tolerates it. */
+  /** Legacy flat shape (predates the standardized error envelope). Reader still tolerates it. */
   detail?: string;
 }
 
@@ -174,7 +174,7 @@ export class ApiError extends Error {
       });
     }
 
-    // Canonical envelope (Phase 1.6+).
+    // Canonical envelope (current shape).
     if (body?.message) {
       return new ApiError({
         status: res.status,
@@ -284,7 +284,7 @@ export function handleFormError(
  * API. New code should call `ApiError.fromResponse(res)` directly and
  * decide between `toUserMessage()` (toast) and inline field rendering.
  *
- * @deprecated since Phase 1.9. Use `ApiError.fromResponse`.
+ * @deprecated by the typed ApiError class. Use `ApiError.fromResponse` instead.
  */
 export async function readPublicErrorMessage(
   res: Response,

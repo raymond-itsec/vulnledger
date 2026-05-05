@@ -142,8 +142,8 @@ def current_api_version() -> str:
 # Sanity: the value imported from app.versioning at module load (above)
 # must match the version the runtime registry marks current. Drift
 # here would mean cookie paths and router mounts disagree silently, as
-# happened during Phase 1.4 before this module split. Failing at
-# startup is loud; failing as a silent 401 hours later is not.
+# happened during the /api/v1 URL migration before this module split.
+# Failing at startup is loud; failing as a silent 401 hours later is not.
 if CURRENT_API_PREFIX != f"/api/{current_api_version()}":
     raise RuntimeError(
         f"API version mismatch: app.versioning.CURRENT_API_PREFIX is "
@@ -477,7 +477,7 @@ async def metrics_endpoint(
 ):
     """Prometheus scrape target. Restricted to RFC1918 + loopback source
     IPs (same pattern as the liveness probe). vmagent will scrape this
-    when the Phase 8 observability stack lands. Path follows
+    when the future observability stack lands. Path follows
     `CURRENT_API_PREFIX` so it auto-versions when v2 launches; vmagent
     scrape config will need updating at that cutover (see
     api_v2_launch_checklist.md).
