@@ -19,6 +19,14 @@
 
 	# Baseline edge hardening headers.
 	header {
+		# Strip the upstream `Server: uvicorn` (and Caddy's own default
+		# `Server: Caddy`) so responses don't advertise the backend stack
+		# or the proxy. Free hardening: removes a "what's running behind
+		# this URL" signal for opportunistic scanners. Re-set to a generic
+		# product name so the header still exists (some clients log a
+		# warning on missing `Server`).
+		-Server
+		Server "VulnLedger"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), clipboard-write=(self)"
