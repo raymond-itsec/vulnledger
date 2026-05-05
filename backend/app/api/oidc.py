@@ -27,7 +27,7 @@ from app.services.refresh_sessions import (
 from app.versioning import CURRENT_API_PREFIX, LEGACY_UNVERSIONED_API_PREFIX
 
 logger = logging.getLogger(__name__)
-COOKIE_SECURE = settings.app_base_url.startswith("https://")
+COOKIE_SECURE = settings.cookie_secure  # see settings.cookie_secure docstring
 OIDC_TEMP_COOKIE_MAX_AGE = 600
 SESSION_HINT_COOKIE_NAME = "vl_session"  # VL-2026-014: hardcoded; see app/api/auth.py for rationale
 
@@ -176,7 +176,7 @@ def _set_oidc_temp_cookies(response, *, state_value: str, nonce_value: str) -> N
 
 def _clear_oidc_temp_cookies(response) -> None:
     # Clear at the current versioned path and at the legacy unversioned
-    # path so users with stale cookies from before Phase 1.4 get cleaned
+    # path so users with stale cookies from before the /api/v1 migration get cleaned
     # up. The legacy delete is a no-op when no such cookie exists.
     response.delete_cookie("oidc_state", path=_OIDC_TEMP_COOKIE_PATH)
     response.delete_cookie("oidc_nonce", path=_OIDC_TEMP_COOKIE_PATH)

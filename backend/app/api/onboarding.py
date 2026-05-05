@@ -26,7 +26,7 @@ from app.services.onboarding import (
 )
 
 router = APIRouter(tags=["onboarding"])
-COOKIE_SECURE = settings.app_base_url.startswith("https://")
+COOKIE_SECURE = settings.cookie_secure  # see settings.cookie_secure docstring
 
 
 def _set_onboarding_cookie(response: Response, token: str) -> None:
