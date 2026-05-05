@@ -25,8 +25,12 @@
 		# this URL" signal for opportunistic scanners. Re-set to a generic
 		# product name so the header still exists (some clients log a
 		# warning on missing `Server`).
-		-Server
-		Server "VulnLedger"
+		#
+		# The `>` prefix is critical: without it Caddy's `header`
+		# directive runs BEFORE handlers, and the reverse_proxy / Caddy's
+		# own response writer overwrites Server later. `>Server` defers
+		# the set until after handlers so it wins.
+		>Server "VulnLedger"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=(), clipboard-write=(self)"
