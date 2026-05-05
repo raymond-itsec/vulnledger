@@ -5,10 +5,12 @@
 #                         (dev box). Loads deploy/profiles/allinone.env first,
 #                         then the project-root .env (overrides allinone).
 #   make allinone-down    Tear down the allinone stack (preserves volumes).
-#   make multihost-up     (Phase 5+) Provision + deploy 4 ESXi VMs.
-#   make multihost-down   (Phase 5+) Stop containers on all 4 VMs.
+#   make multihost-up     Provision + deploy 4 ESXi VMs (stub - lands
+#                         when the multi-VM provisioning work ships).
+#   make multihost-down   Stop containers on all 4 VMs (stub).
 #   make logs SERVICE=    Tail logs from a specific service in allinone mode.
-#   make wg-status        (Phase 4+) Show WireGuard mesh peer status.
+#   make wg-status        Show WireGuard mesh peer status (stub - lands
+#                         when the WireGuard mesh setup ships).
 #   make help             This message.
 #
 # The compose tier files (deploy/compose/{edge,app,data,monitoring}.yml)
@@ -69,18 +71,18 @@ logs: ## Tail logs from a service in allinone mode (usage: make logs SERVICE=bac
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) logs -f $(SERVICE)
 
 .PHONY: multihost-up
-multihost-up: ## (Phase 5+) Provision + deploy 4 ESXi VMs
-	@echo "Multihost deploy not implemented yet - lands in Phase 5."
-	@echo "See ~/.claude/.../memory/local_validation_lab.md for design."
+multihost-up: ## Provision + deploy 4 ESXi VMs (stub)
+	@echo "Multihost deploy not implemented yet."
+	@echo "Lands when the multi-VM provisioning + per-tier deploy work ships."
 	@exit 1
 
 .PHONY: multihost-down
-multihost-down: ## (Phase 5+) Stop containers on all 4 VMs
-	@echo "Multihost deploy not implemented yet - lands in Phase 5."
+multihost-down: ## Stop containers on all 4 VMs (stub)
+	@echo "Multihost deploy not implemented yet."
 	@exit 1
 
 .PHONY: wg-status
-wg-status: ## (Phase 4+) Show WireGuard mesh peer status
-	@echo "WireGuard mesh not implemented yet - lands in Phase 4."
-	@echo "See ~/.claude/.../memory/local_validation_lab.md for design."
+wg-status: ## Show WireGuard mesh peer status (stub)
+	@echo "WireGuard mesh not implemented yet."
+	@echo "Lands when the WireGuard mesh setup ships."
 	@exit 1

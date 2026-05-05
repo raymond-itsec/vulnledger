@@ -11,7 +11,7 @@ Two distinct identifiers per HTTP request, never conflated.
 `X-VL-Request-ID` (internal VulnLedger lineage)
     ALWAYS generated server-side as `VL-<uuid4>`. Always set on the response.
     Incoming `X-VL-Request-ID` headers are always ignored: only VulnLedger's
-    own systems get to issue VL-prefixed IDs. Across multi-host (Phase 5+),
+    own systems get to issue VL-prefixed IDs. Across multi-host deployments,
     VL services should forward `X-VL-Request-ID` to other VL services and
     trust the value; they should never forward `X-Request-ID` for internal
     correlation.

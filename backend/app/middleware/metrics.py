@@ -2,8 +2,8 @@
 
 The `/api/{version}/metrics` endpoint is registered in `app.main` and
 restricted to RFC1918 + loopback source IPs (same pattern as the
-liveness probe). vmagent (lands with Phase 8 observability) will scrape
-it from the docker network or via the WireGuard mesh.
+liveness probe). vmagent (lands with the future observability stack)
+will scrape it from the docker network or via the WireGuard mesh.
 
 Cardinality discipline: every label is bounded.
 - `method`         ~7 HTTP verbs

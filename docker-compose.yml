@@ -5,7 +5,7 @@
 # `include:` is a Compose v2.20+ feature (Docker Desktop 4.22+,
 # Aug 2023). If your daemon is older, use the Make target instead.
 #
-# Two ways to bring the stack up after Phase 2.5 (2026-05-05):
+# Two ways to bring the stack up:
 #
 #   1. `make -C deploy allinone-up`
 #      Loads deploy/profiles/allinone.env BEFORE the project .env
@@ -13,7 +13,7 @@
 #      Use this for everyday dev.
 #
 #   2. `docker compose up -d`
-#      Loads only the project .env. Equivalent to the pre-Phase-2
+#      Loads only the project .env. Equivalent to the pre-tier-split
 #      behavior: works as long as your .env has all the values the
 #      tier files need. No allinone profile defaults are applied.
 #      Use this if you have a fully-populated .env and want to skip

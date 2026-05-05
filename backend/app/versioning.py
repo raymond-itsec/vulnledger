@@ -19,7 +19,7 @@ asserts the alignment so they cannot drift silently.
 CURRENT_API_VERSION = "v1"
 CURRENT_API_PREFIX = f"/api/{CURRENT_API_VERSION}"
 
-# Cookies set before the Phase 1.4 URL migration were scoped to the
+# Cookies set before the /api/v1 URL migration were scoped to the
 # unversioned `/api/auth` path. Browsers do not auto-evict cookies
 # when the server stops using a path, so any cookie clearance code
 # should also clear at this legacy path during the deprecation

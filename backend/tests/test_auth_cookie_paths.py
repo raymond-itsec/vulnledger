@@ -4,8 +4,8 @@ The refresh-token cookie MUST be scoped to a path that the refresh
 endpoint actually serves. RFC 6265 path matching is strict: a cookie
 set at path /api/auth is NOT sent on requests to /api/v1/auth/refresh.
 
-This regression sneaked in during Phase 1.4 (URL prefix migration to
-/api/v1/) when the cookie path was not migrated alongside the routes.
+This regression sneaked in during the /api/v1 URL prefix migration,
+when the cookie path was not migrated alongside the routes.
 Symptom: every refresh attempt 401s after ~5 minutes (the access
 token TTL), forcing the user to log back in repeatedly.
 
@@ -58,7 +58,7 @@ def test_clear_refresh_cookie_clears_both_current_and_legacy_paths():
     """When clearing the cookie, hit BOTH paths.
 
     Users who had a refresh_token cookie set at the legacy unversioned
-    path before Phase 1.4 shipped need that phantom cookie cleaned up.
+    path before the /api/v1 migration shipped need that phantom cookie cleaned up.
     Otherwise their browser keeps it sitting in the jar (browsers do
     not auto-expire cookies just because the server stopped using
     that path).
