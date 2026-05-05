@@ -38,6 +38,13 @@ services:
       - /tmp
       - /var/run/postgresql
     environment:
+      # POSTGRES_USER / POSTGRES_DB defaults of "findings" are
+      # intentionally different from .env.example's
+      # "change_this_db_user" / "change_this_db_name" placeholders.
+      # Compose default = bare-minimum-works fallback if .env is
+      # missing entirely; .env.example value = "you should change this
+      # before going to production". Documented as intentional drift
+      # per #37 alignment audit 2026-05-05.
       POSTGRES_USER: ${POSTGRES_USER:-findings}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-findings}
@@ -167,8 +174,11 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-findings}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
       POSTGRES_DB: ${POSTGRES_DB:-findings}
-      BACKUP_RETENTION_DAYS: "30"
-      BACKUP_CRON: "0 2 * * *"
+      # #37: parameterized so operators can override retention or
+      # cron schedule via .env without editing this file. Defaults
+      # match what was previously hardcoded.
+      BACKUP_RETENTION_DAYS: ${BACKUP_RETENTION_DAYS:-30}
+      BACKUP_CRON: ${BACKUP_CRON:-0 2 * * *}
       BACKUP_ENCRYPTION_SECRET_FILE: ${BACKUP_ENCRYPTION_SECRET_FILE:-/run/secrets/backup_encryption_passphrase}
       BACKUP_ENCRYPTION_REQUIRED: ${BACKUP_ENCRYPTION_REQUIRED:-false}
       FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-development}
