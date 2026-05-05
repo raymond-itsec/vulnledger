@@ -17,6 +17,10 @@ _COMPOSE_PATH = Path("/run/config/docker-compose.yml")
 
 
 class Settings(BaseSettings):
+    # Intentional drift from .env.example (which carries the current
+    # release version). "0.0.0" here is a safety fallback so a missing
+    # APP_VERSION in env can never ship as a real-looking version
+    # string. Documented per #37 alignment audit 2026-05-05.
     app_version: str = "0.0.0"
     runtime_mode: str = "development"
     database_url: str = ""
@@ -91,6 +95,23 @@ class Settings(BaseSettings):
     mailjet_from_email: str = "noreply@findings.local"
     mailjet_from_name: str = "VulnLedger"
     app_base_url: str = "http://localhost"
+
+    @property
+    def cookie_secure(self) -> bool:
+        """Single source of truth for the `Secure` cookie attribute.
+
+        True iff the public app base URL is HTTPS - in which case any
+        cookie with `Secure` set is only sent on TLS connections, which
+        is what we want for refresh-token / OIDC state / session-hint
+        cookies in production.
+
+        Centralized here (was previously re-derived identically in
+        backend/app/api/auth.py, oidc.py, onboarding.py) so a fourth
+        cookie-setting site can't drift with subtly different logic.
+        See VL-2026-014 audit follow-up.
+        """
+        return self.app_base_url.startswith("https://")
+
     # Rate limiting
     rate_limit_login: str = "5/minute"
     rate_limit_api: str = "60/minute"
@@ -118,6 +139,12 @@ class Settings(BaseSettings):
     clamav_port: int = 3310
     jwt_issuer: str
     jwt_audience: str
+    # JWT key sources: dual-path (PEM env var OR file). At least one
+    # path must yield a usable key at runtime. Empty defaults here are
+    # intentional - they mean "this path not provided, try the other".
+    # `.env.example` populates the *_FILE paths to /run/secrets/...
+    # by deployment convention; that's not drift, it's the recommended
+    # path for the .env-based deploy. #37 alignment 2026-05-05.
     jwt_private_key_pem: str = ""
     jwt_public_key_pem: str = ""
     jwt_private_key_file: str = ""

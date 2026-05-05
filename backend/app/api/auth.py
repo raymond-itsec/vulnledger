@@ -63,7 +63,9 @@ _DUMMY_PASSWORD_HASH = hash_password(
 )
 
 limiter = Limiter(key_func=lambda request: rate_limit_ip_key(request, settings.trust_proxy_headers))
-COOKIE_SECURE = settings.app_base_url.startswith("https://")
+# Cookie Secure flag derives from settings.cookie_secure - single source
+# of truth shared with oidc.py and onboarding.py. See VL-2026-014.
+COOKIE_SECURE = settings.cookie_secure
 # VL-2026-014: hardcoded (was settings.session_hint_cookie_name). Caddy's
 # protected-route gate also looks for this exact name; the env var was
 # the drift source between the two layers and had no real-world use case.
@@ -114,11 +116,12 @@ def _set_refresh_cookie(response: Response, refresh_token: str) -> None:
 
 def _clear_refresh_cookie(response: Response) -> None:
     # Clear at both the current versioned path AND the legacy
-    # unversioned path so that users who logged in before Phase 1.4
-    # (when the cookie was scoped to /api/auth) don't end up with a
-    # phantom cookie sitting in their jar. Browsers do not auto-evict
-    # cookies just because the server stopped using a path; the legacy
-    # delete is idempotent for users who never had one there.
+    # unversioned path so that users who logged in before the /api/v1
+    # URL migration (when the cookie was scoped to /api/auth) don't
+    # end up with a phantom cookie sitting in their jar. Browsers do
+    # not auto-evict cookies just because the server stopped using a
+    # path; the legacy delete is idempotent for users who never had
+    # one there.
     response.delete_cookie(
         key="refresh_token",
         path=_REFRESH_COOKIE_PATH,
