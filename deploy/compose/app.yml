@@ -88,6 +88,13 @@ services:
       FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST: ${FINDINGS_OIDC_REDIRECT_URI_ALLOWLIST:-[]}
       FINDINGS_OIDC_REQUIRE_NONCE: ${FINDINGS_OIDC_REQUIRE_NONCE:-true}
       FINDINGS_OIDC_DEFAULT_ROLE: ${FINDINGS_OIDC_DEFAULT_ROLE:-reviewer}
+      # Auto-generated API docs toggles. config.py defaults both to
+      # True; explicitly forwarding here so operator overrides via .env
+      # actually reach the container. (Pre-Phase-2 docker-compose.yml
+      # left these unset, which meant FINDINGS_SWAGGER_UI_ENABLED=false
+      # in .env was silently ignored - footgun. #37 fold-in 2026-05-05.)
+      FINDINGS_SWAGGER_UI_ENABLED: ${FINDINGS_SWAGGER_UI_ENABLED:-true}
+      FINDINGS_REDOC_ENABLED: ${FINDINGS_REDOC_ENABLED:-true}
     volumes:
       - ../../secrets:/run/secrets:ro
       - ../../.env:/run/config/vulnledger.env:ro
