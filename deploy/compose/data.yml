@@ -1,0 +1,197 @@
+# Data tier - state-bearing services.
+#
+# Runs:
+#   - Postgres (primary database)
+#   - SeaweedFS (S3-compatible object storage for attachments + reports)
+#   - clamav (AV scanner; called synchronously from backend on attachment upload)
+#   - backup (cron-driven pg_dump → encrypted dumps in /backups volume)
+#
+# In allinone mode (single dev box): runs alongside app + edge tiers on
+# the same Docker daemon, sharing networks via the included compose stack.
+#
+# In multihost mode (4 ESXi VMs): runs alone on `vl-data`. Backend on
+# `vl-app` reaches Postgres at `vl-data.vuln.lan:5432` (resolves via
+# `/etc/hosts` to the vlan-backend underlay IP `10.30.0.2`); SeaweedFS at
+# `vl-data.vuln.lan:8333`; clamav at `vl-data.vuln.lan:3310`.
+#
+# Naming convention reminder: `vl-` = VM, `vlan-` = L2 network,
+# `*_net` = Docker compose network.
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+services:
+  db:
+    image: postgres:16.13-alpine3.23@sha256:4e6e670bb069649261c9c18031f0aded7bb249a5b6664ddec29c013a89310d50
+    restart: unless-stopped
+    logging: *default-logging
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    tmpfs:
+      - /tmp
+      - /var/run/postgresql
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-findings}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-findings}
+    ports:
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - backend_net          # backend (on app tier) connects here
+      - data_internal_net    # backup container connects here intra-tier
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-findings} -d ${POSTGRES_DB:-findings}"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  seaweedfs:
+    image: chrislusf/seaweedfs:4.20
+    restart: unless-stopped
+    logging: *default-logging
+    entrypoint: ["weed"]
+    tmpfs:
+      - /tmp
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    command:
+      [
+        "server",
+        "-dir=/data",
+        "-ip=seaweedfs",
+        "-master.port=9333",
+        "-volume.port=8080",
+        # Volume slots per volume server. Default 8 is too low when
+        # multiple S3 buckets exist (finding-attachments,
+        # generated-reports, ...). Each bucket gets its own SeaweedFS
+        # collection, and the master refuses to allocate volumes for
+        # a new collection once the cap is hit, causing silent upload
+        # failures with "No writable volumes and no free volumes
+        # left". SeaweedFS hardcodes growth = 7 volumes per event for
+        # replication "000" (Copy1Count in weed/topology/volume_growth.go);
+        # not configurable in 4.20. So 3 collections × 7 = 21 at boot,
+        # +7 per regrowth. 100 gives ~11 growth events of headroom.
+        # Each volume is up to ~30GB, allocated lazily, so a high cap
+        # costs nothing if unused.
+        "-volume.max=100",
+        "-filer.port=8888",
+        # Disable directory listing in the filer web UI. The HTTP
+        # endpoint stays up (the backend talks to it for file ops), but
+        # browsing /buckets/, /sessions/, etc. as HTML returns 403/404
+        # instead of an enumerable file tree.
+        "-filer.disableDirListing",
+        "-s3",
+        "-s3.port=8333",
+      ]
+    environment:
+      SEAWEEDFS_S3_ACCESS_KEY: ${SEAWEEDFS_S3_ACCESS_KEY:?Set SEAWEEDFS_S3_ACCESS_KEY in .env}
+      SEAWEEDFS_S3_SECRET_KEY: ${SEAWEEDFS_S3_SECRET_KEY:?Set SEAWEEDFS_S3_SECRET_KEY in .env}
+      AWS_ACCESS_KEY_ID: ${SEAWEEDFS_S3_ACCESS_KEY:?Set SEAWEEDFS_S3_ACCESS_KEY in .env}
+      AWS_SECRET_ACCESS_KEY: ${SEAWEEDFS_S3_SECRET_KEY:?Set SEAWEEDFS_S3_SECRET_KEY in .env}
+    ports:
+      - "127.0.0.1:${SEAWEEDFS_S3_PORT:-8333}:8333"
+    volumes:
+      - seaweedfs_data:/data
+    networks:
+      - backend_net          # backend (on app tier) connects here
+
+  clamav:
+    image: clamav/clamav:1.5.2@sha256:c592fa56f9c538837a9c76faf17337e9b7d5e099332dd33be65c6cc80d179d0b
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    cap_add: ["CHOWN", "SETGID", "SETUID"]
+    security_opt: ["no-new-privileges:true"]
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /run/clamav
+      - /var/lock
+      - /var/log/clamav
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: "1.0"
+    ports:
+      - "127.0.0.1:${CLAMAV_PORT:-3310}:3310"
+    volumes:
+      - clamav_data:/var/lib/clamav
+    networks:
+      - backend_net          # backend (on app tier) calls clamd here
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 180s
+
+  backup:
+    build: ../../backup
+    # `no` (not `unless-stopped`) so a config error like a missing
+    # encryption passphrase doesn't loop forever — the pre-flight in
+    # backup/entrypoint.sh exits 78 (SYSEXITS configuration error)
+    # and the container stays in `Exited (78)` state, visible in
+    # `docker compose ps`. Transient outages are not a concern here
+    # because backups run on cron schedule; a missed run is recovered
+    # at the next scheduled tick.
+    restart: "no"
+    logging: *default-logging
+    user: "postgres"
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.25"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: db
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: ${POSTGRES_USER:-findings}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-findings}
+      BACKUP_RETENTION_DAYS: "30"
+      BACKUP_CRON: "0 2 * * *"
+      BACKUP_ENCRYPTION_SECRET_FILE: ${BACKUP_ENCRYPTION_SECRET_FILE:-/run/secrets/backup_encryption_passphrase}
+      BACKUP_ENCRYPTION_REQUIRED: ${BACKUP_ENCRYPTION_REQUIRED:-false}
+      FINDINGS_RUNTIME_MODE: ${FINDINGS_RUNTIME_MODE:-development}
+    volumes:
+      - backups:/backups
+      - ../../secrets:/run/secrets:ro
+    networks:
+      - data_internal_net    # talks to db here intra-tier
+
+volumes:
+  pgdata:
+  seaweedfs_data:
+  backups:
+  clamav_data:
+
+networks:
+  # Each tier file declares the networks it uses with a stable
+  # `name:`. In allinone mode (`include:` merges all 4 tier files)
+  # Compose deduplicates identical declarations across files. In
+  # multihost mode each tier file is its own compose project on its
+  # own VM and creates the network locally. Same compose source,
+  # both modes work.
+  backend_net:
+    name: vulnledger_backend_net
+  data_internal_net:
+    name: vulnledger_data_internal_net
