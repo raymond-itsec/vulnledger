@@ -213,46 +213,87 @@ How you satisfy that is your call. Three common patterns:
 
 ### Same-DC quick path (4 VPSes from one provider)
 
-Example using four VPSes from a single European provider (OVH, Hetzner, Scaleway, Contabo, IONOS, etc.) within one datacenter:
+Example using four VPSes from a single European provider (OVH, Hetzner, Scaleway, Contabo, IONOS, etc.) within one datacenter, naming them `vl-edge`, `vl-app`, `vl-data`, `vl-monitoring`:
 
 ```bash
 # On each host, after provisioning + Docker install:
 git clone https://github.com/raymond-itsec/vulnledger.git /opt/vulnledger
 cd /opt/vulnledger
 
-# Set up the WireGuard mesh (or use the provider's private network if available)
-# vulnledger ships a key-generation helper at deploy/wireguard/
+# Templated /etc/hosts on every host so the tier hostnames resolve to
+# each host's private IP. Substitute your actual private IPs:
+#   <data-private-ip>     vl-data.vuln.lan         vl-data
+#   <app-private-ip>      vl-app.vuln.lan          vl-app
+#   <edge-private-ip>     vl-edge.vuln.lan         vl-edge
+#   <mon-private-ip>      vl-monitoring.vuln.lan   vl-monitoring
 
-# Copy the multihost profile
-cp deploy/profiles/multihost-samedc.env .env  # or multihost-crossdc.env for cross-DC
+# Copy the same-DC profile + fill in per-deploy secrets in .env
+cp deploy/profiles/multihost-samedc.env .env
+$EDITOR .env  # set CADDY_HOST, FINDINGS_APP_BASE_URL, secrets, etc.
 
-# Edit .env with hostnames pointing at each tier (private IPs or WG overlay IPs)
-# POSTGRES_HOST=vl-data.vuln.lan (resolves via /etc/hosts to data host's IP)
-# FINDINGS_OBJECT_STORAGE_ENDPOINT=vl-data.vuln.lan:8333
-# FINDINGS_CLAMAV_HOST=vl-data.vuln.lan
-# CADDY_BACKEND_UPSTREAM=vl-app.vuln.lan:8000
-# CADDY_FRONTEND_UPSTREAM=vl-app.vuln.lan:5173
-
-# Bring up only the tier this host runs:
-# On vl-data:
-docker compose -f deploy/compose/data.yml up -d
-# On vl-app:
-docker compose -f deploy/compose/app.yml up -d
-# On vl-edge:
-docker compose -f deploy/compose/edge.yml up -d
-# On vl-monitoring:
-docker compose -f deploy/compose/monitoring.yml up -d
+# Bring up the tier matching this host's name (auto-detected from
+# hostname prefix vl-).
+make multihost-samedc-up
 ```
+
+The `make multihost-samedc-up` target is the same on every host; it inspects `hostname -s` and runs the matching tier file. Override with `TIER=data make multihost-samedc-up` if your hostnames don't follow the `vl-` convention.
 
 ### Cross-DC quick path (4 VPSes in different datacenters)
 
-Identical to the same-DC flow, except:
+Cross-DC needs WireGuard as the primary connectivity path because there's no shared private network. The mesh setup is automated via three commands.
 
-1. WireGuard is **mandatory** (no shared private network exists).
-2. Every host's public firewall (cloud provider's or nftables) drops everything except WG (UDP 51820), and on `vl-edge` only also 80 + 443.
-3. `/etc/hosts` entries point at WireGuard overlay IPs, not provider-private IPs.
-4. Each host has its own internet egress; tinyproxy on edge becomes optional rather than architectural.
-5. Latency between tiers reflects the inter-DC distance (5-20ms within Europe; more if mixing continents). Some endpoints will feel measurably slower than allinone.
+```bash
+# On your ADMIN machine (laptop), one-time setup:
+cd vulnledger
+cp deploy/wireguard/peers.example.txt deploy/wireguard/peers.txt
+$EDITOR deploy/wireguard/peers.txt
+# Edit each line: NAME  WG_OVERLAY_IP  PUBLIC_ENDPOINT
+# Pick a /24 for the WG overlay (10.99.0.0/24 is conventional).
+# Public endpoints are HOST:51820 routable from the public internet.
+
+make wg-bootstrap
+# Generates keys/<peer>.priv + .pub and renders out/<peer>.conf per peer.
+# Both directories are gitignored.
+
+make wg-install
+# scps each out/<peer>.conf to its peer's public endpoint host and
+# enables wg-quick@wg0 via systemd. Requires SSH already reachable
+# at each peer (root or sudo-capable user; pass SSH_USER= if not root).
+```
+
+For cold-bootstrap (peer has no SSH yet), skip `make wg-install` and inject each rendered `out/<peer>.conf` into that host's cloud-init at provisioning time.
+
+Once the mesh is up:
+
+```bash
+# On each host (vl-edge, vl-app, vl-data, vl-monitoring):
+git clone https://github.com/raymond-itsec/vulnledger.git /opt/vulnledger
+cd /opt/vulnledger
+
+# Templated /etc/hosts on every host. In cross-DC mode, hostnames
+# resolve to WG OVERLAY IPs (NOT public IPs):
+#   10.99.0.1     vl-edge.vuln.lan         vl-edge
+#   10.99.0.2     vl-app.vuln.lan          vl-app
+#   10.99.0.3     vl-data.vuln.lan         vl-data
+#   10.99.0.4     vl-monitoring.vuln.lan   vl-monitoring
+
+# Copy the cross-DC profile + fill in secrets in .env. Bind-to-WG-IP
+# port mappings (POSTGRES_PORT=10.99.0.X:5432 etc.) go in .env per host.
+cp deploy/profiles/multihost-crossdc.env .env
+$EDITOR .env
+
+# Bring up the tier for this host.
+make multihost-crossdc-up
+```
+
+Cross-DC differences from same-DC, beyond the WG mesh setup:
+
+1. Every host's public firewall (cloud provider's or nftables) drops everything except WG (UDP 51820), and on `vl-edge` only also 80 + 443.
+2. `/etc/hosts` entries point at WireGuard overlay IPs, not provider-private IPs.
+3. Each host has its own internet egress; tinyproxy on edge becomes optional rather than architectural.
+4. Latency between tiers reflects the inter-DC distance (5-20ms within Europe; more if mixing continents). Some endpoints will feel measurably slower than allinone.
+
+The full WireGuard automation reference lives in [`deploy/wireguard/README.md`](https://github.com/raymond-itsec/vulnledger/blob/main/deploy/wireguard/README.md).
 
 Example operator combinations that work fine:
 
