@@ -53,5 +53,8 @@ design-system/
 # v0.3 technical plan - kept local until ready to publish
 docs/v0.3-plan.md
 
-# WireGuard private keys - generated locally, must never be committed
+# WireGuard private keys + rendered per-host configs + operator's
+# peer list - generated locally, never committed.
 deploy/wireguard/keys/
+deploy/wireguard/out/
+deploy/wireguard/peers.txt

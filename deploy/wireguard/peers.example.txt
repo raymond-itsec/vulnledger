@@ -1,0 +1,28 @@
+# WireGuard mesh peers - one per line.
+#
+# Format: NAME  WG_OVERLAY_IP  PUBLIC_ENDPOINT
+#
+#   NAME             matches keys/<NAME>.priv and keys/<NAME>.pub
+#                    produced by generate-keys.sh
+#   WG_OVERLAY_IP    the peer's IP on the WG overlay subnet (e.g. 10.99.0.X)
+#   PUBLIC_ENDPOINT  HOST:PORT this peer accepts WG handshakes on (UDP).
+#                    Default port is 51820. Use a single "-" for
+#                    road-warrior peers (laptops, dynamic IPs) that
+#                    initiate outbound only.
+#
+# Pick a /24 for the WG overlay that does not conflict with your other
+# networks. RFC1918 ranges work; 10.99.0.0/24 is a common choice.
+#
+# To use:
+#   1. cp peers.example.txt peers.txt
+#   2. edit peers.txt to match your environment (gitignored)
+#   3. make wg-bootstrap   (or: make wg-keys + make wg-render)
+
+vl-edge        10.99.0.1   edge.example.com:51820
+vl-app         10.99.0.2   app.example.com:51820
+vl-data        10.99.0.3   data.example.com:51820
+vl-monitoring  10.99.0.4   mon.example.com:51820
+
+# Optional: admin laptop joining the mesh as a 5th peer for SSH-over-WG.
+# Use "-" for endpoint since laptop IPs roam.
+# admin        10.99.0.5   -

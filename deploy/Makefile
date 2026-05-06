@@ -136,6 +136,20 @@ multihost-crossdc-down: ## Tear down THIS host's tier (cross-DC)
 wg-keys: ## Generate WireGuard keypairs into deploy/wireguard/keys/
 	@bash $(WG_DIR)/generate-keys.sh
 
+.PHONY: wg-render
+wg-render: ## Render per-host wg0.conf into deploy/wireguard/out/ (needs peers.txt + keys)
+	@bash $(WG_DIR)/render-configs.sh
+
+.PHONY: wg-bootstrap
+wg-bootstrap: ## wg-keys + wg-render in sequence (the usual setup path)
+	@bash $(WG_DIR)/generate-keys.sh
+	@echo
+	@bash $(WG_DIR)/render-configs.sh
+
+.PHONY: wg-install
+wg-install: ## scp rendered configs to each peer + enable wg-quick (requires SSH access)
+	@bash $(WG_DIR)/install-configs.sh
+
 .PHONY: wg-status
 wg-status: ## Show WireGuard mesh peer status (placeholder)
 	@echo "Run 'sudo wg show' on each host."
