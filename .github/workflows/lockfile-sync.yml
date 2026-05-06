@@ -1,0 +1,137 @@
+# Auto-fix lockfile drift.
+#
+# When package.json / requirements.txt change without their lockfile
+# being regenerated in the same commit, CI's `npm ci` and the backend
+# install step fail. This workflow regenerates both lockfiles and (if
+# anything changed) commits + pushes the result back to the same
+# branch.
+#
+# IMPORTANT: requires a Personal Access Token (PAT) stored as repo
+# secret `LOCKFILE_PAT`, NOT the default GITHUB_TOKEN. GitHub's policy
+# is that pushes made with GITHUB_TOKEN do NOT trigger downstream
+# workflows. Without a PAT, the auto-commit lands but the originally-
+# failing CI runs stay red until something else pushes. With a PAT,
+# the auto-commit triggers a fresh CI run that lands green.
+#
+# To set up the PAT (one-time):
+#   1. Create a fine-grained PAT at github.com/settings/personal-access-tokens
+#      - Resource owner: raymond-itsec
+#      - Repository: vulnledger only
+#      - Permissions: Contents (read+write), Workflows (read+write)
+#      - Expiration: 1 year (calendar reminder to renew)
+#   2. Repo settings -> Secrets and variables -> Actions -> New secret
+#      Name: LOCKFILE_PAT, Value: <token>
+#
+# Loop guard: the auto-commit is made by github-actions[bot] (after
+# the workflow re-authenticates with the PAT). The `if: github.actor`
+# check skips runs that originate from the bot, so a PAT-triggered CI
+# loop is impossible.
+#
+# Authorship: commits are by `github-actions[bot]`, NOT spoofed as
+# Raymond. A maintenance bot doing mechanical regen is a different
+# category from authored code. History stays searchable for what the
+# human authored vs. what got auto-fixed.
+#
+# Visibility: the auto-commit body includes `git diff --stat` so
+# transitive bumps that ride along with the regen are visible at a
+# glance from `git log`. If the diffstat ever surprises you, that is
+# the signal to investigate the upstream cause (Dependabot misconfig,
+# stale local lockfile, etc.).
+
+name: Lockfile sync
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    # Loop guard: don't run on the auto-commit we just pushed.
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - name: Checkout (PR head if applicable)
+        uses: actions/checkout@v4
+        with:
+          # On pull_request from same repo, check out the head ref so we
+          # can push back to the PR branch. On push events, github.ref
+          # is already the branch (e.g. refs/heads/main).
+          ref: ${{ github.event.pull_request.head.ref || github.ref }}
+          repository: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          # PAT (not GITHUB_TOKEN) so the auto-commit re-triggers the
+          # other CI workflows. See header comment for setup.
+          token: ${{ secrets.LOCKFILE_PAT }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install pip-tools
+        run: pip install --quiet pip-tools
+
+      - name: Regenerate frontend/package-lock.json
+        working-directory: frontend
+        run: npm install --package-lock-only --no-audit --no-fund
+
+      - name: Regenerate backend/requirements.lock.txt
+        working-directory: backend
+        run: |
+          pip-compile \
+            --resolver=backtracking \
+            --strip-extras \
+            --quiet \
+            --output-file requirements.lock.txt \
+            requirements.txt
+
+      - name: Detect drift
+        id: drift
+        run: |
+          changed=()
+          if ! git diff --quiet -- frontend/package-lock.json; then
+            changed+=("frontend/package-lock.json")
+          fi
+          if ! git diff --quiet -- backend/requirements.lock.txt; then
+            changed+=("backend/requirements.lock.txt")
+          fi
+          if [ ${#changed[@]} -eq 0 ]; then
+            echo "drift=false" >> "$GITHUB_OUTPUT"
+            echo "No lockfile drift detected."
+            exit 0
+          fi
+          echo "drift=true" >> "$GITHUB_OUTPUT"
+          # Join with comma + space for the commit message body.
+          IFS=', ' eval 'joined="${changed[*]}"'
+          echo "files=$joined" >> "$GITHUB_OUTPUT"
+          echo "Drift detected in: $joined"
+
+      - name: Refuse to push back on fork PRs
+        if: |
+          steps.drift.outputs.drift == 'true' &&
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.head.repo.full_name != github.repository
+        run: |
+          echo "::error::Lockfile drift in a fork PR cannot be auto-fixed (no write access to fork). Regenerate locally: 'npm --prefix frontend install --no-audit --no-fund' and/or backend regen per memory/lockfile_workflow.md, then push to your fork."
+          exit 1
+
+      - name: Commit + push regenerated lockfile(s)
+        if: steps.drift.outputs.drift == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add frontend/package-lock.json backend/requirements.lock.txt
+          # Capture diffstat from staged changes for the commit body.
+          stat="$(git diff --cached --stat)"
+          body="$(printf 'Auto-fix triggered by drift in: %s\n\nDiffstat:\n%s\n\nIf the diffstat looks larger than expected (e.g., dozens of transitive bumps you did not initiate), inspect the package.json or requirements.txt change that introduced the drift. The auto-fix is mechanical; the upstream cause may not be.' "${{ steps.drift.outputs.files }}" "$stat")"
+          git commit -m "Regenerate lockfile(s) to match dep manifests" -m "$body"
+          git push
