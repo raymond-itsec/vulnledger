@@ -52,3 +52,6 @@ design-system/
 
 # v0.3 technical plan - kept local until ready to publish
 docs/v0.3-plan.md
+
+# WireGuard private keys - generated locally, must never be committed
+deploy/wireguard/keys/

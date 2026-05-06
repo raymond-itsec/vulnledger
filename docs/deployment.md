@@ -185,7 +185,7 @@ This collapses the SSH attack surface from "the entire internet" to "anyone hold
 
 ### What about provider private networking?
 
-Some providers offer free private networking between VPSes in the same region (e.g. OVH "Private Network", Hetzner "vSwitch", Scaleway "Private Network"). If your four hosts are in the same region, you can use that instead of WireGuard for cross-tier traffic and skip the WG mesh. Set hostnames to point at the provider-private IPs in `multihost.env`.
+Some providers offer free private networking between VPSes in the same region (e.g. OVH "Private Network", Hetzner "vSwitch", Scaleway "Private Network"). If your four hosts are in the same region, you can use that instead of WireGuard for cross-tier traffic and skip the WG mesh. Set hostnames to point at the provider-private IPs in `multihost-samedc.env` (same-DC profile).
 
 Cross-region or cross-provider always needs WireGuard (or some other cross-DC overlay) - provider-private networking doesn't span regions.
 
@@ -224,7 +224,7 @@ cd /opt/vulnledger
 # vulnledger ships a key-generation helper at deploy/wireguard/
 
 # Copy the multihost profile
-cp deploy/profiles/multihost.env .env
+cp deploy/profiles/multihost-samedc.env .env  # or multihost-crossdc.env for cross-DC
 
 # Edit .env with hostnames pointing at each tier (private IPs or WG overlay IPs)
 # POSTGRES_HOST=vl-data.vuln.lan (resolves via /etc/hosts to data host's IP)

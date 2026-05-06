@@ -1,0 +1,63 @@
+# WireGuard mesh config template - per-host.
+#
+# Substitute the placeholders for THIS host:
+#   THIS_HOST_PRIVATE_KEY  - contents of keys/<this-host>.priv
+#   THIS_HOST_WG_IP        - this host's WG overlay IP (e.g. 10.99.0.2)
+#
+# Then add one [Peer] block for EVERY OTHER peer in the mesh.
+# Substitute per peer:
+#   PEER_PUBLIC_KEY        - contents of keys/<peer>.pub
+#   PEER_WG_IP             - that peer's WG overlay IP (e.g. 10.99.0.3)
+#   PEER_PUBLIC_ENDPOINT   - that peer's PUBLIC IP:51820 (or DNS name)
+#
+# Install: /etc/wireguard/wg0.conf, mode 0600, owner root.
+# Activate: systemctl enable --now wg-quick@wg0
+
+[Interface]
+PrivateKey = THIS_HOST_PRIVATE_KEY
+Address = THIS_HOST_WG_IP/24
+ListenPort = 51820
+# SaveConfig = false: keep this file canonical; runtime changes via
+# `wg set` won't be persisted on systemd restart.
+SaveConfig = false
+
+# ---- Peer: vl-edge ----
+# (Remove this block if THIS host IS vl-edge.)
+[Peer]
+PublicKey = PEER_PUBLIC_KEY
+AllowedIPs = PEER_WG_IP/32
+Endpoint = PEER_PUBLIC_ENDPOINT
+# Keepalive matters when the host sits behind NAT or aggressive
+# firewalls. 25s is the standard recommendation.
+PersistentKeepalive = 25
+
+# ---- Peer: vl-app ----
+[Peer]
+PublicKey = PEER_PUBLIC_KEY
+AllowedIPs = PEER_WG_IP/32
+Endpoint = PEER_PUBLIC_ENDPOINT
+PersistentKeepalive = 25
+
+# ---- Peer: vl-data ----
+[Peer]
+PublicKey = PEER_PUBLIC_KEY
+AllowedIPs = PEER_WG_IP/32
+Endpoint = PEER_PUBLIC_ENDPOINT
+PersistentKeepalive = 25
+
+# ---- Peer: vl-monitoring ----
+[Peer]
+PublicKey = PEER_PUBLIC_KEY
+AllowedIPs = PEER_WG_IP/32
+Endpoint = PEER_PUBLIC_ENDPOINT
+PersistentKeepalive = 25
+
+# ---- Peer: admin (optional - if you join the mesh from your laptop) ----
+# Uncomment when adding a 5th peer for operator SSH access.
+# [Peer]
+# PublicKey = PEER_PUBLIC_KEY
+# AllowedIPs = PEER_WG_IP/32
+# # Admin host typically dynamic IP - omit Endpoint and let the admin
+# # initiate from their side. Their wg0.conf will list THIS host's
+# # endpoint.
+# PersistentKeepalive = 25

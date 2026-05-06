@@ -1,26 +1,34 @@
 # VulnLedger deploy Makefile.
 #
-# Targets:
-#   make allinone-up      Bring up all 4 tiers on the local Docker daemon
-#                         (dev box). Loads deploy/profiles/allinone.env first,
-#                         then the project-root .env (overrides allinone).
-#   make allinone-down    Tear down the allinone stack (preserves volumes).
-#   make multihost-up     Provision + deploy 4 ESXi VMs (stub - lands
-#                         when the multi-VM provisioning work ships).
-#   make multihost-down   Stop containers on all 4 VMs (stub).
-#   make logs SERVICE=    Tail logs from a specific service in allinone mode.
-#   make wg-status        Show WireGuard mesh peer status (stub - lands
-#                         when the WireGuard mesh setup ships).
-#   make help             This message.
+# Targets group by deployment shape (allinone / multihost-samedc /
+# multihost-crossdc). The compose tier files
+# (deploy/compose/{edge,app,data,monitoring}.yml) are shape-agnostic;
+# only the env profile differs.
 #
-# The compose tier files (deploy/compose/{edge,app,data,monitoring}.yml)
-# are designed to work in BOTH modes by swapping the env profile.
-# Service discovery, port bindings, and Caddy upstreams differ; the
-# compose YAML stays identical.
+# See docs/deployment.md for what each shape means and the
+# connectivity contract operators must satisfy.
+#
+#   make help                    Show this table
+#   make allinone-up             Single-host: all 4 tiers on one Docker daemon
+#   make allinone-down           Tear down (preserves volumes)
+#   make allinone-build          Rebuild local images
+#   make allinone-ps             Service status
+#   make allinone-config         Render merged compose config (debug)
+#   make logs SERVICE=backend    Tail logs from a service in allinone
+#   make multihost-samedc-up     One tier on this host, same-DC profile
+#                                (run on each of the 4 hosts; tier auto-
+#                                detected from hostname prefix vl-)
+#   make multihost-samedc-down   Tear down this host's tier
+#   make multihost-crossdc-up    Same as samedc but for cross-DC profile
+#                                (WireGuard mesh is the primary network)
+#   make multihost-crossdc-down  Tear down this host's tier
+#   make wg-keys                 Generate WireGuard keypairs (cross-DC only)
+#   make wg-status               Show WG mesh peer status (placeholder)
 
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))/..)
 COMPOSE_DIR := $(ROOT)/deploy/compose
 PROFILES_DIR := $(ROOT)/deploy/profiles
+WG_DIR := $(ROOT)/deploy/wireguard
 
 ALLINONE_FILES := \
 	-f $(COMPOSE_DIR)/data.yml \
@@ -29,10 +37,24 @@ ALLINONE_FILES := \
 	-f $(COMPOSE_DIR)/monitoring.yml
 
 # Env-file order matters: profile loads first, project .env overrides.
-# Compose's --env-file repeated is supported in Compose v2.21+.
+# Compose's repeated --env-file is supported in Compose v2.21+.
 ALLINONE_ENV := \
 	--env-file $(PROFILES_DIR)/allinone.env \
 	--env-file $(ROOT)/.env
+
+# Multihost env: per-shape profile, then per-deploy .env override.
+MULTIHOST_SAMEDC_ENV := \
+	--env-file $(PROFILES_DIR)/multihost-samedc.env \
+	--env-file $(ROOT)/.env
+MULTIHOST_CROSSDC_ENV := \
+	--env-file $(PROFILES_DIR)/multihost-crossdc.env \
+	--env-file $(ROOT)/.env
+
+# In multihost mode each host runs ONE tier file. Auto-detect from
+# hostname prefix vl-: vl-data runs data.yml, vl-app runs app.yml, etc.
+# Override with `TIER=data make multihost-samedc-up` if your hostnames
+# don't follow the vl- convention.
+TIER ?= $(shell h=$$(hostname -s); case $$h in vl-edge) echo edge;; vl-app) echo app;; vl-data) echo data;; vl-monitoring) echo monitoring;; *) echo "";; esac)
 
 # Single project name keeps containers grouped (e.g. `vulnledger-backend-1`).
 PROJECT := vulnledger
@@ -41,10 +63,14 @@ PROJECT := vulnledger
 
 .PHONY: help
 help:
-	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+	@awk 'BEGIN {FS = ":.*?## "} /^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-25s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+# ---------------------------------------------------------------------
+# Allinone (single host running all 4 tiers).
+# ---------------------------------------------------------------------
 
 .PHONY: allinone-up
-allinone-up: ## Bring up all 4 tiers on the local Docker daemon
+allinone-up: ## Bring up all 4 tiers on a single Docker daemon
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --remove-orphans
 
@@ -66,23 +92,51 @@ allinone-config: ## Render the merged compose config (debug)
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) config
 
 .PHONY: logs
-logs: ## Tail logs from a service in allinone mode (usage: make logs SERVICE=backend)
+logs: ## Tail logs from a service in allinone (usage: make logs SERVICE=backend)
 	@test -n "$(SERVICE)" || { echo "ERROR: pass SERVICE= (e.g. make logs SERVICE=backend)"; exit 1; }
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) logs -f $(SERVICE)
 
-.PHONY: multihost-up
-multihost-up: ## Provision + deploy 4 ESXi VMs (stub)
-	@echo "Multihost deploy not implemented yet."
-	@echo "Lands when the multi-VM provisioning + per-tier deploy work ships."
-	@exit 1
+# ---------------------------------------------------------------------
+# Multihost: SAME-DC mode (4 hosts, shared private network).
+# Run on EACH host; the host runs the tier matching its name.
+# ---------------------------------------------------------------------
 
-.PHONY: multihost-down
-multihost-down: ## Stop containers on all 4 VMs (stub)
-	@echo "Multihost deploy not implemented yet."
-	@exit 1
+.PHONY: multihost-samedc-up
+multihost-samedc-up: ## Bring up THIS host's tier in same-DC multihost mode
+	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
+	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
+	docker compose -p $(PROJECT) $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+
+.PHONY: multihost-samedc-down
+multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
+	@test -n "$(TIER)" || { echo "ERROR: pass TIER= (edge / app / data / monitoring)."; exit 1; }
+	docker compose -p $(PROJECT) $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
+
+# ---------------------------------------------------------------------
+# Multihost: CROSS-DC mode (4 hosts, geographically distributed).
+# WireGuard mesh is the primary network. Run on EACH host.
+# ---------------------------------------------------------------------
+
+.PHONY: multihost-crossdc-up
+multihost-crossdc-up: ## Bring up THIS host's tier in cross-DC multihost mode
+	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
+	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
+	docker compose -p $(PROJECT) $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+
+.PHONY: multihost-crossdc-down
+multihost-crossdc-down: ## Tear down THIS host's tier (cross-DC)
+	@test -n "$(TIER)" || { echo "ERROR: pass TIER= (edge / app / data / monitoring)."; exit 1; }
+	docker compose -p $(PROJECT) $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
+
+# ---------------------------------------------------------------------
+# WireGuard mesh (cross-DC only).
+# ---------------------------------------------------------------------
+
+.PHONY: wg-keys
+wg-keys: ## Generate WireGuard keypairs into deploy/wireguard/keys/
+	@bash $(WG_DIR)/generate-keys.sh
 
 .PHONY: wg-status
-wg-status: ## Show WireGuard mesh peer status (stub)
-	@echo "WireGuard mesh not implemented yet."
-	@echo "Lands when the WireGuard mesh setup ships."
-	@exit 1
+wg-status: ## Show WireGuard mesh peer status (placeholder)
+	@echo "Run 'sudo wg show' on each host."
+	@echo "Aggregating mesh status across all 4 hosts is a follow-up."
