@@ -126,14 +126,68 @@ The default `docker-compose.yml` runs:
 
 For larger teams, security-conscious deployments, or geo-redundancy, services split across four hosts:
 
-| Host | Tier file | Services | Public IP needed? |
+| Host | Tier file | Services | Accepts public traffic? |
 |---|---|---|---|
-| **edge** | `deploy/compose/edge.yml` | caddy | Yes (the only public surface) |
+| **edge** | `deploy/compose/edge.yml` | caddy | Yes — 80 + 443 to the internet |
 | **app** | `deploy/compose/app.yml` | backend, frontend | No |
 | **data** | `deploy/compose/data.yml` | postgres, seaweedfs, clamav, backup | No |
 | **monitoring** | `deploy/compose/monitoring.yml` | victoriametrics, grafana, alertmanager, loki (planned) | No |
 
 The four hosts can be anything that runs Docker on Linux: bare metal, KVM, Proxmox, ESXi, VPSes from any provider, or a mix.
+
+### Public IPs vs public services
+
+VPS providers assign a public IP to every host whether you want one or not. That's fine. **Having a public IP is not the same as exposing a service on it.** Three of the four hosts have a public IP but should accept zero public traffic on app ports. They reach each other over the WireGuard mesh, not over their public NICs.
+
+**Firewall posture per host (cross-DC mode):**
+
+| Host | Public NIC: open | Public NIC: closed | Reachable via WG mesh |
+|---|---|---|---|
+| `vl-edge` | 80 + 443 (caddy), UDP 51820 (WG), optional SSH from admin IP | everything else | yes |
+| `vl-app` | UDP 51820 (WG), optional SSH from admin IP | 80, 443, 8000, 5173, everything else | yes |
+| `vl-data` | UDP 51820 (WG), optional SSH from admin IP | 5432, 8333, 3310, everything else | yes |
+| `vl-monitoring` | UDP 51820 (WG), optional SSH from admin IP | 3000, 8428, 9093, 3100, everything else | yes |
+
+**Bind services to the right interface, never to all interfaces.** Postgres, SeaweedFS, ClamAV, the backend, and monitoring services must listen only on the host's WireGuard interface (or its private-network interface in same-DC mode), never on `0.0.0.0`. Binding to all interfaces leaves the service one misconfigured firewall rule away from being internet-reachable, and "we have a firewall" is not a defense to plan around — it's a backup.
+
+For services running in containers, bind on the host side of the port mapping:
+
+```yaml
+# In the tier compose file, on a host running WireGuard with overlay 10.99.0.3:
+ports:
+  - "10.99.0.3:5432:5432"   # bind to WG IP only
+  # NOT
+  - "5432:5432"             # would bind to all interfaces
+  - "0.0.0.0:5432:5432"     # would bind to all interfaces
+```
+
+This guarantees that even if the firewall is wrong, the kernel itself refuses public connections because nothing is listening on the public IP.
+
+**Three layers of defense, in order:**
+
+1. **Bind only to the right interface** (above). Failure mode: the service is unreachable from the public internet at the kernel level, regardless of any other config.
+2. **Provider-level firewall** (OVH "Network Firewall", Hetzner "Firewalls", Scaleway "Security Groups", Contabo "Firewall", etc.) — drop inbound on the public NIC except the allowed ports. Blocks traffic before it hits your VM.
+3. **nftables on the host** — same allow-list rules at the OS level. Catches anything the provider firewall missed.
+
+Each layer is a complete defense on its own. Stack all three.
+
+In same-DC mode with a real private network between hosts, the non-edge hosts often don't need public IPs at all (or have them disabled by the provider). Same connectivity contract applies, just satisfied via the private network instead of WireGuard.
+
+### What about SSH?
+
+For cross-DC mode, the cleanest pattern is:
+
+- Drop SSH from the public internet entirely on all four hosts.
+- Use WireGuard from your admin machine. Add yourself as a fifth peer on the mesh; SSH over the WG overlay IPs (`10.99.0.X`).
+- Optional belt-and-braces: keep SSH allowed from your home/office static IP only, as a break-glass path if WG is misconfigured.
+
+This collapses the SSH attack surface from "the entire internet" to "anyone holding a WG private key and on the mesh."
+
+### What about provider private networking?
+
+Some providers offer free private networking between VPSes in the same region (e.g. OVH "Private Network", Hetzner "vSwitch", Scaleway "Private Network"). If your four hosts are in the same region, you can use that instead of WireGuard for cross-tier traffic and skip the WG mesh. Set hostnames to point at the provider-private IPs in `multihost.env`.
+
+Cross-region or cross-provider always needs WireGuard (or some other cross-DC overlay) — provider-private networking doesn't span regions.
 
 ### Connectivity contract
 
