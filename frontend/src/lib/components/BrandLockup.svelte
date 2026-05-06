@@ -17,7 +17,7 @@
     sparkle?: boolean;
   } = $props();
 
-  // Trace path tuned for the literal label "VulnLedger" — dips into the V,
+  // Trace path tuned for the literal label "VulnLedger" - dips into the V,
   // climbs the l/L/d ascenders, glides across the x-height letters in between.
   const VULN_LEDGER_TRACE =
     'M0,1 L5,11 L10,1 L10,4 L18,4 L18,1 L22,1 L22,4 L30,4 L30,1 L30,11 L38,11 L38,4 L46,4 L51,1 L51,4 L62,4 L70,4 L76,4';

@@ -80,7 +80,7 @@ describe('ApiError.fromResponse', () => {
     const err = await ApiError.fromResponse(res, 'Try again later.');
 
     expect(err.status).toBe(500);
-    // 5xx never leaks the raw server message — too risky for end users.
+    // 5xx never leaks the raw server message - too risky for end users.
     expect(err.message).toBe('Try again later.');
     expect(err.requestId).toBe('VL-zzz');
   });

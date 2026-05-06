@@ -48,7 +48,7 @@
   const queueMax = $derived(Math.max(8, queueCount + 4));
   const queueProgress = $derived(Math.min(100, Math.round((queueCount / queueMax) * 100)));
 
-  // Critical findings list — only critical, capped to 5
+  // Critical findings list - only critical, capped to 5
   const criticalFindingsList = $derived(
     recentFindings.filter((f) => f.risk_level === 'critical').slice(0, 5),
   );
@@ -95,7 +95,7 @@
 
   // ── Data loading ───────────────────────────────────────────────────
   // Seven parallel calls covering exactly what the redesigned Dashboard
-  // renders — clients/sessions/findings totals, open + critical + resolved
+  // renders - clients/sessions/findings totals, open + critical + resolved
   // counts, recent sessions, and the 10 most recent findings for the
   // critical-findings list. All in one Promise.all so we hit the backend
   // in a single sub-second burst rather than spreading 15 sequential calls
@@ -129,7 +129,7 @@
       recentSessions = sessions.items;
       recentFindings = recentF.items;
     } catch {
-      // Aggregate failures are non-fatal — the dashboard just shows zeros.
+      // Aggregate failures are non-fatal - the dashboard just shows zeros.
     } finally {
       loading = false;
     }
@@ -137,7 +137,7 @@
 
   // ── Lifecycle ──────────────────────────────────────────────────────
   // Single onMount call only. We deliberately do NOT add a reactive $effect
-  // to re-load on auth/availability changes — loadDashboard reads taxonomy
+  // to re-load on auth/availability changes - loadDashboard reads taxonomy
   // derived state, which would re-trigger the effect after taxonomy hydrates,
   // doubling every API call (clients, sessions, 5 risk levels, 5 statuses).
   onMount(() => {
@@ -150,7 +150,7 @@
 </script>
 
 {#if loading}
-  <div class="loading">Loading dashboard…</div>
+  <div class="loading">Loading dashboard...</div>
 {:else}
   <div class="dashboard">
     <!-- Greeting -->
@@ -525,7 +525,7 @@
     align-items: center;
     justify-content: center;
   }
-  /* No colored pill backgrounds — let the duotone icon carry the colour
+  /* No colored pill backgrounds - let the duotone icon carry the colour
      on its own. The .stat-icon container still reserves 38px of layout
      space so the head row stays balanced across cards. */
   .icon-orange { color: #f07340; }
@@ -688,7 +688,7 @@
     padding: 0;
   }
 
-  /* Status chip — used in both projects table and findings list */
+  /* Status chip - used in both projects table and findings list */
   .status-chip {
     display: inline-block;
     padding: 2px 8px;

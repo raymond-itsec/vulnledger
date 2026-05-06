@@ -7,8 +7,8 @@
   let { children }: { children: Snippet } = $props();
 
   // If the /app shell (sidebar + topbar + footer) is already wrapping us
-  // — i.e. an authenticated user navigated to /trust, /privacy, etc. via
-  // the in-app PublicFooter links — skip our own header/footer/gradient
+  // - i.e. an authenticated user navigated to /trust, /privacy, etc. via
+  // the in-app PublicFooter links - skip our own header/footer/gradient
   // chrome and just render the page content. Otherwise (logged-out
   // visitors hitting these pages directly), render the full public chrome
   // as before.

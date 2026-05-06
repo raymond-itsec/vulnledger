@@ -39,7 +39,7 @@ services:
     volumes:
       - caddy_data:/data
       - caddy_config:/config
-    # No network needed — just touches volumes.
+    # No network needed - just touches volumes.
 
   caddy:
     build:

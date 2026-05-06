@@ -118,7 +118,7 @@ jobs:
             {
               echo "## ⚠️ Semgrep"
               echo ""
-              echo "**$total open finding(s)** — error: $error_count, warning: $warn_count, note: $note_count. (Dismissed alerts excluded.)"
+              echo "**$total open finding(s)** - error: $error_count, warning: $warn_count, note: $note_count. (Dismissed alerts excluded.)"
               echo ""
               echo "Top rules by hit count:"
               echo ""

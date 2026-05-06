@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  // AppSidebar — VulnLedger's dark, collapsible left rail.
+  // AppSidebar - VulnLedger's dark, collapsible left rail.
   //
   // Visual spec follows /design-system/project/ui_kits/app/Sidebar.jsx:
   //  - 224px expanded / 64px collapsed

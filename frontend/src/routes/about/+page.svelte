@@ -4,13 +4,13 @@
 
 <svelte:head>
   <title>About - VulnLedger</title>
-  <meta name="description" content="Learn about VulnLedger — the self-hosted workspace built for security professionals." />
+  <meta name="description" content="Learn about VulnLedger - the self-hosted workspace built for security professionals." />
 </svelte:head>
 
 <PublicShell>
   <div class="page-card">
     <h1>About VulnLedger</h1>
-    <p class="lead">VulnLedger is a self-hosted workspace built for security professionals who want to track findings, run review sessions, and deliver polished reports — without giving up control of their data.</p>
+    <p class="lead">VulnLedger is a self-hosted workspace built for security professionals who want to track findings, run review sessions, and deliver polished reports - without giving up control of their data.</p>
     <p>We believe security tooling should be as rigorous as the work itself. VulnLedger runs on your own infrastructure, keeps your client data inside your perimeter, and integrates with the workflows you already use.</p>
     <p>We are currently in closed early access. <a href="/">Join the waitlist</a> to be the first to know when spots open up.</p>
   </div>

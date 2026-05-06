@@ -19,7 +19,7 @@
 
     <div class="support-item">
       <h2>🐛 Report bugs &amp; ideas</h2>
-      <p>Found something broken or have a feature you need? <a href="/contact">Drop us a message</a> — every report directly improves the product.</p>
+      <p>Found something broken or have a feature you need? <a href="/contact">Drop us a message</a> - every report directly improves the product.</p>
     </div>
 
     <div class="support-item">

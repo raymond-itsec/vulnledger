@@ -27,9 +27,9 @@
 
   const sidebarCollapsed = $derived(sidebar.collapsed);
   // Two categories:
-  //   AUTH_GATEWAY_PREFIXES — pages that exist only to onboard / sign in.
+  //   AUTH_GATEWAY_PREFIXES - pages that exist only to onboard / sign in.
   //     Authenticated users get redirected away from these to /app.
-  //   INFO_PUBLIC_PREFIXES — universal info / legal pages reachable by
+  //   INFO_PUBLIC_PREFIXES - universal info / legal pages reachable by
   //     anyone (signed in or not). Listed in PUBLIC_PATH_PREFIXES so the
   //     auth-required gate doesn't bounce signed-out visitors.
   const AUTH_GATEWAY_PREFIXES = ['/login', '/invite', '/onboarding'];
@@ -145,7 +145,7 @@
 
   // Only bounce signed-in users away from auth-gateway pages (/login,
   // /invite, /onboarding, /). Info pages (/about, /trust, etc.) stay
-  // accessible — clicking them from the in-app PublicFooter navigates
+  // accessible - clicking them from the in-app PublicFooter navigates
   // normally instead of triggering a redirect loop that would re-mount
   // the dashboard and re-fire its API calls.
   $effect(() => {

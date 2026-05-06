@@ -1,9 +1,9 @@
 <script lang="ts">
-  // AppTopbar — breadcrumb-driven page header.
+  // AppTopbar - breadcrumb-driven page header.
   //
   // Fixed-height bar (67px) so its bottom edge aligns with the sidebar's
   // brand divider, regardless of which page is rendered. Pages that want a
-  // prominent heading should render their own <h1> in their body — the
+  // prominent heading should render their own <h1> in their body - the
   // topbar is just navigation context.
 
   import type { Snippet } from 'svelte';
@@ -31,7 +31,7 @@
       <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
         <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
       </svg>
-      <input type="search" placeholder="Search clients, findings, sessions…" bind:value={searchValue} />
+      <input type="search" placeholder="Search clients, findings, sessions..." bind:value={searchValue} />
     </label>
     {#if actions}
       {@render actions()}
@@ -40,7 +40,7 @@
 </header>
 
 <style>
-  /* Same uniform glass treatment as PublicHeader on the public pages — one
+  /* Same uniform glass treatment as PublicHeader on the public pages - one
      translucent cream layer, one backdrop-filter, a thin highlight border.
      67px height aligns the bottom border with the sidebar's brand divider.
      No fancy gradient mask: the blur is the same all the way through, the

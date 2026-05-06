@@ -227,7 +227,7 @@ export async function refreshToken(): Promise<boolean> {
   refreshPromise = (async () => {
     let permanentFailure = false;
     try {
-      // Cooperate with any active cool-down before firing — if another part
+      // Cooperate with any active cool-down before firing - if another part
       // of the app already received a 429, we wait for that window to clear
       // rather than instantly tripping it again.
       await awaitRateLimitCooling();
@@ -290,7 +290,7 @@ export async function bootstrapAuth(): Promise<void> {
   }
 
   bootstrapPromise = (async () => {
-    // First attempt — refreshToken() already cooperates with the shared
+    // First attempt - refreshToken() already cooperates with the shared
     // cool-down before firing and contributes to it if 429s come back.
     let refreshed = await refreshToken();
 

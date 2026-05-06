@@ -4,7 +4,7 @@
 
 <svelte:head>
   <title>Usage Guidelines - VulnLedger</title>
-  <meta name="description" content="Usage guidelines for VulnLedger — responsible and ethical use of the platform." />
+  <meta name="description" content="Usage guidelines for VulnLedger - responsible and ethical use of the platform." />
 </svelte:head>
 
 <PublicShell>

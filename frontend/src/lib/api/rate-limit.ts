@@ -27,7 +27,7 @@ export function awaitRateLimitCooling(): Promise<void> {
 
 /**
  * Begin a cooling period of `ms` milliseconds (or join an existing
- * one). Concurrent calls share the same promise — only the first
+ * one). Concurrent calls share the same promise - only the first
  * caller actually arms the timer.
  */
 export function startCooling(ms: number): Promise<void> {

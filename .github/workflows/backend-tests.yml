@@ -167,7 +167,7 @@ jobs:
           if failures + errors > 0:
               print(f"## ❌ Backend pytest")
               print()
-              print(f"**{failures + errors} failure(s)** — {passed} passed, {skipped} skipped, "
+              print(f"**{failures + errors} failure(s)** - {passed} passed, {skipped} skipped, "
                     f"{failures} failed, {errors} errors, {warning_count} warning(s) (out of {tests} collected).")
               print()
               print("| Suite | Test | Type | Message |")
@@ -185,7 +185,7 @@ jobs:
           elif warning_count > 0:
               print(f"## ⚠️ Backend pytest")
               print()
-              print(f"**{passed} passed**, {skipped} skipped, but {warning_count} warning(s) — "
+              print(f"**{passed} passed**, {skipped} skipped, but {warning_count} warning(s) - "
                     f"see table below. (out of {tests} collected)")
               print()
               print("| Location | Type | Message |")

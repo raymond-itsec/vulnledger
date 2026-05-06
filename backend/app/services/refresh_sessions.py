@@ -367,7 +367,7 @@ async def exchange_refresh_token(
         # Tolerate refresh-token rotation races (F5 spam, double-click,
         # multi-tab reloads) within a configurable grace window. The window
         # only forgives reuse when the successor itself has NOT been further
-        # rotated or revoked — a successor that's been used means the client
+        # rotated or revoked - a successor that's been used means the client
         # already received the new token successfully and any subsequent
         # appearance of the old one looks like genuine replay, not a race.
         grace_seconds = settings.refresh_token_rotation_grace_seconds
@@ -445,7 +445,7 @@ async def exchange_refresh_token(
             )
 
         # Either outside the grace window, or successor has been further
-        # rotated/used — both indicate genuine replay rather than a race.
+        # rotated/used - both indicate genuine replay rather than a race.
         # Revoke the family (existing strict behavior).
         await _record_security_event(
             db,

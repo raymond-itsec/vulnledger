@@ -1,6 +1,6 @@
 <script lang="ts">
   // Branded fallback for any error SvelteKit raises that isn't caught
-  // inside a route component — most commonly:
+  // inside a route component - most commonly:
   //  - URL doesn't match any route (e.g. an injected payload with extra
   //    slashes that creates more path segments than a dynamic [id] route
   //    can absorb)
@@ -9,14 +9,14 @@
   //
   // Because PublicShell is context-aware (downgrades when nested inside
   // /app), we can render this inside it whether the user is logged in
-  // or not — it just becomes the right chrome for the situation.
+  // or not - it just becomes the right chrome for the situation.
 
   import { page } from '$app/state';
   import PublicShell from '$lib/components/PublicShell.svelte';
   import { APP_BASE_PATH } from '$lib/config/routes';
 
   // Whatever SvelteKit captured. We deliberately do NOT echo error.message
-  // unsafely — Svelte's text interpolation already escapes, but we still
+  // unsafely - Svelte's text interpolation already escapes, but we still
   // want to be conservative about reflecting attacker-controlled URLs and
   // error strings, so we show a generic message.
   const status = $derived(page.status ?? 404);
@@ -24,7 +24,7 @@
 </script>
 
 <svelte:head>
-  <title>{isNotFound ? 'Page not found' : 'Something went wrong'} — VulnLedger</title>
+  <title>{isNotFound ? 'Page not found' : 'Something went wrong'} - VulnLedger</title>
 </svelte:head>
 
 <PublicShell>

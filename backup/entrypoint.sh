@@ -46,7 +46,7 @@ if [ ! -s "$BACKUP_ENCRYPTION_SECRET_FILE" ]; then
     3. Restart the backup container:
          docker compose up -d --force-recreate backup
 
-  Alternative (development only — leaves backups UNENCRYPTED on disk):
+  Alternative (development only - leaves backups UNENCRYPTED on disk):
 
     Add to .env on the host:
         BACKUP_ENCRYPTION_REQUIRED=false

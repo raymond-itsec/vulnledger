@@ -1,5 +1,5 @@
 <script lang="ts" module>
-  // Vulny — VulnLedger's robot mascot.
+  // Vulny - VulnLedger's robot mascot.
   //
   // Picks the right asset for the requested state and size automatically:
   //  - "head" states use the head-only crops (smaller, fit avatars/inline)
@@ -8,16 +8,16 @@
   //    bundle light; lg/xl reach for the full-resolution file.
 
   export type VulnyState =
-    | 'neutral'        // head — default
+    | 'neutral'        // head - default
     | 'happy'          // full body
     | 'thinking'       // head
     | 'excited'        // head
-    | 'hello-wave'     // full — onboarding / first-run greeting
-    | 'explaining'     // full — tooltips / help
-    | 'scanning'       // full — active loading
-    | 'analyzing'      // full — long ops / processing
-    | 'success'        // full — all-clear, with shield
-    | 'failed';        // full — error, with shield
+    | 'hello-wave'     // full - onboarding / first-run greeting
+    | 'explaining'     // full - tooltips / help
+    | 'scanning'       // full - active loading
+    | 'analyzing'      // full - long ops / processing
+    | 'success'        // full - all-clear, with shield
+    | 'failed';        // full - error, with shield
 
   export type VulnySize = 'sm' | 'md' | 'lg' | 'xl';
 
@@ -79,7 +79,7 @@
   const height = $derived(HEIGHT_PX[size]);
   const width = $derived(widthForHeight(height, spec.aspect));
   const src = $derived(fileFor(spec, size));
-  const altText = $derived(alt ?? `Vulny — ${state}`);
+  const altText = $derived(alt ?? `Vulny - ${state}`);
 </script>
 
 <img class="vulny" {src} alt={altText} {width} {height} loading="lazy" decoding="async" />

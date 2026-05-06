@@ -73,7 +73,7 @@
     <BrandLockup href="/" size="lg" centered={true} spin sparkle />
     <h1>Complete your account</h1>
     {#if loading}
-      <p class="intro">Checking your invite…</p>
+      <p class="intro">Checking your invite...</p>
     {:else}
       <p class="intro">
         This invite is reserved for <strong>{inviteEmail}</strong>.

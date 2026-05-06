@@ -1,11 +1,11 @@
 /* ============================================================
-   VulnLedger — Self-hosted webfonts
+   VulnLedger - Self-hosted webfonts
    ============================================================
    Inter and JetBrains Mono are bundled with the app under SIL
    Open Font License 1.1 (see /static/fonts/<family>/{LICENSE,OFL}.txt).
 
    Both families ship as a single variable WOFF2 file covering the
-   full weight axis — one network round-trip, no third-party
+   full weight axis - one network round-trip, no third-party
    origin, GDPR-clean.
 
    Loaded BEFORE design-tokens.css so `var(--font-sans)` and

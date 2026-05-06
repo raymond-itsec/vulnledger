@@ -9,7 +9,7 @@
     user can paste it into a bug report.
   - Optional retry callback.
 
-  This is intentionally not a toast — toasts auto-dismiss; this panel
+  This is intentionally not a toast - toasts auto-dismiss; this panel
   stays put because the surrounding content is broken.
 -->
 <script lang="ts">

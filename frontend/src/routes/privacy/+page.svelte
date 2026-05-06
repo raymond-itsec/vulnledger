@@ -4,7 +4,7 @@
 
 <svelte:head>
   <title>Privacy Policy - VulnLedger</title>
-  <meta name="description" content="VulnLedger privacy policy — how we handle your personal data." />
+  <meta name="description" content="VulnLedger privacy policy - how we handle your personal data." />
 </svelte:head>
 
 <PublicShell>
@@ -16,7 +16,7 @@
     <p>When you join the waitlist we collect your email address and the URL you came from. We use this solely to notify you when early access opens and to understand where our visitors come from.</p>
 
     <h2>What we do not collect</h2>
-    <p>VulnLedger the application is self-hosted. We have no access to the data you store inside your instance — findings, clients, sessions, or reports are entirely under your control.</p>
+    <p>VulnLedger the application is self-hosted. We have no access to the data you store inside your instance - findings, clients, sessions, or reports are entirely under your control.</p>
 
     <h2>Third parties</h2>
     <p>The waitlist form sends data to our waitlist API hosted in the EU. We do not share your email with any third party and do not use it for advertising.</p>

@@ -3,7 +3,7 @@
   //
   // Design rules (from VulnLedger design system):
   //  - Each crumb label is hard-capped at 20 characters; longer labels truncate
-  //    to 17 chars + "…" (full text remains in the title attribute on hover).
+  //    to 17 chars + "..." (full text remains in the title attribute on hover).
   //  - All but the last crumb are clickable when an href is provided.
   //  - The last crumb represents the current page and is never clickable.
 
@@ -14,7 +14,7 @@
   const MAX_LABEL_LEN = 20;
   function truncate(label: string): string {
     if (!label) return '';
-    return label.length > MAX_LABEL_LEN ? label.slice(0, 17) + '…' : label;
+    return label.length > MAX_LABEL_LEN ? label.slice(0, 17) + '...' : label;
   }
 </script>
 

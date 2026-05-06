@@ -201,7 +201,7 @@ async def login(
         )
     result = await db.execute(select(User).where(User.username == body.username))
     user = result.scalar_one_or_none()
-    # Always run verify_password — even for missing users — against a sentinel
+    # Always run verify_password - even for missing users - against a sentinel
     # hash so timing is identical for "user exists, wrong password" and "user
     # does not exist". Closes the username-enumeration timing oracle.
     target_hash = user.password_hash if user is not None else _DUMMY_PASSWORD_HASH

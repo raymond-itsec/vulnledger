@@ -4,7 +4,7 @@
 
 /* Design system tokens (colors, spacing, type, shadows). Namespaced under
    --color-*, --fg*, --bg-*, --space-*, --radius-*, --shadow-*, --text-* (sizes),
-   --weight-*, --leading-*, --tracking-* — no collision with the legacy vars
+   --weight-*, --leading-*, --tracking-* - no collision with the legacy vars
    below. Components migrate to these tokens progressively over time. */
 @import './lib/styles/design-tokens.css';
 
@@ -94,13 +94,13 @@ button {
  *
  * Recurring regression tracked in #28: inputs that aren't wrapped in
  * `.form-group` or `.filters` (or that get clobbered by a more-specific
- * scoped Svelte selector) used to inherit text color from the parent —
+ * scoped Svelte selector) used to inherit text color from the parent -
  * which on dark sidebars / system-dark-mode / autofill frequently
  * resolved to white on a white background. The bare element rules
  * below establish a safe default so anything more specific only has to
  * override what it actually wants to differ on, not re-establish the
  * baseline. Component-scoped overrides MUST set `color` explicitly if
- * they also set `background` — otherwise system "fieldtext" wins.
+ * they also set `background` - otherwise system "fieldtext" wins.
  */
 input, select, textarea {
   font-family: inherit;

@@ -31,7 +31,7 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
 
     res = await fetchWithAvailability(path, { ...options, headers }, true);
 
-    // 429 — keep cooling and retrying up to MAX_429_RETRIES. Concurrent
+    // 429 - keep cooling and retrying up to MAX_429_RETRIES. Concurrent
     // requests share the same cool-down promise, so a single Retry-After
     // value paces the whole burst rather than each request scheduling
     // its own retry.
@@ -56,7 +56,7 @@ export async function authorizedFetch(path: string, options: RequestInit = {}): 
       throw new Error('Session expired');
     } else {
       // Refresh failed for a transient reason (rate-limited, network blip,
-      // backend 5xx). Don't clear the session — surface the original 401 so
+      // backend 5xx). Don't clear the session - surface the original 401 so
       // the caller can retry. Next API call will trigger another refresh.
       throw new Error('Could not refresh session right now. Please retry in a moment.');
     }

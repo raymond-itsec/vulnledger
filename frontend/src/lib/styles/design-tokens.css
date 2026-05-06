@@ -1,8 +1,8 @@
 /* ============================================================
-   VulnLedger Design System — Colors & Typography
+   VulnLedger Design System - Colors & Typography
    ============================================================
    NOTE: Inter and JetBrains Mono are loaded via <link> tags in
-   src/app.html (with preconnect) — no @import here so we don't
+   src/app.html (with preconnect) - no @import here so we don't
    block render. */
 
 /* ============================================================
@@ -31,7 +31,7 @@
   --color-blue-200:       #D1E3FA;
   --color-blue-100:       #EBF3FD;
 
-  /* Neutrals — warm */
+  /* Neutrals - warm */
   --color-neutral-900:    #1E1E2E;
   --color-neutral-800:    #2C2C3E;
   --color-neutral-700:    #3F3F55;
@@ -43,7 +43,7 @@
   --color-neutral-100:    #F2EDE6;
   --color-neutral-50:     #FAFAF8;
 
-  /* Semantic — severity */
+  /* Semantic - severity */
   --color-critical:       #D93B3B;
   --color-critical-bg:    #FDEAEA;
   --color-high:           #E8622A;
@@ -55,7 +55,7 @@
   --color-info:           #6B9BE8;
   --color-info-bg:        #EBF3FD;
 
-  /* Semantic — status */
+  /* Semantic - status */
   --color-success:        #3BA85A;
   --color-success-bg:     #E9F8EE;
   --color-warning:        #E8A82A;

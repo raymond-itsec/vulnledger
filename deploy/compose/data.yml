@@ -149,7 +149,7 @@ services:
   backup:
     build: ../../backup
     # `no` (not `unless-stopped`) so a config error like a missing
-    # encryption passphrase doesn't loop forever — the pre-flight in
+    # encryption passphrase doesn't loop forever - the pre-flight in
     # backup/entrypoint.sh exits 78 (SYSEXITS configuration error)
     # and the container stays in `Exited (78)` state, visible in
     # `docker compose ps`. Transient outages are not a concern here

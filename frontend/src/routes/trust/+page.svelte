@@ -10,7 +10,7 @@
 <PublicShell>
   <div class="page-card">
     <h1>Trust &amp; Security</h1>
-    <p class="lead">Security is not a feature we bolt on — it shapes every decision we make.</p>
+    <p class="lead">Security is not a feature we bolt on - it shapes every decision we make.</p>
 
     <h2>Self-hosted by design</h2>
     <p>VulnLedger runs entirely on your own infrastructure. Your findings, client data, and session history never leave your environment unless you export them.</p>

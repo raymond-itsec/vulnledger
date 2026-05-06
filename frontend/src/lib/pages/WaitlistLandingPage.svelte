@@ -59,7 +59,7 @@
     }
 
     submitting = true;
-    showStatus('Submitting…', 'info');
+    showStatus('Submitting...', 'info');
 
     try {
       const response = await fetch(`${WAITLIST_API_BASE}/api/join`, {
@@ -91,8 +91,8 @@
 </script>
 
 <svelte:head>
-  <title>VulnLedger — Workspace for Security Professionals</title>
-  <meta name="description" content="VulnLedger is the self-hosted workspace for security professionals — track findings, run review sessions, collaborate with clients, and deliver polished PDF, CSV, and JSON reports. Join the early-access waitlist." />
+  <title>VulnLedger - Workspace for Security Professionals</title>
+  <meta name="description" content="VulnLedger is the self-hosted workspace for security professionals - track findings, run review sessions, collaborate with clients, and deliver polished PDF, CSV, and JSON reports. Join the early-access waitlist." />
   <meta name="keywords" content="security review platform, vulnerability tracking, pentest report tool, finding management, self-hosted security tool, OWASP review, security audit workflow, security professional software" />
   <meta name="author" content="VulnLedger" />
   <meta name="application-name" content="VulnLedger" />
@@ -105,21 +105,21 @@
 
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="VulnLedger" />
-  <meta property="og:title" content="VulnLedger — Workspace for Security Professionals" />
-  <meta property="og:description" content="Self-hosted workspace for security professionals. Track findings, run sessions, deliver client reports — without losing your mind." />
+  <meta property="og:title" content="VulnLedger - Workspace for Security Professionals" />
+  <meta property="og:description" content="Self-hosted workspace for security professionals. Track findings, run sessions, deliver client reports - without losing your mind." />
   <meta property="og:url" content="/" />
   <meta property="og:locale" content="en_US" />
   <meta property="og:image" content={OG_IMAGE_PATH} />
   <meta property="og:image:type" content="image/png" />
   <meta property="og:image:width" content="512" />
   <meta property="og:image:height" content="512" />
-  <meta property="og:image:alt" content="VulnLedger — Security reviews, finally under control." />
+  <meta property="og:image:alt" content="VulnLedger - Security reviews, finally under control." />
 
   <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="VulnLedger — Workspace for Security Professionals" />
+  <meta name="twitter:title" content="VulnLedger - Workspace for Security Professionals" />
   <meta name="twitter:description" content="Self-hosted workspace for security professionals. Track findings, run sessions, deliver client reports." />
   <meta name="twitter:image" content={OG_IMAGE_PATH} />
-  <meta name="twitter:image:alt" content="VulnLedger — Security reviews, finally under control." />
+  <meta name="twitter:image:alt" content="VulnLedger - Security reviews, finally under control." />
 
   <link rel="icon" href="/branding/favicon.ico" sizes="any" />
   <link rel="icon" type="image/png" sizes="16x16" href="/branding/favicon-16x16.png" />
@@ -240,7 +240,7 @@
     </h1>
 
     <p class="hero-sub">
-      VulnLedger is the workspace for security professionals — track findings,
+      VulnLedger is the workspace for security professionals - track findings,
       manage sessions, collaborate with clients, and deliver reports
       without losing your mind.
     </p>
@@ -263,7 +263,7 @@
               aria-label="Email address"
             />
             <button type="submit" class="btn-primary" disabled={submitting}>
-              {submitting ? 'Submitting…' : 'Get access'}
+              {submitting ? 'Submitting...' : 'Get access'}
             </button>
           </div>
         </div>
@@ -274,7 +274,7 @@
           </div>
         {/if}
         <p class="waitlist-note">
-          Invite-only. No spam — just a heads-up when your spot is ready.
+          Invite-only. No spam - just a heads-up when your spot is ready.
         </p>
       </form>
     </div>
@@ -339,7 +339,7 @@
         </svg>
       </div>
       <h3>Structured finding capture</h3>
-      <p>Record vulnerabilities with severity, status, evidence attachments, and taxonomy tags — fast enough to keep pace with testing.</p>
+      <p>Record vulnerabilities with severity, status, evidence attachments, and taxonomy tags - fast enough to keep pace with testing.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon green" aria-hidden="true">
@@ -351,7 +351,7 @@
         </svg>
       </div>
       <h3>Polished PDF reports</h3>
-      <p>Generate client-ready PDF reports in seconds — with CSV and JSON exports on the side for spreadsheets and downstream tooling.</p>
+      <p>Generate client-ready PDF reports in seconds - with CSV and JSON exports on the side for spreadsheets and downstream tooling.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon blue" aria-hidden="true">
@@ -380,7 +380,7 @@
         </svg>
       </div>
       <h3>Self-hosted, data stays put</h3>
-      <p>Runs on your own infrastructure with Docker — no third-party SaaS and no client data crossing your perimeter. Built for EU and regulated environments.</p>
+      <p>Runs on your own infrastructure with Docker - no third-party SaaS and no client data crossing your perimeter. Built for EU and regulated environments.</p>
     </div>
     <div class="feature-card">
       <div class="feature-icon teal" aria-hidden="true">
