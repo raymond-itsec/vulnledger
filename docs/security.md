@@ -15,10 +15,10 @@
 
 ## HTTP security
 
-- **Edge rate limiting** - 30 req/min on `/api/auth/login` (strict bucket, brute-force protection), 1200 req/min on `/api/*` (general bucket); enforced in Caddy
+- **Edge rate limiting** - 30 req/min on `/api/v1/auth/login` (strict bucket, brute-force protection), 1200 req/min on `/api/v1/*` (general bucket); enforced in Caddy. Both rules match the legacy unversioned `/api/...` paths via optional `(?:v1/)?` regex during the deprecation window
 - **Malformed-path rejection** - Caddy rejects requests with `//`, `/./`, `/../`, `%2F`, `%5C`, or `%00` in the path with 400, before any handler runs
 - **Forwarding-header sanitization** - 9 spoofable headers (X-Forwarded-For, X-Real-IP, etc.) blocked at the edge
-- **Body-size cap** - 1MB default, 30MB on the `/api/findings/<id>/attachments` endpoint (anchored regexp, exact match)
+- **Body-size cap** - 1MB default, 30MB on the `/api/v1/findings/<id>/attachments` endpoint (anchored regexp, exact match)
 - **HTTP timeouts** - read_body 30s, read_header 10s, write 60s, idle 2m
 - **Security headers** - CSP (`frame-ancestors 'none'`, `base-uri 'self'`, `form-action 'self'`), COOP, CORP, X-Frame-Options DENY, X-Content-Type-Options nosniff, X-Permitted-Cross-Domain-Policies none, Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy
 - **HSTS** - `max-age=63072000; includeSubDomains; preload` over HTTPS

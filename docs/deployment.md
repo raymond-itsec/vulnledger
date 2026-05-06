@@ -104,7 +104,7 @@ The default `docker-compose.yml` runs:
 | `db` | postgres:16.13-alpine3.23 (digest pinned) | `127.0.0.1:5432` | Primary database |
 | `seaweedfs` | chrislusf/seaweedfs:4.20 | `127.0.0.1:8333` | S3-compatible object storage for evidence and generated exports |
 | `backend` | Custom (Python 3.12) | `127.0.0.1:8000` | FastAPI REST API |
-| `frontend` | Custom (Node 22) | `127.0.0.1:5173` | SvelteKit SPA |
+| `frontend` | Custom (Node 24 LTS) | `127.0.0.1:5173` | SvelteKit SPA |
 | `caddy` | Custom (Caddy + ratelimit module) | `80`, `443`, `443/udp` | Reverse proxy with optional auto-TLS |
 | `backup` | Custom (postgres + cron) | - | Scheduled database backups |
 | `clamav` | clamav/clamav:1.4.3 (digest pinned) | `127.0.0.1:3310` | Antivirus scanning |

@@ -32,7 +32,7 @@
 └──────────────┘     │  :80/:443    │     └──────────────┘
                      │              │
                      │              │     ┌──────────────┐
-                     │   /api/*  ───│─────│   Backend    │
+                     │  /api/v1/*  ─│─────│   Backend    │
                      │              │     │  (FastAPI)   │
                      └──────────────┘     │  :8000       │
                                           │              │
@@ -54,7 +54,7 @@
 ## Request flow
 
 1. All requests enter through **Caddy** (ports 80/443)
-2. Requests to `/api/*` are proxied to the **FastAPI backend**
+2. Requests to `/api/v1/*` are proxied to the **FastAPI backend**. Legacy unversioned `/api/*` requests return HTTP 308 to the matching `/api/v1/...` endpoint with `Deprecation: true` and a `Sunset: Mon, 01 Jun 2026 00:00:00 GMT` header
 3. All other requests are proxied to the **SvelteKit frontend**
 4. The backend communicates with **PostgreSQL** for data, **SeaweedFS** for files, **ClamAV** for scanning, and **Mailjet** for email
 5. The **backup service** independently dumps PostgreSQL on a cron schedule
@@ -72,10 +72,10 @@ VulnLedger `v0.2.0` switched object storage to SeaweedFS. The default deployment
 
 ## Authentication flow
 
-1. User submits credentials → `POST /api/auth/login`
+1. User submits credentials → `POST /api/v1/auth/login`
 2. Backend verifies with bcrypt, returns JWT access token + sets HttpOnly refresh cookie
 3. Frontend stores access token in memory (not localStorage - XSS safe)
-4. On page load or after a 401, the frontend calls `POST /api/auth/refresh` using the cookie
+4. On page load or after a 401, the frontend calls `POST /api/v1/auth/refresh` using the cookie
 5. Refresh rotates both tokens transparently and restores the in-memory access token from DB-backed refresh session state
 6. All non-login frontend pages require authentication and redirect back to `/` when the user is signed out
 7. Logout clears the refresh cookie, drops the in-memory access token, and returns the browser to the login page
@@ -84,9 +84,9 @@ VulnLedger `v0.2.0` switched object storage to SeaweedFS. The default deployment
 
 ## OIDC SSO flow (optional)
 
-1. User clicks "Sign in with SSO" → `GET /api/auth/oidc/login`
+1. User clicks "Sign in with SSO" → `GET /api/v1/auth/oidc/login`
 2. Redirect to Identity Provider (IdP)
-3. IdP callback → `GET /api/auth/oidc/callback`
+3. IdP callback → `GET /api/v1/auth/oidc/callback`
 4. Backend auto-provisions user from OIDC claims if new
 5. Redirect to the frontend, which restores the session from the refresh cookie
 
@@ -168,8 +168,11 @@ vulnledger/
 │   ├── entrypoint.sh       # Cron setup + pre-flight encryption check
 │   └── Dockerfile
 ├── docs/                   # This documentation site (mkdocs-material)
-├── monitoring/             # Optional observability stack configs
+├── deploy/
+│   ├── compose/            # Per-tier compose files: edge, app, data, monitoring
+│   ├── profiles/           # Per-shape env templates (allinone / multihost)
+│   └── Makefile            # `make allinone-up`, `make multihost-up`, etc.
 ├── Caddyfile               # Reverse proxy config
-├── docker-compose.yml      # All services
+├── docker-compose.yml      # Thin `include:` shim that loads the four tier files
 └── README.md               # Project front door
 ```

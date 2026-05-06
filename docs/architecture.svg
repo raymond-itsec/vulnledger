@@ -76,7 +76,7 @@
     <rect x="-4" y="-4" width="46" height="46" rx="12" fill="url(#markGrad)"/>
     <text x="19" y="28" font-size="22" font-weight="900" fill="#fff" text-anchor="middle">V</text>
     <text x="60" y="32" font-size="32" font-weight="800" fill="url(#titleGrad)">VulnLedger Architecture</text>
-    <text x="60" y="58" font-size="13" fill="#42455e">Self-hosted security review workspace · v0.2.1 · Docker Compose stack</text>
+    <text x="60" y="58" font-size="13" fill="#42455e">Self-hosted security review workspace · v0.3.0 in progress · Docker Compose stack</text>
   </g>
 
   <!-- ===== Internet ===== -->
@@ -108,7 +108,7 @@
   <g transform="translate(140, 360)" filter="url(#softShadow)">
     <rect width="360" height="90" rx="16" fill="url(#appBox)" stroke="#a78bfa" stroke-width="1.5"/>
     <text x="180" y="34" font-size="18" font-weight="800" fill="#1a1d2e" text-anchor="middle">frontend</text>
-    <text x="180" y="56" font-size="12" fill="#42455e" text-anchor="middle">SvelteKit · vite preview · Node 22</text>
+    <text x="180" y="56" font-size="12" fill="#42455e" text-anchor="middle">SvelteKit · vite preview · Node 24 LTS</text>
     <text x="180" y="74" font-size="11" fill="#8a8dac" text-anchor="middle">port 5173</text>
   </g>
 
