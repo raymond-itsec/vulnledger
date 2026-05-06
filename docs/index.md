@@ -39,7 +39,7 @@ A self-hosted web application for managing security code review findings. Built 
 - **Availability Banner** - Shared top-of-page outage notice for backend, proxy, database-startup, or local network failures that should not be treated as normal per-request UI errors
 - **Rate Limiting** - Brute-force protection on login, configurable API limits
 - **Security Headers** - CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- **Optional OIDC SSO** - Integrate with any OpenID Connect provider (Keycloak, Azure AD, Okta, etc.)
+- **Optional OIDC SSO** - Integrate with any OpenID Connect provider (Keycloak, Authentik, Zitadel, etc.)
 - **Virus Scanning** - ClamAV integration scans every file upload before storage and blocks uploads whenever the scanner is disabled, unreachable, or unhealthy
 - **Automated Backups** - Scheduled PostgreSQL dumps with configurable retention
 
