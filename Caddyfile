@@ -6,10 +6,10 @@
 	# headroom, idle connections recycle promptly.
 	servers {
 		timeouts {
-			read_body   30s
+			read_body 30s
 			read_header 10s
-			write       60s
-			idle        2m
+			write 60s
+			idle 2m
 		}
 	}
 }
@@ -32,7 +32,7 @@
 		# Legacy belt-and-braces alongside the CSP frame-ancestors directive
 		# below. Some old user agents only honor X-Frame-Options.
 		X-Frame-Options "DENY"
-		# Adobe Flash legacy — closes the cross-domain policy file vector.
+		# Adobe Flash legacy - closes the cross-domain policy file vector.
 		X-Permitted-Cross-Domain-Policies "none"
 		# Script/style/img/etc. directives are set via SvelteKit's hash-mode
 		# CSP meta tag (configured in frontend/svelte.config.js). Only
@@ -72,7 +72,7 @@
 		# VL-2026-012: reject malformed paths at the edge so the backend
 		# never sees them. `path_regexp` operates on Caddy's NORMALIZED
 		# path (already collapsed `//`, resolved `/./`, decoded some
-		# percent-encodings) — useful for matchers but blind to the raw
+		# percent-encodings) - useful for matchers but blind to the raw
 		# request line. `vars_regexp` against {http.request.orig_uri.path}
 		# matches the path AS RECEIVED, before normalization, so we can
 		# reject malformed requests outright.
@@ -81,7 +81,7 @@
 		# below: matchers see the normalized form and the strict bucket
 		# correctly fires on `/api//auth//login`, but Caddy still forwards
 		# the raw malformed path to the backend by default. That's bad
-		# hygiene — it leaks attack attempts into application logs and
+		# hygiene - it leaks attack attempts into application logs and
 		# leaves us one Starlette path-normalization middleware away from
 		# a real bypass. This block kills the entire class at the edge.
 		@malformed_path vars_regexp {http.request.orig_uri.path} (//|/\./|/\.\./|%2[fF]|%5[cC]|%00|\x00)
@@ -94,7 +94,7 @@
 		#
 		# VL-2026-013: the previous inline path matcher
 		# `request_body /api/findings/*/attachments { ... }` did not match the
-		# canonical upload path in practice — empirical testing showed the
+		# canonical upload path in practice - empirical testing showed the
 		# 30MB override only kicked in for paths with trailing extra segments
 		# (e.g. /api/findings/<id>/attachments/extra), while real uploads to
 		# /api/findings/<id>/attachments fell back to the global 1MB cap and
@@ -130,12 +130,12 @@
 		# 1200 events/minute (20/sec average) is comfortable for an SPA that
 		# batches requests on page load and stays well above active-dev F5
 		# patterns. Endpoints excluded below:
-		#   /api/health, /api/health/live  -- health probes, must never throttle
-		#   /api/auth/refresh              -- requires a valid refresh-token cookie,
-		#                                     cannot be brute-forced, and a 429 here
-		#                                     forcibly logs the user out (catastrophic
-		#                                     UX). Brute-force protection lives on
-		#                                     /api/auth/login via login_zone below.
+		# /api/health, /api/health/live -- health probes, must never throttle
+		# /api/auth/refresh -- requires a valid refresh-token cookie,
+		# cannot be brute-forced, and a 429 here
+		# forcibly logs the user out (catastrophic
+		# UX). Brute-force protection lives on
+		# /api/auth/login via login_zone below.
 		# Both v1 and legacy unversioned paths are excluded during the
 		# deprecation window. After Sunset, drop the unversioned variants.
 		@api_limited {

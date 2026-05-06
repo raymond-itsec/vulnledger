@@ -1,53 +1,53 @@
 /* Self-hosted webfonts (Inter, JetBrains Mono) under SIL Open Font License.
-   Loaded first so token references resolve to declared families. */
+ Loaded first so token references resolve to declared families. */
 @import './lib/styles/fonts.css';
 
 /* Design system tokens (colors, spacing, type, shadows). Namespaced under
-   --color-*, --fg*, --bg-*, --space-*, --radius-*, --shadow-*, --text-* (sizes),
-   --weight-*, --leading-*, --tracking-* — no collision with the legacy vars
-   below. Components migrate to these tokens progressively over time. */
+ --color-*, --fg*, --bg-*, --space-*, --radius-*, --shadow-*, --text-* (sizes),
+ --weight-*, --leading-*, --tracking-* - no collision with the legacy vars
+ below. Components migrate to these tokens progressively over time. */
 @import './lib/styles/design-tokens.css';
 
 :root {
-  --sidebar-bg: linear-gradient(180deg, rgba(57, 43, 86, 0.96) 0%, rgba(42, 35, 76, 0.98) 100%);
-  --sidebar-hover: rgba(255, 255, 255, 0.12);
-  --sidebar-active: rgba(255, 255, 255, 0.18);
-  --content-bg:
-    radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.2) 0%, transparent 55%),
-    radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.16) 0%, transparent 60%),
-    radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.18) 0%, transparent 60%),
-    linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
-  --card-bg: rgba(255, 255, 255, 0.82);
-  --text-primary: #1a1d2e;
-  --text-secondary: #666980;
-  --text-light: #ffffff;
-  --border-color: rgba(255, 255, 255, 0.72);
-  --accent: #ff6a3d;
-  --accent-hover: #f15b2e;
-  --surface-shadow: 0 12px 32px rgba(80, 40, 120, 0.12), 0 24px 56px rgba(80, 40, 120, 0.14);
+ --sidebar-bg: linear-gradient(180deg, rgba(57, 43, 86, 0.96) 0%, rgba(42, 35, 76, 0.98) 100%);
+ --sidebar-hover: rgba(255, 255, 255, 0.12);
+ --sidebar-active: rgba(255, 255, 255, 0.18);
+ --content-bg:
+ radial-gradient(ellipse 80% 60% at 15% 25%, rgba(255, 180, 150, 0.2) 0%, transparent 55%),
+ radial-gradient(ellipse 70% 55% at 95% 15%, rgba(255, 200, 220, 0.16) 0%, transparent 60%),
+ radial-gradient(ellipse 90% 70% at 85% 90%, rgba(180, 155, 245, 0.18) 0%, transparent 60%),
+ linear-gradient(160deg, #fae2d8 0%, #f3d0e8 30%, #e0cdf5 60%, #d4d8f5 85%, #dad5f0 100%);
+ --card-bg: rgba(255, 255, 255, 0.82);
+ --text-primary: #1a1d2e;
+ --text-secondary: #666980;
+ --text-light: #ffffff;
+ --border-color: rgba(255, 255, 255, 0.72);
+ --accent: #ff6a3d;
+ --accent-hover: #f15b2e;
+ --surface-shadow: 0 12px 32px rgba(80, 40, 120, 0.12), 0 24px 56px rgba(80, 40, 120, 0.14);
 
-  --critical: #dc2626;
-  --high: #ea580c;
-  --medium: #ca8a04;
-  --low: #2563eb;
-  --informational: #6b7280;
+ --critical: #dc2626;
+ --high: #ea580c;
+ --medium: #ca8a04;
+ --low: #2563eb;
+ --informational: #6b7280;
 
-  --status-open: #dc2626;
-  --status-in-progress: #ca8a04;
-  --status-resolved: #16a34a;
-  --status-accepted-risk: #6b7280;
-  --status-false-positive: #9333ea;
+ --status-open: #dc2626;
+ --status-in-progress: #ca8a04;
+ --status-resolved: #16a34a;
+ --status-accepted-risk: #6b7280;
+ --status-false-positive: #9333ea;
 
-  --session-planned: #6b7280;
-  --session-in-progress: #ca8a04;
-  --session-completed: #16a34a;
-  --session-cancelled: #dc2626;
+ --session-planned: #6b7280;
+ --session-in-progress: #ca8a04;
+ --session-completed: #16a34a;
+ --session-cancelled: #dc2626;
 }
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+ margin: 0;
+ padding: 0;
+ box-sizing: border-box;
 }
 
 /* Custom scrollbars to match the pastel-glass aesthetic.
@@ -56,57 +56,56 @@
  * Firefox uses scrollbar-width / scrollbar-color; Chromium / Safari use
  * the ::-webkit-scrollbar pseudo-element family. */
 * {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(120, 100, 160, 0.40) transparent;
+ scrollbar-width: thin;
+ scrollbar-color: rgba(120, 100, 160, 0.40) transparent;
 }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
 *::-webkit-scrollbar-track { background: transparent; }
 *::-webkit-scrollbar-thumb {
-  background: rgba(120, 100, 160, 0.35);
-  border-radius: 999px;
-  border: 2px solid transparent;
-  background-clip: padding-box;
+ background: rgba(120, 100, 160, 0.35);
+ border-radius: 999px;
+ border: 2px solid transparent;
+ background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(120, 100, 160, 0.55);
-  background-clip: padding-box;
+ background: rgba(120, 100, 160, 0.55);
+ background-clip: padding-box;
 }
 *::-webkit-scrollbar-corner { background: transparent; }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  color: var(--text-primary);
-  background: var(--content-bg);
-  background-attachment: fixed;
-  line-height: 1.5;
+ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+ color: var(--text-primary);
+ background: var(--content-bg);
+ background-attachment: fixed;
+ line-height: 1.5;
 }
 
 a { color: var(--accent); text-decoration: none; }
 a:hover { text-decoration: underline; }
 
 button {
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 0.875rem;
+ cursor: pointer;
+ font-family: inherit;
+ font-size: 0.875rem;
 }
 
 /* Baseline defaults for every form control in the app.
  *
  * Recurring regression tracked in #28: inputs that aren't wrapped in
  * `.form-group` or `.filters` (or that get clobbered by a more-specific
- * scoped Svelte selector) used to inherit text color from the parent —
- * which on dark sidebars / system-dark-mode / autofill frequently
+ * scoped Svelte selector) used to inherit text color from the parent - * which on dark sidebars / system-dark-mode / autofill frequently
  * resolved to white on a white background. The bare element rules
  * below establish a safe default so anything more specific only has to
  * override what it actually wants to differ on, not re-establish the
  * baseline. Component-scoped overrides MUST set `color` explicitly if
- * they also set `background` — otherwise system "fieldtext" wins.
+ * they also set `background` - otherwise system "fieldtext" wins.
  */
 input, select, textarea {
-  font-family: inherit;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  background: #ffffff;
+ font-family: inherit;
+ font-size: 0.875rem;
+ color: var(--text-primary);
+ background: #ffffff;
 }
 
 /* Chrome's autofill paints with system colors that override our `color`
@@ -121,35 +120,35 @@ input:-webkit-autofill:focus,
 input:-webkit-autofill:active,
 textarea:-webkit-autofill,
 select:-webkit-autofill {
-  -webkit-text-fill-color: var(--text-primary);
-  -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
-  caret-color: var(--text-primary);
-  transition: background-color 9999s ease-in-out 0s;
+ -webkit-text-fill-color: var(--text-primary);
+ -webkit-box-shadow: 0 0 0 1000px #ffffff inset;
+ caret-color: var(--text-primary);
+ transition: background-color 9999s ease-in-out 0s;
 }
 
 .btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 0.375rem;
-  font-weight: 500;
-  transition: background-color 0.15s;
+ display: inline-flex;
+ align-items: center;
+ gap: 0.5rem;
+ padding: 0.5rem 1rem;
+ border: none;
+ border-radius: 0.375rem;
+ font-weight: 500;
+ transition: background-color 0.15s;
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #ff6a3d 0%, #ffb266 100%);
-  color: white;
-  box-shadow: 0 10px 24px rgba(255, 106, 61, 0.2);
+ background: linear-gradient(135deg, #ff6a3d 0%, #ffb266 100%);
+ color: white;
+ box-shadow: 0 10px 24px rgba(255, 106, 61, 0.2);
 }
 .btn-primary:hover { background: var(--accent-hover); }
 
 .btn-secondary {
-  background: rgba(255, 255, 255, 0.65);
-  color: var(--text-primary);
-  border: 1px solid rgba(255, 255, 255, 0.72);
-  box-shadow: 0 6px 18px rgba(80, 40, 120, 0.08);
+ background: rgba(255, 255, 255, 0.65);
+ color: var(--text-primary);
+ border: 1px solid rgba(255, 255, 255, 0.72);
+ box-shadow: 0 6px 18px rgba(80, 40, 120, 0.08);
 }
 .btn-secondary:hover { background: rgba(255, 255, 255, 0.82); }
 
@@ -159,48 +158,48 @@ select:-webkit-autofill {
 .btn-sm { padding: 0.25rem 0.75rem; font-size: 0.8rem; }
 
 .card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  backdrop-filter: blur(18px) saturate(150%);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: var(--surface-shadow);
+ background: var(--card-bg);
+ border: 1px solid var(--border-color);
+ backdrop-filter: blur(18px) saturate(150%);
+ border-radius: 0.75rem;
+ padding: 1.5rem;
+ box-shadow: var(--surface-shadow);
 }
 
 .form-group {
-  margin-bottom: 1rem;
+ margin-bottom: 1rem;
 }
 
 .form-group label {
-  display: block;
-  font-weight: 500;
-  margin-bottom: 0.25rem;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+ display: block;
+ font-weight: 500;
+ margin-bottom: 0.25rem;
+ font-size: 0.875rem;
+ color: var(--text-secondary);
 }
 
 .form-group input,
 .form-group select,
 .form-group textarea {
-  width: 100%;
-  padding: 0.5rem 0.75rem;
-  border: 1px solid rgba(203, 187, 229, 0.72);
-  border-radius: 0.375rem;
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--text-primary);
+ width: 100%;
+ padding: 0.5rem 0.75rem;
+ border: 1px solid rgba(203, 187, 229, 0.72);
+ border-radius: 0.375rem;
+ background: rgba(255, 255, 255, 0.9);
+ color: var(--text-primary);
 }
 
 .form-group input::placeholder,
 .form-group textarea::placeholder {
-  color: #8a8dac;
+ color: #8a8dac;
 }
 
 .form-group input:disabled,
 .form-group select:disabled,
 .form-group textarea:disabled {
-  color: #666980;
-  -webkit-text-fill-color: #666980;
-  opacity: 1;
+ color: #666980;
+ -webkit-text-fill-color: #666980;
+ opacity: 1;
 }
 
 .form-group textarea { min-height: 100px; resize: vertical; }
@@ -208,186 +207,186 @@ select:-webkit-autofill {
 .form-group input:focus,
 .form-group select:focus,
 .form-group textarea:focus {
-  outline: none;
-  border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(255, 106, 61, 0.14);
+ outline: none;
+ border-color: var(--accent);
+ box-shadow: 0 0 0 3px rgba(255, 106, 61, 0.14);
 }
 
 table {
-  width: 100%;
-  border-collapse: collapse;
+ width: 100%;
+ border-collapse: collapse;
 }
 
 th {
-  text-align: left;
-  font-weight: 600;
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  padding: 0.75rem 1rem;
-  border-bottom: 2px solid var(--border-color);
+ text-align: left;
+ font-weight: 600;
+ font-size: 0.75rem;
+ text-transform: uppercase;
+ letter-spacing: 0.05em;
+ color: var(--text-secondary);
+ padding: 0.75rem 1rem;
+ border-bottom: 2px solid var(--border-color);
 }
 
 td {
-  padding: 0.75rem 1rem;
-  border-bottom: 1px solid var(--border-color);
-  font-size: 0.875rem;
+ padding: 0.75rem 1rem;
+ border-bottom: 1px solid var(--border-color);
+ font-size: 0.875rem;
 }
 
 tr:hover { background: rgba(255, 255, 255, 0.46); }
 
 .page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
+ display: flex;
+ justify-content: space-between;
+ align-items: center;
+ margin-bottom: 1.5rem;
 }
 
 .page-header h1 {
-  font-size: 1.5rem;
-  font-weight: 700;
+ font-size: 1.5rem;
+ font-weight: 700;
 }
 
 .badge {
-  display: inline-block;
-  padding: 0.125rem 0.5rem;
-  border-radius: 9999px;
-  font-size: 0.75rem;
-  font-weight: 600;
-  text-transform: capitalize;
+ display: inline-block;
+ padding: 0.125rem 0.5rem;
+ border-radius: 9999px;
+ font-size: 0.75rem;
+ font-weight: 600;
+ text-transform: capitalize;
 }
 
 .empty-state {
-  text-align: center;
-  padding: 3rem;
-  color: var(--text-secondary);
+ text-align: center;
+ padding: 3rem;
+ color: var(--text-secondary);
 }
 
 .filters {
-  display: flex;
-  gap: 1rem;
-  margin-bottom: 1rem;
-  flex-wrap: wrap;
+ display: flex;
+ gap: 1rem;
+ margin-bottom: 1rem;
+ flex-wrap: wrap;
 }
 
 .filters input,
 .filters select {
-  padding: 0.5rem 0.75rem;
-  border: 1px solid var(--border-color);
-  border-radius: 0.375rem;
-  font-size: 0.875rem;
-  color: var(--text-primary);
-  background: rgba(255, 255, 255, 0.9);
+ padding: 0.5rem 0.75rem;
+ border: 1px solid var(--border-color);
+ border-radius: 0.375rem;
+ font-size: 0.875rem;
+ color: var(--text-primary);
+ background: rgba(255, 255, 255, 0.9);
 }
 
 .stat-cards {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+ gap: 1rem;
+ margin-bottom: 1.5rem;
 }
 
 .stat-card {
-  background: var(--card-bg);
-  border: 1px solid var(--border-color);
-  backdrop-filter: blur(18px) saturate(150%);
-  border-radius: 0.75rem;
-  padding: 1.25rem;
-  box-shadow: var(--surface-shadow);
+ background: var(--card-bg);
+ border: 1px solid var(--border-color);
+ backdrop-filter: blur(18px) saturate(150%);
+ border-radius: 0.75rem;
+ padding: 1.25rem;
+ box-shadow: var(--surface-shadow);
 }
 
 .stat-card .label {
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  font-weight: 600;
+ font-size: 0.75rem;
+ text-transform: uppercase;
+ letter-spacing: 0.05em;
+ color: var(--text-secondary);
+ font-weight: 600;
 }
 
 .stat-card .value {
-  font-size: 2rem;
-  font-weight: 700;
-  margin-top: 0.25rem;
+ font-size: 2rem;
+ font-weight: 700;
+ margin-top: 0.25rem;
 }
 
 .stat-card.clickable {
-  cursor: pointer;
-  text-decoration: none;
-  color: inherit;
-  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+ cursor: pointer;
+ text-decoration: none;
+ color: inherit;
+ transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
 }
 
 .stat-card.clickable:hover {
-  transform: translateY(-2px);
-  text-decoration: none;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
-  border-color: rgba(99, 102, 241, 0.28);
+ transform: translateY(-2px);
+ text-decoration: none;
+ box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+ border-color: rgba(99, 102, 241, 0.28);
 }
 
 .stat-card.highlight {
-  border-color: rgba(99, 102, 241, 0.3);
+ border-color: rgba(99, 102, 241, 0.3);
 }
 
 .breakdown-row,
 .two-col {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
+ display: grid;
+ grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+ gap: 1rem;
+ margin-bottom: 1.5rem;
 }
 
 .breakdown-card h2 {
-  margin-bottom: 1rem;
-  font-size: 1.05rem;
+ margin-bottom: 1rem;
+ font-size: 1.05rem;
 }
 
 .bar-chart {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
+ display: flex;
+ flex-direction: column;
+ gap: 0.75rem;
 }
 
 .bar-row {
-  display: grid;
-  grid-template-columns: minmax(90px, 140px) 1fr auto;
-  gap: 0.75rem;
-  align-items: center;
+ display: grid;
+ grid-template-columns: minmax(90px, 140px) 1fr auto;
+ gap: 0.75rem;
+ align-items: center;
 }
 
 .bar-label,
 .bar-value {
-  font-size: 0.85rem;
+ font-size: 0.85rem;
 }
 
 .bar-label {
-  color: var(--text-secondary);
+ color: var(--text-secondary);
 }
 
 .bar-track {
-  height: 0.65rem;
-  border-radius: 999px;
-  background: rgba(148, 163, 184, 0.22);
-  overflow: hidden;
+ height: 0.65rem;
+ border-radius: 999px;
+ background: rgba(148, 163, 184, 0.22);
+ overflow: hidden;
 }
 
 .bar-fill {
-  height: 100%;
-  border-radius: 999px;
+ height: 100%;
+ border-radius: 999px;
 }
 
 .detail-grid {
-  display: grid;
-  grid-template-columns: 150px 1fr;
-  gap: 0.5rem 1rem;
+ display: grid;
+ grid-template-columns: 150px 1fr;
+ gap: 0.5rem 1rem;
 }
 
 .detail-grid dt {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: var(--text-secondary);
+ font-weight: 600;
+ font-size: 0.875rem;
+ color: var(--text-secondary);
 }
 
 .detail-grid dd {
-  font-size: 0.875rem;
+ font-size: 0.875rem;
 }

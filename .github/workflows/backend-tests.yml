@@ -1,202 +1,202 @@
 name: Backend Tests
 
 on:
-  push:
-    branches: ["main"]
-  pull_request:
-    branches: ["main"]
+ push:
+ branches: ["main"]
+ pull_request:
+ branches: ["main"]
 
 permissions:
-  contents: read
+ contents: read
 
 jobs:
-  pytest:
-    runs-on: ubuntu-latest
-    services:
-      # Real Postgres so DB-touching integration tests run, not just
-      # the pure-Python ones. Image pinned to alpine for fast pulls;
-      # version matches what `docker-compose.yml` ships locally.
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ci_password
-          POSTGRES_DB: ci_db
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    steps:
-      - uses: actions/checkout@v6
+ pytest:
+ runs-on: ubuntu-latest
+ services:
+ # Real Postgres so DB-touching integration tests run, not just
+ # the pure-Python ones. Image pinned to alpine for fast pulls;
+ # version matches what `docker-compose.yml` ships locally.
+ postgres:
+ image: postgres:16-alpine
+ env:
+ POSTGRES_USER: ci_user
+ POSTGRES_PASSWORD: ci_password
+ POSTGRES_DB: ci_db
+ ports:
+ - 5432:5432
+ options: >-
+ --health-cmd pg_isready
+ --health-interval 10s
+ --health-timeout 5s
+ --health-retries 5
+ steps:
+ - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v6
-        with:
-          python-version: "3.12"
-          cache: pip
-          cache-dependency-path: backend/requirements.lock.txt
+ - uses: actions/setup-python@v6
+ with:
+ python-version: "3.12"
+ cache: pip
+ cache-dependency-path: backend/requirements.lock.txt
 
-      - name: Install backend dependencies
-        # Same lockfile the production Dockerfile uses, so CI runs
-        # against exactly the versions that ship.
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r backend/requirements.lock.txt
-          pip install pytest pytest-asyncio
+ - name: Install backend dependencies
+ # Same lockfile the production Dockerfile uses, so CI runs
+ # against exactly the versions that ship.
+ run: |
+ python -m pip install --upgrade pip
+ pip install -r backend/requirements.lock.txt
+ pip install pytest pytest-asyncio
 
-      - name: Generate ephemeral JWT keypair
-        # Backend's Settings refuses to load without a valid JWT
-        # keypair. Throwaway keys are fine for tests; nothing they
-        # sign here ever leaves the runner.
-        run: |
-          openssl genrsa -out /tmp/jwt-private.pem 2048
-          openssl rsa -in /tmp/jwt-private.pem -pubout -out /tmp/jwt-public.pem
+ - name: Generate ephemeral JWT keypair
+ # Backend's Settings refuses to load without a valid JWT
+ # keypair. Throwaway keys are fine for tests; nothing they
+ # sign here ever leaves the runner.
+ run: |
+ openssl genrsa -out /tmp/jwt-private.pem 2048
+ openssl rsa -in /tmp/jwt-private.pem -pubout -out /tmp/jwt-public.pem
 
-      - name: Create test database
-        # The conftest.py fixture creates and drops schema each test,
-        # but it expects the database itself to already exist. The
-        # service's POSTGRES_DB makes ci_db; we add findings_test as
-        # the dedicated test target so production-shaped names match
-        # the local run-tests.sh convention.
-        env:
-          PGPASSWORD: ci_password
-        run: |
-          psql -h localhost -U ci_user -d ci_db \
-            -c "CREATE DATABASE findings_test;"
+ - name: Create test database
+ # The conftest.py fixture creates and drops schema each test,
+ # but it expects the database itself to already exist. The
+ # service's POSTGRES_DB makes ci_db; we add findings_test as
+ # the dedicated test target so production-shaped names match
+ # the local run-tests.sh convention.
+ env:
+ PGPASSWORD: ci_password
+ run: |
+ psql -h localhost -U ci_user -d ci_db \
+ -c "CREATE DATABASE findings_test;"
 
-      - name: Run pytest
-        env:
-          # Required by app.config.settings to even import.
-          # Mirrors the security-audit workflow's backend bringup.
-          FINDINGS_RUNTIME_MODE: development
-          POSTGRES_HOST: localhost
-          POSTGRES_SERVICE_PORT: "5432"
-          POSTGRES_USER: ci_user
-          POSTGRES_PASSWORD: ci_password
-          POSTGRES_DB: ci_db
-          FINDINGS_OBJECT_STORAGE_ACCESS_KEY: ci-storage-key
-          FINDINGS_OBJECT_STORAGE_SECRET_KEY: ci-storage-secret
-          FINDINGS_INITIAL_ADMIN_USERNAME: ci-admin
-          FINDINGS_INITIAL_ADMIN_PASSWORD: ci-admin-password
-          FINDINGS_INITIAL_ADMIN_EMAIL: ci-admin@example.com
-          FINDINGS_INITIAL_ADMIN_FULL_NAME: CI Admin
-          FINDINGS_JWT_ISSUER: ci-backend
-          FINDINGS_JWT_AUDIENCE: ci-api
-          FINDINGS_JWT_PRIVATE_KEY_FILE: /tmp/jwt-private.pem
-          FINDINGS_JWT_PUBLIC_KEY_FILE: /tmp/jwt-public.pem
-          # conftest.py uses this to spin the schema up/down per test.
-          TEST_DATABASE_URL: postgresql+asyncpg://ci_user:ci_password@localhost:5432/findings_test
-          PYTHONPATH: ${{ github.workspace }}/backend
-        # JUnit XML feeds the summary step with a structured per-suite
-        # breakdown without re-parsing pytest's stdout format.
-        # Tee stdout into /tmp/pytest.log so the warnings summary
-        # block (which pytest prints to stdout, NOT into the JUnit
-        # XML by default) can be parsed alongside.
-        run: |
-          set -o pipefail
-          cd backend
-          pytest tests/ -v --junit-xml=/tmp/pytest.xml 2>&1 | tee /tmp/pytest.log
+ - name: Run pytest
+ env:
+ # Required by app.config.settings to even import.
+ # Mirrors the security-audit workflow's backend bringup.
+ FINDINGS_RUNTIME_MODE: development
+ POSTGRES_HOST: localhost
+ POSTGRES_SERVICE_PORT: "5432"
+ POSTGRES_USER: ci_user
+ POSTGRES_PASSWORD: ci_password
+ POSTGRES_DB: ci_db
+ FINDINGS_OBJECT_STORAGE_ACCESS_KEY: ci-storage-key
+ FINDINGS_OBJECT_STORAGE_SECRET_KEY: ci-storage-secret
+ FINDINGS_INITIAL_ADMIN_USERNAME: ci-admin
+ FINDINGS_INITIAL_ADMIN_PASSWORD: ci-admin-password
+ FINDINGS_INITIAL_ADMIN_EMAIL: ci-admin@example.com
+ FINDINGS_INITIAL_ADMIN_FULL_NAME: CI Admin
+ FINDINGS_JWT_ISSUER: ci-backend
+ FINDINGS_JWT_AUDIENCE: ci-api
+ FINDINGS_JWT_PRIVATE_KEY_FILE: /tmp/jwt-private.pem
+ FINDINGS_JWT_PUBLIC_KEY_FILE: /tmp/jwt-public.pem
+ # conftest.py uses this to spin the schema up/down per test.
+ TEST_DATABASE_URL: postgresql+asyncpg://ci_user:ci_password@localhost:5432/findings_test
+ PYTHONPATH: ${{ github.workspace }}/backend
+ # JUnit XML feeds the summary step with a structured per-suite
+ # breakdown without re-parsing pytest's stdout format.
+ # Tee stdout into /tmp/pytest.log so the warnings summary
+ # block (which pytest prints to stdout, NOT into the JUnit
+ # XML by default) can be parsed alongside.
+ run: |
+ set -o pipefail
+ cd backend
+ pytest tests/ -v --junit-xml=/tmp/pytest.xml 2>&1 | tee /tmp/pytest.log
 
-      - name: Pytest summary
-        if: always()
-        run: |
-          if [ ! -s /tmp/pytest.xml ]; then
-            {
-              echo "## ⚠️ Backend pytest"
-              echo ""
-              echo "No JUnit XML produced (pytest likely failed before collecting tests)."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 0
-          fi
-          # Python is already on the runner from setup-python; use it
-          # to parse JUnit XML rather than wrestling with xmllint.
-          # Pytest's JUnit XML doesn't include the warnings block by
-          # default (only failures/errors/skips), so the summary step
-          # also greps the captured stdout for the warnings section
-          # to surface DeprecationWarning / PendingDeprecationWarning
-          # noise. Per the "never step over warnings" rule, ✅ flips
-          # to ⚠️ when warnings are present even if every test passed.
-          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import re
-          import xml.etree.ElementTree as ET
-          from pathlib import Path
+ - name: Pytest summary
+ if: always()
+ run: |
+ if [ ! -s /tmp/pytest.xml ]; then
+ {
+ echo "## ⚠️ Backend pytest"
+ echo ""
+ echo "No JUnit XML produced (pytest likely failed before collecting tests)."
+ } >> "$GITHUB_STEP_SUMMARY"
+ exit 0
+ fi
+ # Python is already on the runner from setup-python; use it
+ # to parse JUnit XML rather than wrestling with xmllint.
+ # Pytest's JUnit XML doesn't include the warnings block by
+ # default (only failures/errors/skips), so the summary step
+ # also greps the captured stdout for the warnings section
+ # to surface DeprecationWarning / PendingDeprecationWarning
+ # noise. Per the "never step over warnings" rule, ✅ flips
+ # to ⚠️ when warnings are present even if every test passed.
+ python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+ import re
+ import xml.etree.ElementTree as ET
+ from pathlib import Path
 
-          tree = ET.parse('/tmp/pytest.xml')
-          root = tree.getroot()
-          suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+ tree = ET.parse('/tmp/pytest.xml')
+ root = tree.getroot()
+ suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
 
-          def total(attr: str) -> int:
-              return sum(int(s.get(attr, 0) or 0) for s in suites)
+ def total(attr: str) -> int:
+ return sum(int(s.get(attr, 0) or 0) for s in suites)
 
-          tests = total('tests')
-          failures = total('failures')
-          errors = total('errors')
-          skipped = total('skipped')
-          passed = tests - failures - errors - skipped
+ tests = total('tests')
+ failures = total('failures')
+ errors = total('errors')
+ skipped = total('skipped')
+ passed = tests - failures - errors - skipped
 
-          # Parse warnings out of the captured stdout. Pytest prints
-          # them between "warnings summary" and either "short test
-          # summary info", "passed", or end-of-stream. Each warning
-          # block starts with a path:line followed by the warning
-          # class and message.
-          log_text = Path('/tmp/pytest.log').read_text(errors='replace') if Path('/tmp/pytest.log').exists() else ''
-          warning_count = 0
-          warning_lines: list[tuple[str, str, str]] = []  # (location, klass, message)
-          m = re.search(
-              r'={3,} warnings summary ={3,}\n(.*?)(?=\n-- Docs:|\n={3,}|\Z)',
-              log_text,
-              re.DOTALL,
-          )
-          if m:
-              block = m.group(1)
-              # Look for "<path>:<line>: <Warning>: <message>" lines.
-              for line in block.splitlines():
-                  match = re.match(r'\s*(\S+:\d+):\s*(\w+(?:Warning|Error)):\s*(.+)$', line)
-                  if match:
-                      warning_count += 1
-                      warning_lines.append((match.group(1), match.group(2), match.group(3).strip()))
-              # Pytest also prints a count line e.g. "1 warning". Use
-              # it as a fallback when the per-line parser misses
-              # multi-line messages.
-              count_match = re.search(r'(\d+)\s+warning', block)
-              if count_match:
-                  warning_count = max(warning_count, int(count_match.group(1)))
+ # Parse warnings out of the captured stdout. Pytest prints
+ # them between "warnings summary" and either "short test
+ # summary info", "passed", or end-of-stream. Each warning
+ # block starts with a path:line followed by the warning
+ # class and message.
+ log_text = Path('/tmp/pytest.log').read_text(errors='replace') if Path('/tmp/pytest.log').exists() else ''
+ warning_count = 0
+ warning_lines: list[tuple[str, str, str]] = [] # (location, klass, message)
+ m = re.search(
+ r'={3,} warnings summary ={3,}\n(.*?)(?=\n-- Docs:|\n={3,}|\Z)',
+ log_text,
+ re.DOTALL,
+ )
+ if m:
+ block = m.group(1)
+ # Look for "<path>:<line>: <Warning>: <message>" lines.
+ for line in block.splitlines():
+ match = re.match(r'\s*(\S+:\d+):\s*(\w+(?:Warning|Error)):\s*(.+)$', line)
+ if match:
+ warning_count += 1
+ warning_lines.append((match.group(1), match.group(2), match.group(3).strip()))
+ # Pytest also prints a count line e.g. "1 warning". Use
+ # it as a fallback when the per-line parser misses
+ # multi-line messages.
+ count_match = re.search(r'(\d+)\s+warning', block)
+ if count_match:
+ warning_count = max(warning_count, int(count_match.group(1)))
 
-          if failures + errors > 0:
-              print(f"## ❌ Backend pytest")
-              print()
-              print(f"**{failures + errors} failure(s)** — {passed} passed, {skipped} skipped, "
-                    f"{failures} failed, {errors} errors, {warning_count} warning(s) (out of {tests} collected).")
-              print()
-              print("| Suite | Test | Type | Message |")
-              print("|---|---|---|---|")
-              for s in suites:
-                  for case in s.findall('testcase'):
-                      for kind in ('failure', 'error'):
-                          node = case.find(kind)
-                          if node is None:
-                              continue
-                          msg = (node.get('message') or '').replace('|', '\\|').replace('\n', ' ')
-                          if len(msg) > 200:
-                              msg = msg[:200] + '...'
-                          print(f"| {s.get('name', '?')} | {case.get('classname', '?')}::{case.get('name', '?')} | {kind} | {msg} |")
-          elif warning_count > 0:
-              print(f"## ⚠️ Backend pytest")
-              print()
-              print(f"**{passed} passed**, {skipped} skipped, but {warning_count} warning(s) — "
-                    f"see table below. (out of {tests} collected)")
-              print()
-              print("| Location | Type | Message |")
-              print("|---|---|---|")
-              for loc, klass, msg in warning_lines[:30]:
-                  msg = msg.replace('|', '\\|')
-                  if len(msg) > 200:
-                      msg = msg[:200] + '...'
-                  print(f"| {loc} | {klass} | {msg} |")
-          else:
-              print(f"## ✅ Backend pytest")
-              print()
-              print(f"**{passed} passed**, {skipped} skipped, 0 failed, 0 errors, 0 warnings (out of {tests} collected).")
-          PY
+ if failures + errors > 0:
+ print(f"## ❌ Backend pytest")
+ print()
+ print(f"**{failures + errors} failure(s)** - {passed} passed, {skipped} skipped, "
+ f"{failures} failed, {errors} errors, {warning_count} warning(s) (out of {tests} collected).")
+ print()
+ print("| Suite | Test | Type | Message |")
+ print("|---|---|---|---|")
+ for s in suites:
+ for case in s.findall('testcase'):
+ for kind in ('failure', 'error'):
+ node = case.find(kind)
+ if node is None:
+ continue
+ msg = (node.get('message') or '').replace('|', '\\|').replace('\n', ' ')
+ if len(msg) > 200:
+ msg = msg[:200] + '...'
+ print(f"| {s.get('name', '?')} | {case.get('classname', '?')}::{case.get('name', '?')} | {kind} | {msg} |")
+ elif warning_count > 0:
+ print(f"## ⚠️ Backend pytest")
+ print()
+ print(f"**{passed} passed**, {skipped} skipped, but {warning_count} warning(s) - "
+ f"see table below. (out of {tests} collected)")
+ print()
+ print("| Location | Type | Message |")
+ print("|---|---|---|")
+ for loc, klass, msg in warning_lines[:30]:
+ msg = msg.replace('|', '\\|')
+ if len(msg) > 200:
+ msg = msg[:200] + '...'
+ print(f"| {loc} | {klass} | {msg} |")
+ else:
+ print(f"## ✅ Backend pytest")
+ print()
+ print(f"**{passed} passed**, {skipped} skipped, 0 failed, 0 errors, 0 warnings (out of {tests} collected).")
+ PY

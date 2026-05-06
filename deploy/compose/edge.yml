@@ -1,8 +1,8 @@
 # Edge tier - public-facing reverse proxy.
 #
 # Runs:
-#   - caddy-init (one-shot bootstrap that fixes data/config volume perms)
-#   - caddy (the actual reverse proxy listening on :80 / :443)
+# - caddy-init (one-shot bootstrap that fixes data/config volume perms)
+# - caddy (the actual reverse proxy listening on :80 / :443)
 #
 # In allinone mode (single dev box): runs alongside app + data tiers
 # on the same Docker daemon. Caddy reaches backend / frontend via
@@ -16,87 +16,87 @@
 # in both modes.
 
 x-logging: &default-logging
-  driver: json-file
-  options:
-    max-size: "10m"
-    max-file: "5"
+ driver: json-file
+ options:
+ max-size: "10m"
+ max-file: "5"
 
 services:
-  caddy-init:
-    build:
-      context: ../../caddy
-    image: vulnledger-caddy:2.11.2-ratelimit
-    restart: "no"
-    logging: *default-logging
-    user: "0:0"
-    entrypoint: ["/usr/local/bin/volume-migrate.sh"]
-    cap_drop: ["ALL"]
-    cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
-    security_opt: ["no-new-privileges:true"]
-    read_only: true
-    tmpfs:
-      - /tmp
-    volumes:
-      - caddy_data:/data
-      - caddy_config:/config
-    # No network needed — just touches volumes.
+ caddy-init:
+ build:
+ context: ../../caddy
+ image: vulnledger-caddy:2.11.2-ratelimit
+ restart: "no"
+ logging: *default-logging
+ user: "0:0"
+ entrypoint: ["/usr/local/bin/volume-migrate.sh"]
+ cap_drop: ["ALL"]
+ cap_add: ["CHOWN", "DAC_OVERRIDE", "FOWNER"]
+ security_opt: ["no-new-privileges:true"]
+ read_only: true
+ tmpfs:
+ - /tmp
+ volumes:
+ - caddy_data:/data
+ - caddy_config:/config
+ # No network needed - just touches volumes.
 
-  caddy:
-    build:
-      context: ../../caddy
-    image: vulnledger-caddy:2.11.2-ratelimit
-    restart: unless-stopped
-    logging: *default-logging
-    user: "10001:10001"
-    cap_drop: ["ALL"]
-    cap_add: ["NET_BIND_SERVICE"]
-    read_only: true
-    tmpfs:
-      - /tmp
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-          cpus: "0.5"
-    depends_on:
-      caddy-init:
-        condition: service_completed_successfully
-    environment:
-      CADDY_HOST: ${CADDY_HOST:-http://localhost}
-      CADDY_ATTACHMENT_MAX_SIZE: ${CADDY_ATTACHMENT_MAX_SIZE:-30MB}
-      # Upstream targets - in allinone these are Docker DNS names that
-      # resolve via the shared frontend_net bridge. In multihost these
-      # are FQDNs in vuln.lan that resolve via /etc/hosts to vl-app's
-      # vlan-frontend underlay IP.
-      CADDY_BACKEND_UPSTREAM: ${CADDY_BACKEND_UPSTREAM:-backend:8000}
-      CADDY_FRONTEND_UPSTREAM: ${CADDY_FRONTEND_UPSTREAM:-frontend:5173}
-    ports:
-      - "${CADDY_HTTP_PORT:-80}:80"
-      - "${CADDY_HTTPS_PORT:-443}:443"
-      - "${CADDY_HTTPS_PORT:-443}:443/udp"
-    volumes:
-      - ../../Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
-    networks:
-      - frontend_net    # caddy → backend, caddy → frontend
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
-      interval: 15s
-      timeout: 3s
-      retries: 3
-      start_period: 10s
+ caddy:
+ build:
+ context: ../../caddy
+ image: vulnledger-caddy:2.11.2-ratelimit
+ restart: unless-stopped
+ logging: *default-logging
+ user: "10001:10001"
+ cap_drop: ["ALL"]
+ cap_add: ["NET_BIND_SERVICE"]
+ read_only: true
+ tmpfs:
+ - /tmp
+ deploy:
+ resources:
+ limits:
+ memory: 256M
+ cpus: "0.5"
+ depends_on:
+ caddy-init:
+ condition: service_completed_successfully
+ environment:
+ CADDY_HOST: ${CADDY_HOST:-http://localhost}
+ CADDY_ATTACHMENT_MAX_SIZE: ${CADDY_ATTACHMENT_MAX_SIZE:-30MB}
+ # Upstream targets - in allinone these are Docker DNS names that
+ # resolve via the shared frontend_net bridge. In multihost these
+ # are FQDNs in vuln.lan that resolve via /etc/hosts to vl-app's
+ # vlan-frontend underlay IP.
+ CADDY_BACKEND_UPSTREAM: ${CADDY_BACKEND_UPSTREAM:-backend:8000}
+ CADDY_FRONTEND_UPSTREAM: ${CADDY_FRONTEND_UPSTREAM:-frontend:5173}
+ ports:
+ - "${CADDY_HTTP_PORT:-80}:80"
+ - "${CADDY_HTTPS_PORT:-443}:443"
+ - "${CADDY_HTTPS_PORT:-443}:443/udp"
+ volumes:
+ - ../../Caddyfile:/etc/caddy/Caddyfile
+ - caddy_data:/data
+ - caddy_config:/config
+ networks:
+ - frontend_net # caddy → backend, caddy → frontend
+ healthcheck:
+ test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost/"]
+ interval: 15s
+ timeout: 3s
+ retries: 3
+ start_period: 10s
 
 volumes:
-  caddy_data:
-  caddy_config:
+ caddy_data:
+ caddy_config:
 
 networks:
-  # Each tier file declares the networks it uses with a stable
-  # `name:`. In allinone mode (`include:` merges all 4 tier files)
-  # Compose deduplicates identical declarations across files. In
-  # multihost mode each tier file is its own compose project on its
-  # own VM and creates the network locally. Same compose source,
-  # both modes work.
-  frontend_net:
-    name: vulnledger_frontend_net
+ # Each tier file declares the networks it uses with a stable
+ # `name:`. In allinone mode (`include:` merges all 4 tier files)
+ # Compose deduplicates identical declarations across files. In
+ # multihost mode each tier file is its own compose project on its
+ # own VM and creates the network locally. Same compose source,
+ # both modes work.
+ frontend_net:
+ name: vulnledger_frontend_net

@@ -1,35 +1,35 @@
 import {
-  APPLICATION_UNAVAILABLE_MESSAGE,
-  appAvailability,
-  fetchWithAvailability,
+ APPLICATION_UNAVAILABLE_MESSAGE,
+ appAvailability,
+ fetchWithAvailability,
 } from '$lib/stores/app-availability.svelte';
 import { ApiError } from '$lib/api/errors';
 import {
-  awaitRateLimitCooling,
-  parseRetryAfter,
-  startCooling,
+ awaitRateLimitCooling,
+ parseRetryAfter,
+ startCooling,
 } from '$lib/api/rate-limit';
 import { taxonomy } from '$lib/stores/taxonomy.svelte';
 import { toast } from '$lib/stores/toast.svelte';
 import { LOGIN_PATH } from '$lib/config/routes';
 
 interface User {
-  user_id: string;
-  username: string;
-  full_name: string | null;
-  company_name: string | null;
-  email: string;
-  role: string;
-  linked_client_id: string | null;
-  is_active: boolean;
+ user_id: string;
+ username: string;
+ full_name: string | null;
+ company_name: string | null;
+ email: string;
+ role: string;
+ linked_client_id: string | null;
+ is_active: boolean;
 }
 
 async function parseJsonSafely<T>(res: Response): Promise<T | null> {
-  try {
-    return (await res.json()) as T;
-  } catch {
-    return null;
-  }
+ try {
+ return (await res.json()) as T;
+ } catch {
+ return null;
+ }
 }
 
 let token = $state<string | null>(null);
@@ -53,22 +53,22 @@ const REFRESH_BUFFER_MS = 60_000;
  * token is malformed, missing the claim, or `exp` isn't a number.
  */
 function decodeTokenExp(jwt: string): number | null {
-  try {
-    const payload = jwt.split('.')[1];
-    if (!payload) return null;
-    const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
-    const claims = JSON.parse(json) as { exp?: unknown };
-    return typeof claims?.exp === 'number' ? claims.exp : null;
-  } catch {
-    return null;
-  }
+ try {
+ const payload = jwt.split('.')[1];
+ if (!payload) return null;
+ const json = atob(payload.replace(/-/g, '+').replace(/_/g, '/'));
+ const claims = JSON.parse(json) as { exp?: unknown };
+ return typeof claims?.exp === 'number' ? claims.exp : null;
+ } catch {
+ return null;
+ }
 }
 
 function clearTokenRefreshTimer(): void {
-  if (refreshTimerId !== null) {
-    clearTimeout(refreshTimerId);
-    refreshTimerId = null;
-  }
+ if (refreshTimerId !== null) {
+ clearTimeout(refreshTimerId);
+ refreshTimerId = null;
+ }
 }
 
 /**
@@ -80,133 +80,133 @@ function clearTokenRefreshTimer(): void {
  * timer misses (background tab throttling, large clock skew, etc.).
  */
 function scheduleTokenRefresh(currentToken: string | null): void {
-  clearTokenRefreshTimer();
-  if (!currentToken) return;
-  if (typeof window === 'undefined') return;
+ clearTokenRefreshTimer();
+ if (!currentToken) return;
+ if (typeof window === 'undefined') return;
 
-  const expSeconds = decodeTokenExp(currentToken);
-  if (expSeconds === null) {
-    // Can't decode - leave the reactive 401 retry to handle expiry.
-    return;
-  }
+ const expSeconds = decodeTokenExp(currentToken);
+ if (expSeconds === null) {
+ // Can't decode - leave the reactive 401 retry to handle expiry.
+ return;
+ }
 
-  const expMs = expSeconds * 1000;
-  const refreshAtMs = expMs - REFRESH_BUFFER_MS;
-  const delayMs = refreshAtMs - Date.now();
+ const expMs = expSeconds * 1000;
+ const refreshAtMs = expMs - REFRESH_BUFFER_MS;
+ const delayMs = refreshAtMs - Date.now();
 
-  if (delayMs <= 0) {
-    // Already past the refresh window. Fire now.
-    void refreshToken();
-    return;
-  }
+ if (delayMs <= 0) {
+ // Already past the refresh window. Fire now.
+ void refreshToken();
+ return;
+ }
 
-  refreshTimerId = setTimeout(() => {
-    refreshTimerId = null;
-    void refreshToken();
-  }, delayMs);
+ refreshTimerId = setTimeout(() => {
+ refreshTimerId = null;
+ void refreshToken();
+ }, delayMs);
 }
 
 export const auth = {
-  get token() { return token; },
-  get user() { return user; },
-  get isAuthenticated() { return !!token; },
+ get token() { return token; },
+ get user() { return user; },
+ get isAuthenticated() { return !!token; },
 };
 
 function clearBrowserStateOnLogout(): void {
-  if (typeof window === 'undefined') return;
+ if (typeof window === 'undefined') return;
 
-  try {
-    window.sessionStorage.clear();
-  } catch {
-    // Best effort.
-  }
+ try {
+ window.sessionStorage.clear();
+ } catch {
+ // Best effort.
+ }
 
-  try {
-    window.localStorage.clear();
-  } catch {
-    // Best effort.
-  }
+ try {
+ window.localStorage.clear();
+ } catch {
+ // Best effort.
+ }
 
-  // Also clear any in-browser HTTP caches scoped to this origin.
-  if ('caches' in window) {
-    void (async () => {
-      try {
-        const cacheKeys = await window.caches.keys();
-        await Promise.all(cacheKeys.map((cacheKey) => window.caches.delete(cacheKey)));
-      } catch {
-        // Best effort.
-      }
-    })();
-  }
+ // Also clear any in-browser HTTP caches scoped to this origin.
+ if ('caches' in window) {
+ void (async () => {
+ try {
+ const cacheKeys = await window.caches.keys();
+ await Promise.all(cacheKeys.map((cacheKey) => window.caches.delete(cacheKey)));
+ } catch {
+ // Best effort.
+ }
+ })();
+ }
 
-  appAvailability.resetAfterLogout();
-  taxonomy.reset();
+ appAvailability.resetAfterLogout();
+ taxonomy.reset();
 }
 
 function redirectToLoginShell(): void {
-  if (typeof window === 'undefined') return;
-  if (window.location.pathname === LOGIN_PATH) return;
-  // Use a hard redirect after forced/expired logout so stale in-memory state
-  // from the previous route cannot keep running in a broken state.
-  window.location.replace(LOGIN_PATH);
+ if (typeof window === 'undefined') return;
+ if (window.location.pathname === LOGIN_PATH) return;
+ // Use a hard redirect after forced/expired logout so stale in-memory state
+ // from the previous route cannot keep running in a broken state.
+ window.location.replace(LOGIN_PATH);
 }
 
 async function clearStaleSession(): Promise<void> {
-  if (staleSessionCleanupPromise) {
-    await staleSessionCleanupPromise;
-    return;
-  }
+ if (staleSessionCleanupPromise) {
+ await staleSessionCleanupPromise;
+ return;
+ }
 
-  staleSessionCleanupPromise = (async () => {
-    try {
-      await fetchWithAvailability('/api/v1/auth/logout', {
-        method: 'POST',
-        credentials: 'include',
-      }, true);
-    } catch {
-      // Best-effort cleanup only; local auth state is still cleared below.
-    } finally {
-      clearTokenRefreshTimer();
-      token = null;
-      user = null;
-      staleSessionCleanupPromise = null;
-    }
-  })();
+ staleSessionCleanupPromise = (async () => {
+ try {
+ await fetchWithAvailability('/api/v1/auth/logout', {
+ method: 'POST',
+ credentials: 'include',
+ }, true);
+ } catch {
+ // Best-effort cleanup only; local auth state is still cleared below.
+ } finally {
+ clearTokenRefreshTimer();
+ token = null;
+ user = null;
+ staleSessionCleanupPromise = null;
+ }
+ })();
 
-  await staleSessionCleanupPromise;
+ await staleSessionCleanupPromise;
 }
 
 export async function login(username: string, password: string): Promise<void> {
-  const res = await fetchWithAvailability('/api/v1/auth/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    credentials: 'include',
-    body: JSON.stringify({ username, password }),
-  }, true);
-  if (!res.ok) {
-    if (appAvailability.unavailable) {
-      throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
-    }
-    throw await ApiError.fromResponse(res, 'Login failed. Please try again later.');
-  }
-  const data = await parseJsonSafely<{ access_token?: string }>(res);
-  if (!data?.access_token) {
-    throw new Error('Login failed');
-  }
-  bootstrapAttempted = true;
-  token = data.access_token;
-  scheduleTokenRefresh(token);
-  await fetchMe();
+ const res = await fetchWithAvailability('/api/v1/auth/login', {
+ method: 'POST',
+ headers: { 'Content-Type': 'application/json' },
+ credentials: 'include',
+ body: JSON.stringify({ username, password }),
+ }, true);
+ if (!res.ok) {
+ if (appAvailability.unavailable) {
+ throw new Error(APPLICATION_UNAVAILABLE_MESSAGE);
+ }
+ throw await ApiError.fromResponse(res, 'Login failed. Please try again later.');
+ }
+ const data = await parseJsonSafely<{ access_token?: string }>(res);
+ if (!data?.access_token) {
+ throw new Error('Login failed');
+ }
+ bootstrapAttempted = true;
+ token = data.access_token;
+ scheduleTokenRefresh(token);
+ await fetchMe();
 }
 
 export async function fetchMe(): Promise<void> {
-  if (!token) return;
-  const res = await fetchWithAvailability('/api/v1/users/me', {
-    headers: { Authorization: `Bearer ${token}` },
-  }, true);
-  if (res.ok) {
-    user = await res.json();
-  }
+ if (!token) return;
+ const res = await fetchWithAvailability('/api/v1/users/me', {
+ headers: { Authorization: `Bearer ${token}` },
+ }, true);
+ if (res.ok) {
+ user = await res.json();
+ }
 }
 
 /**
@@ -216,141 +216,141 @@ export async function fetchMe(): Promise<void> {
  * the caller retry. Transient causes (429, 5xx, network) leave this false.
  */
 export function lastRefreshWasAuthFailure(): boolean {
-  return lastRefreshFailurePermanent;
+ return lastRefreshFailurePermanent;
 }
 
 export async function refreshToken(): Promise<boolean> {
-  if (refreshPromise) {
-    return await refreshPromise;
-  }
+ if (refreshPromise) {
+ return await refreshPromise;
+ }
 
-  refreshPromise = (async () => {
-    let permanentFailure = false;
-    try {
-      // Cooperate with any active cool-down before firing — if another part
-      // of the app already received a 429, we wait for that window to clear
-      // rather than instantly tripping it again.
-      await awaitRateLimitCooling();
+ refreshPromise = (async () => {
+ let permanentFailure = false;
+ try {
+ // Cooperate with any active cool-down before firing - if another part
+ // of the app already received a 429, we wait for that window to clear
+ // rather than instantly tripping it again.
+ await awaitRateLimitCooling();
 
-      const res = await fetchWithAvailability('/api/v1/auth/refresh', {
-        method: 'POST',
-        credentials: 'include',
-      }, true);
-      if (!res.ok) {
-        if (res.status === 401) {
-          permanentFailure = true;
-          await clearStaleSession();
-        } else if (res.status === 429) {
-          // Contribute to the shared cool-down window so subsequent calls
-          // (including bootstrapAuth's retry) wait the same amount before
-          // re-firing. Honor the server-suggested Retry-After (capped).
-          const ms = parseRetryAfter(res.headers.get('Retry-After'));
-          startCooling(ms);
-        }
-        return false;
-      }
-      const data = await parseJsonSafely<{ access_token?: string }>(res);
-      if (!data?.access_token) return false;
-      bootstrapAttempted = true;
-      token = data.access_token;
-      scheduleTokenRefresh(token);
-      await fetchMe();
-      return true;
-    } catch {
-      return false;
-    } finally {
-      lastRefreshFailurePermanent = permanentFailure;
-      refreshPromise = null;
-    }
-  })();
+ const res = await fetchWithAvailability('/api/v1/auth/refresh', {
+ method: 'POST',
+ credentials: 'include',
+ }, true);
+ if (!res.ok) {
+ if (res.status === 401) {
+ permanentFailure = true;
+ await clearStaleSession();
+ } else if (res.status === 429) {
+ // Contribute to the shared cool-down window so subsequent calls
+ // (including bootstrapAuth's retry) wait the same amount before
+ // re-firing. Honor the server-suggested Retry-After (capped).
+ const ms = parseRetryAfter(res.headers.get('Retry-After'));
+ startCooling(ms);
+ }
+ return false;
+ }
+ const data = await parseJsonSafely<{ access_token?: string }>(res);
+ if (!data?.access_token) return false;
+ bootstrapAttempted = true;
+ token = data.access_token;
+ scheduleTokenRefresh(token);
+ await fetchMe();
+ return true;
+ } catch {
+ return false;
+ } finally {
+ lastRefreshFailurePermanent = permanentFailure;
+ refreshPromise = null;
+ }
+ })();
 
-  return await refreshPromise;
+ return await refreshPromise;
 }
 
 export async function bootstrapAuth(): Promise<void> {
-  if (bootstrapPromise) {
-    await bootstrapPromise;
-    return;
-  }
+ if (bootstrapPromise) {
+ await bootstrapPromise;
+ return;
+ }
 
-  if (token) {
-    try {
-      await fetchMe();
-    } catch {
-      // Keep the in-memory token state unchanged; layout-level availability handling
-      // will route users to the login screen until the backend recovers.
-    }
-    return;
-  }
+ if (token) {
+ try {
+ await fetchMe();
+ } catch {
+ // Keep the in-memory token state unchanged; layout-level availability handling
+ // will route users to the login screen until the backend recovers.
+ }
+ return;
+ }
 
-  if (bootstrapAttempted) {
-    token = null;
-    user = null;
-    return;
-  }
+ if (bootstrapAttempted) {
+ token = null;
+ user = null;
+ return;
+ }
 
-  bootstrapPromise = (async () => {
-    // First attempt — refreshToken() already cooperates with the shared
-    // cool-down before firing and contributes to it if 429s come back.
-    let refreshed = await refreshToken();
+ bootstrapPromise = (async () => {
+ // First attempt - refreshToken() already cooperates with the shared
+ // cool-down before firing and contributes to it if 429s come back.
+ let refreshed = await refreshToken();
 
-    // If transient failure (anything that is NOT 401), wait on the shared
-    // cool-down (which refreshToken just primed if it saw a 429) before
-    // trying once more. awaitRateLimitCooling resolves immediately if no
-    // cool-down is active, so this stays fast in the happy path.
-    if (!refreshed && !lastRefreshFailurePermanent) {
-      await awaitRateLimitCooling();
-      refreshed = await refreshToken();
-    }
+ // If transient failure (anything that is NOT 401), wait on the shared
+ // cool-down (which refreshToken just primed if it saw a 429) before
+ // trying once more. awaitRateLimitCooling resolves immediately if no
+ // cool-down is active, so this stays fast in the happy path.
+ if (!refreshed && !lastRefreshFailurePermanent) {
+ await awaitRateLimitCooling();
+ refreshed = await refreshToken();
+ }
 
-    if (refreshed) {
-      bootstrapAttempted = true;
-      return;
-    }
+ if (refreshed) {
+ bootstrapAttempted = true;
+ return;
+ }
 
-    // Either the refresh truly failed (401) or our single retry didn't help.
-    // Mark bootstrapAttempted only on permanent (401) failures so a future
-    // bootstrap can try again from scratch when transient.
-    clearTokenRefreshTimer();
-    token = null;
-    user = null;
-    bootstrapAttempted = lastRefreshFailurePermanent;
-  })();
+ // Either the refresh truly failed (401) or our single retry didn't help.
+ // Mark bootstrapAttempted only on permanent (401) failures so a future
+ // bootstrap can try again from scratch when transient.
+ clearTokenRefreshTimer();
+ token = null;
+ user = null;
+ bootstrapAttempted = lastRefreshFailurePermanent;
+ })();
 
-  try {
-    await bootstrapPromise;
-  } finally {
-    bootstrapPromise = null;
-  }
+ try {
+ await bootstrapPromise;
+ } finally {
+ bootstrapPromise = null;
+ }
 }
 
 export async function logout(notifyFailure = true): Promise<boolean> {
-  let revokeSucceeded = false;
-  try {
-    const res = await fetchWithAvailability(
-      '/api/v1/auth/logout',
-      { method: 'POST', credentials: 'include' },
-      true,
-    );
-    if (!res.ok) {
-      const err = await ApiError.fromResponse(res, 'Could not revoke server session during logout.');
-      if (notifyFailure) {
-        toast.error(err.toUserMessage());
-      }
-    } else {
-      revokeSucceeded = true;
-    }
-  } catch {
-    if (notifyFailure) {
-      toast.error('Could not reach backend to revoke session. Local logout completed.');
-    }
-  } finally {
-    bootstrapAttempted = true;
-    clearTokenRefreshTimer();
-    token = null;
-    user = null;
-    clearBrowserStateOnLogout();
-    redirectToLoginShell();
-  }
-  return revokeSucceeded;
+ let revokeSucceeded = false;
+ try {
+ const res = await fetchWithAvailability(
+ '/api/v1/auth/logout',
+ { method: 'POST', credentials: 'include' },
+ true,
+ );
+ if (!res.ok) {
+ const err = await ApiError.fromResponse(res, 'Could not revoke server session during logout.');
+ if (notifyFailure) {
+ toast.error(err.toUserMessage());
+ }
+ } else {
+ revokeSucceeded = true;
+ }
+ } catch {
+ if (notifyFailure) {
+ toast.error('Could not reach backend to revoke session. Local logout completed.');
+ }
+ } finally {
+ bootstrapAttempted = true;
+ clearTokenRefreshTimer();
+ token = null;
+ user = null;
+ clearBrowserStateOnLogout();
+ redirectToLoginShell();
+ }
+ return revokeSucceeded;
 }

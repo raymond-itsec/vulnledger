@@ -22,24 +22,24 @@ let coolingPromise: Promise<void> | null = null;
  * a new /api/* request to cooperate with an active rate-limit.
  */
 export function awaitRateLimitCooling(): Promise<void> {
-  return coolingPromise ?? Promise.resolve();
+ return coolingPromise ?? Promise.resolve();
 }
 
 /**
  * Begin a cooling period of `ms` milliseconds (or join an existing
- * one). Concurrent calls share the same promise — only the first
+ * one). Concurrent calls share the same promise - only the first
  * caller actually arms the timer.
  */
 export function startCooling(ms: number): Promise<void> {
-  if (coolingPromise) return coolingPromise;
-  const promise = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      if (coolingPromise === promise) coolingPromise = null;
-      resolve();
-    }, ms);
-  });
-  coolingPromise = promise;
-  return promise;
+ if (coolingPromise) return coolingPromise;
+ const promise = new Promise<void>((resolve) => {
+ setTimeout(() => {
+ if (coolingPromise === promise) coolingPromise = null;
+ resolve();
+ }, ms);
+ });
+ coolingPromise = promise;
+ return promise;
 }
 
 /**
@@ -48,8 +48,8 @@ export function startCooling(ms: number): Promise<void> {
  * Always capped at MAX_RETRY_AFTER_MS.
  */
 export function parseRetryAfter(raw: string | null): number {
-  if (!raw) return DEFAULT_RETRY_AFTER_MS;
-  const seconds = Number(raw);
-  if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_RETRY_AFTER_MS;
-  return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
+ if (!raw) return DEFAULT_RETRY_AFTER_MS;
+ const seconds = Number(raw);
+ if (!Number.isFinite(seconds) || seconds <= 0) return DEFAULT_RETRY_AFTER_MS;
+ return Math.min(seconds * 1000, MAX_RETRY_AFTER_MS);
 }

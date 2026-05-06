@@ -17,7 +17,7 @@ It's only "breaking" in the deployment sense, not the data sense. The migration 
 
 **What survives a fresh v0.3.0 deploy + restore**:
 
-- Application **database** (clients, assets, sessions, findings, finding history, taxonomy, users, invites, report-export metadata) — recoverable from any encrypted `findings_*.sql.gz.enc` produced by the `backup` container.
+- Application **database** (clients, assets, sessions, findings, finding history, taxonomy, users, invites, report-export metadata) - recoverable from any encrypted `findings_*.sql.gz.enc` produced by the `backup` container.
 
 **What does NOT survive automatically**:
 
@@ -77,9 +77,9 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 - Fixed VL-2026-012 ([#23](https://github.com/raymond-itsec/vulnledger/issues/23)): login rate-limit bypass via path normalization. Added `@malformed_path` matcher in Caddy using `vars_regexp` against `{http.request.orig_uri.path}` to reject paths containing `//`, `/./`, `/../`, `%2F`, `%5C`, or NUL bytes (encoded or literal) with 400 before any handler runs. Tightened `@login_brute` to anchored regexp `(?i)^/api/auth/login/?$` as belt-and-braces.
 - Fixed VL-2026-014 ([#31](https://github.com/raymond-itsec/vulnledger/issues/31)): hardcoded the session-hint cookie name (`vl_session`) in the backend instead of leaving it env-configurable. Eliminates the drift between backend (env-driven) and Caddy (hardcoded) that could break the auth gate when the env was changed. Removed `FINDINGS_SESSION_HINT_COOKIE_NAME` from `config.py`, `docker-compose.yml`, `.env.example`, README, and the `security-audit` CI workflow.
 - Fixed VL-2026-015 ([#32](https://github.com/raymond-itsec/vulnledger/issues/32)): admin user create/update payload validation. Three sub-issues:
-  - Added `zxcvbn` strength estimation on every password entry point (onboarding, admin user create) via new shared validator at `backend/app/services/password_policy.py`. Catches long-but-weak passwords (`aaaaaaaaaaaaaaaa`, `passwordpassword`).
-  - Constrained `role` on `UserCreate` and `UserUpdate` to `Literal['admin', 'reviewer', 'client_user']`. Garbage role strings now return 422 instead of soft-locking the account.
-  - Wrapped commits in `create_user` and `update_user` with `try/except IntegrityError -> 409`. Duplicate username/email no longer returns 500.
+ - Added `zxcvbn` strength estimation on every password entry point (onboarding, admin user create) via new shared validator at `backend/app/services/password_policy.py`. Catches long-but-weak passwords (`aaaaaaaaaaaaaaaa`, `passwordpassword`).
+ - Constrained `role` on `UserCreate` and `UserUpdate` to `Literal['admin', 'reviewer', 'client_user']`. Garbage role strings now return 422 instead of soft-locking the account.
+ - Wrapped commits in `create_user` and `update_user` with `try/except IntegrityError -> 409`. Duplicate username/email no longer returns 500.
 - Added password policy settings: `FINDINGS_PASSWORD_MIN_LENGTH` (default 16, hard floor enforced via `Field(ge=16)`), `FINDINGS_PASSWORD_MAX_LENGTH` (default 128), `FINDINGS_PASSWORD_MIN_ZXCVBN_SCORE` (default 3). Cross-field model validator on `Settings` rejects misconfigs (e.g., max < min) at startup with a clear message.
 - Hardened the backup container: pre-flight encryption check in `entrypoint.sh` runs before the scheduler. Missing passphrase in production mode prints a loud actionable banner and exits 78 (SYSEXITS configuration error). Restart policy changed from `unless-stopped` to `"no"` so config errors surface in `docker compose ps` instead of looping silently. Closes [#26](https://github.com/raymond-itsec/vulnledger/issues/26).
 - Disabled SeaweedFS filer directory listing (`-filer.disableDirListing`) and removed the LAN port binding for the filer UI. Backend still talks to seaweedfs over the docker network; nothing else needs port 8888 reachable.
@@ -186,8 +186,8 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 ## [v0.1.18] - 2026-04-24
 
 ### Security
-- Hardened attachment and report downloads against Content-Disposition header injection via filename. CRLF and control characters are stripped; non-ASCII filenames are emitted with both ASCII `filename=` and RFC 5987 `filename*=UTF-8''…` encoding.
-- Blocked external-resource fetches during PDF report generation. Report markdown can no longer exfiltrate via `<img src="http://…">` or CSS `@import url(…)`; only inline `data:` URIs are permitted.
+- Hardened attachment and report downloads against Content-Disposition header injection via filename. CRLF and control characters are stripped; non-ASCII filenames are emitted with both ASCII `filename=` and RFC 5987 `filename*=UTF-8''...` encoding.
+- Blocked external-resource fetches during PDF report generation. Report markdown can no longer exfiltrate via `<img src="http://...">` or CSS `@import url(...)`; only inline `data:` URIs are permitted.
 - Added magic-byte MIME validation for attachment uploads. Files whose first 16 bytes do not match the declared Content-Type are rejected with 415.
 - Tightened Content-Security-Policy. Dropped `'unsafe-inline'` from `script-src`; SvelteKit now emits a hashed-script CSP via meta tag. Reduced the HTTP CSP header to `frame-ancestors 'none'`.
 - Removed OIDC email-based account auto-linking. Unknown `(issuer, subject)` identities now always auto-provision a fresh user, eliminating the "nOAuth" risk when a customer IdP does not verify email ownership.
@@ -217,16 +217,16 @@ Long-term, multi-node SeaweedFS replication will replace the manual snapshot pat
 - Updated frontend toolchain dependencies and lockfile: TypeScript `6.0.3` and Vite `8.0.10`.
 - Updated backend Python dependency pins: Uvicorn `0.46.0`, Pydantic `2.13.3`, Pydantic Settings `2.14.0`, bcrypt `5.0.0`, Authlib `1.7.0`, and python-json-logger `4.1.0`.
 - Updated GitHub Actions versions in security workflows:
-  - `actions/checkout` -> `v6`
-  - `actions/setup-node` -> `v6`
-  - `actions/setup-python` -> `v6`
-  - `aquasecurity/trivy-action` -> `v0.36.0`
-  - `github/codeql-action/upload-sarif` -> `v4`
+ - `actions/checkout` -> `v6`
+ - `actions/setup-node` -> `v6`
+ - `actions/setup-python` -> `v6`
+ - `aquasecurity/trivy-action` -> `v0.36.0`
+ - `github/codeql-action/upload-sarif` -> `v4`
 - Updated Semgrep workflow action pin to the current `v1` target commit (`713efdd345f3035192eaa63f56867b88e63e4e5d`).
 - Updated backup scheduler toolchain to Supercronic `0.2.45` with refreshed SHA1 verification values for `amd64` and `arm64`.
 - Updated pinned container images in Compose for:
-  - ClamAV `1.5.2` (immutable digest pin)
-  - Gatus `v5.35.0` (immutable digest pin)
+ - ClamAV `1.5.2` (immutable digest pin)
+ - Gatus `v5.35.0` (immutable digest pin)
 
 ## [v0.1.16] - 2026-04-23
 

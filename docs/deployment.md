@@ -23,7 +23,7 @@ cd /opt/vulnledger
 
 # 2. Configure environment
 cp .env.example .env
-nano .env  # Set production values (see below)
+nano .env # Set production values (see below)
 
 # 3. Set your public host in .env
 # CADDY_HOST=yourdomain.com
@@ -33,11 +33,11 @@ docker compose up -d
 
 # 5. Verify everything is running
 docker compose ps
-docker compose logs -f backend  # Watch for startup messages
+docker compose logs -f backend # Watch for startup messages
 ```
 
 !!! note "Auto-TLS"
-    Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
+ Caddy automatically provisions and renews Let's Encrypt TLS certificates when `CADDY_HOST` is set to a public domain. The default `http://localhost` value keeps local development simple.
 
 The backend container runs `alembic upgrade head` before starting Uvicorn, so normal Docker Compose starts apply pending schema migrations automatically.
 
@@ -110,7 +110,7 @@ The default `docker-compose.yml` runs:
 | `clamav` | clamav/clamav:1.4.3 (digest pinned) | `127.0.0.1:3310` | Antivirus scanning |
 
 !!! note
-    Most runtime image references in `docker-compose.yml` are pinned by immutable digest. SeaweedFS is pinned to release tag `4.20`; pinning its multi-arch digest is a deployment-hardening follow-up.
+ Most runtime image references in `docker-compose.yml` are pinned by immutable digest. SeaweedFS is pinned to release tag `4.20`; pinning its multi-arch digest is a deployment-hardening follow-up.
 
 ### Docker volumes
 
@@ -128,7 +128,7 @@ For larger teams, security-conscious deployments, or geo-redundancy, services sp
 
 | Host | Tier file | Services | Accepts public traffic? |
 |---|---|---|---|
-| **edge** | `deploy/compose/edge.yml` | caddy | Yes — 80 + 443 to the internet |
+| **edge** | `deploy/compose/edge.yml` | caddy | Yes - 80 + 443 to the internet |
 | **app** | `deploy/compose/app.yml` | backend, frontend | No |
 | **data** | `deploy/compose/data.yml` | postgres, seaweedfs, clamav, backup | No |
 | **monitoring** | `deploy/compose/monitoring.yml` | victoriametrics, grafana, alertmanager, loki (planned) | No |
@@ -148,17 +148,17 @@ VPS providers assign a public IP to every host whether you want one or not. That
 | `vl-data` | UDP 51820 (WG), optional SSH from admin IP | 5432, 8333, 3310, everything else | yes |
 | `vl-monitoring` | UDP 51820 (WG), optional SSH from admin IP | 3000, 8428, 9093, 3100, everything else | yes |
 
-**Bind services to the right interface, never to all interfaces.** Postgres, SeaweedFS, ClamAV, the backend, and monitoring services must listen only on the host's WireGuard interface (or its private-network interface in same-DC mode), never on `0.0.0.0`. Binding to all interfaces leaves the service one misconfigured firewall rule away from being internet-reachable, and "we have a firewall" is not a defense to plan around — it's a backup.
+**Bind services to the right interface, never to all interfaces.** Postgres, SeaweedFS, ClamAV, the backend, and monitoring services must listen only on the host's WireGuard interface (or its private-network interface in same-DC mode), never on `0.0.0.0`. Binding to all interfaces leaves the service one misconfigured firewall rule away from being internet-reachable, and "we have a firewall" is not a defense to plan around - it's a backup.
 
 For services running in containers, bind on the host side of the port mapping:
 
 ```yaml
 # In the tier compose file, on a host running WireGuard with overlay 10.99.0.3:
 ports:
-  - "10.99.0.3:5432:5432"   # bind to WG IP only
-  # NOT
-  - "5432:5432"             # would bind to all interfaces
-  - "0.0.0.0:5432:5432"     # would bind to all interfaces
+ - "10.99.0.3:5432:5432" # bind to WG IP only
+ # NOT
+ - "5432:5432" # would bind to all interfaces
+ - "0.0.0.0:5432:5432" # would bind to all interfaces
 ```
 
 This guarantees that even if the firewall is wrong, the kernel itself refuses public connections because nothing is listening on the public IP.
@@ -166,8 +166,8 @@ This guarantees that even if the firewall is wrong, the kernel itself refuses pu
 **Three layers of defense, in order:**
 
 1. **Bind only to the right interface** (above). Failure mode: the service is unreachable from the public internet at the kernel level, regardless of any other config.
-2. **Provider-level firewall** (OVH "Network Firewall", Hetzner "Firewalls", Scaleway "Security Groups", Contabo "Firewall", etc.) — drop inbound on the public NIC except the allowed ports. Blocks traffic before it hits your VM.
-3. **nftables on the host** — same allow-list rules at the OS level. Catches anything the provider firewall missed.
+2. **Provider-level firewall** (OVH "Network Firewall", Hetzner "Firewalls", Scaleway "Security Groups", Contabo "Firewall", etc.) - drop inbound on the public NIC except the allowed ports. Blocks traffic before it hits your VM.
+3. **nftables on the host** - same allow-list rules at the OS level. Catches anything the provider firewall missed.
 
 Each layer is a complete defense on its own. Stack all three.
 
@@ -187,7 +187,7 @@ This collapses the SSH attack surface from "the entire internet" to "anyone hold
 
 Some providers offer free private networking between VPSes in the same region (e.g. OVH "Private Network", Hetzner "vSwitch", Scaleway "Private Network"). If your four hosts are in the same region, you can use that instead of WireGuard for cross-tier traffic and skip the WG mesh. Set hostnames to point at the provider-private IPs in `multihost.env`.
 
-Cross-region or cross-provider always needs WireGuard (or some other cross-DC overlay) — provider-private networking doesn't span regions.
+Cross-region or cross-provider always needs WireGuard (or some other cross-DC overlay) - provider-private networking doesn't span regions.
 
 ### Connectivity contract
 
@@ -227,7 +227,7 @@ cd /opt/vulnledger
 cp deploy/profiles/multihost.env .env
 
 # Edit .env with hostnames pointing at each tier (private IPs or WG overlay IPs)
-# POSTGRES_HOST=vl-data.vuln.lan        (resolves via /etc/hosts to data host's IP)
+# POSTGRES_HOST=vl-data.vuln.lan (resolves via /etc/hosts to data host's IP)
 # FINDINGS_OBJECT_STORAGE_ENDPOINT=vl-data.vuln.lan:8333
 # FINDINGS_CLAMAV_HOST=vl-data.vuln.lan
 # CADDY_BACKEND_UPSTREAM=vl-app.vuln.lan:8000
