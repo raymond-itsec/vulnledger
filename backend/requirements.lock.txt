@@ -21,7 +21,7 @@ argon2-cffi-bindings==25.1.0
     # via argon2-cffi
 asyncpg==0.31.0
     # via -r requirements.txt
-authlib==1.7.1
+authlib==1.7.2
     # via -r requirements.txt
 bcrypt==5.0.0
     # via -r requirements.txt
