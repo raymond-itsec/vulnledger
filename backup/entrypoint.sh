@@ -142,7 +142,7 @@ else
         modified_epoch=$(stat -c %Y "$latest_file" 2>/dev/null || true)
         if [ -n "$modified_epoch" ]; then
           TMP_FILE=$(mktemp "$TEXTFILE_DIR/backup.prom.XXXXXX") && \
-          printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds %s\n' "$modified_epoch" > "$TMP_FILE" && \
+          printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds{source="backup"} %s\n' "$modified_epoch" > "$TMP_FILE" && \
           mv -f "$TMP_FILE" "$TEXTFILE_DIR/backup.prom" && \
           chmod 0644 "$TEXTFILE_DIR/backup.prom"
         fi

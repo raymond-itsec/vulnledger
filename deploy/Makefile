@@ -107,18 +107,23 @@ logs: ## Tail logs from a service in allinone (usage: make logs SERVICE=backend)
 # ---------------------------------------------------------------------
 # Multihost: SAME-DC mode (4 hosts, shared private network).
 # Run on EACH host; the host runs the tier matching its name.
+#
+# `--profile multihost` activates per-tier node-exporter / cAdvisor
+# sidecars that are skipped in allinone (where they would just
+# duplicate the monitoring tier's). See edge.yml for the full
+# rationale on each profile-tagged service.
 # ---------------------------------------------------------------------
 
 .PHONY: multihost-samedc-up
 multihost-samedc-up: ## Bring up THIS host's tier in same-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
-	docker compose -p $(PROJECT) $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
 
 .PHONY: multihost-samedc-down
 multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
 	@test -n "$(TIER)" || { echo "ERROR: pass TIER= (edge / app / data / monitoring)."; exit 1; }
-	docker compose -p $(PROJECT) $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
 
 # ---------------------------------------------------------------------
 # Multihost: CROSS-DC mode (4 hosts, geographically distributed).
@@ -129,12 +134,12 @@ multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
 multihost-crossdc-up: ## Bring up THIS host's tier in cross-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
-	docker compose -p $(PROJECT) $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
 
 .PHONY: multihost-crossdc-down
 multihost-crossdc-down: ## Tear down THIS host's tier (cross-DC)
 	@test -n "$(TIER)" || { echo "ERROR: pass TIER= (edge / app / data / monitoring)."; exit 1; }
-	docker compose -p $(PROJECT) $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml down --remove-orphans
 
 # ---------------------------------------------------------------------
 # WireGuard mesh (cross-DC only).

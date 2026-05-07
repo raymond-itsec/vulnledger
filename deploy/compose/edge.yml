@@ -143,6 +143,13 @@ services:
 
   node-exporter-edge:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    # Multihost-only: in allinone all 4 per-tier node-exporters would
+    # observe the SAME Linux kernel (one host, four containers reading
+    # the same /proc), reporting identical CPU/memory/disk under four
+    # different host labels. node-exporter-monitoring (on monitoring.yml,
+    # no profile) covers allinone alone. In multihost each tier sits on
+    # its own VM and the local node-exporter measures its own kernel.
+    profiles: ["multihost"]
     # Hostname feeds into node_uname_info{nodename=...}, which Grafana
     # dashboard 1860 (Node Exporter Full) uses for the $node picker.
     # Without this, uname -n returns the random Docker container ID.
@@ -171,6 +178,12 @@ services:
 
   cadvisor-edge:
     image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    # Multihost-only: in allinone all 4 per-tier cAdvisors would observe
+    # the SAME Docker daemon and emit per-container metrics for every
+    # container on the host, four times. Dashboards summing by name
+    # then quad-count CPU and memory. cadvisor-monitoring covers
+    # allinone; per-tier cAdvisors run on their own VM in multihost.
+    profiles: ["multihost"]
     restart: unless-stopped
     logging: *default-logging
     deploy:

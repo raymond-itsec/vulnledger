@@ -26,7 +26,7 @@ groups:
     interval: 1m
     rules:
       - alert: BackupTooOld
-        expr: (time() - vl_backup_latest_timestamp_seconds) > 26 * 3600
+        expr: (time() - vl_backup_latest_timestamp_seconds{source="backup"}) > 26 * 3600
         for: 5m
         labels:
           severity: critical
@@ -46,7 +46,7 @@ groups:
             or /backups/findings_*.sql.gz (development).
 
       - alert: BackupMetricMissing
-        expr: absent(vl_backup_latest_timestamp_seconds)
+        expr: absent(vl_backup_latest_timestamp_seconds{source="backup"})
         for: 10m
         labels:
           severity: warning

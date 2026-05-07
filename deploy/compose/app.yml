@@ -191,6 +191,8 @@ services:
 
   node-exporter-app:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    # See edge.yml node-exporter-edge for why this is multihost-only.
+    profiles: ["multihost"]
     # See edge.yml node-exporter-edge for why hostname is set.
     hostname: vl-app
     restart: unless-stopped
@@ -217,6 +219,8 @@ services:
 
   cadvisor-app:
     image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    # See edge.yml cadvisor-edge for why this is multihost-only.
+    profiles: ["multihost"]
     restart: unless-stopped
     logging: *default-logging
     deploy:
