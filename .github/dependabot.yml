@@ -25,6 +25,23 @@ updates:
       - "docker"
       - "security"
     open-pull-requests-limit: 10
+    # Node has a two-step release cycle: even-numbered majors release
+    # in April, become Active LTS in October of the same year, and
+    # carry security patches for ~3 years. Odd-numbered majors are
+    # "Current" only (6-month support) and never become LTS.
+    #
+    # We track LTS only. That means we want minor + patch bumps
+    # within whatever LTS major we're on (24.x today), but no
+    # automated major bumps - even an "even" target like 26 is just
+    # "Current 26" between April and October of release year.
+    #
+    # Block all major bumps. When an even-numbered major reaches
+    # Active LTS (e.g., Node 26 LTS in October 2026), bump the
+    # Dockerfile + .nvmrc manually; Dependabot will resume tracking
+    # minor + patch on the new line.
+    ignore:
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/backup"
