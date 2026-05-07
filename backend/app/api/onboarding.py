@@ -85,7 +85,29 @@ def _normalize_optional_text(value: str | None) -> str | None:
 async def _resolve_active_invite(
     db: AsyncSession,
     raw_token: str | None,
+    *,
+    lock: bool = False,
 ) -> Invite:
+    """Look up + validate the invite tied to this onboarding token.
+
+    Set `lock=True` from the redemption path so the invite row is held
+    via SELECT ... FOR UPDATE for the duration of the transaction. This
+    serializes concurrent redemption attempts at the row level: the
+    second concurrent request blocks until the first commits, then sees
+    `claimed_at != NULL` and rejects cleanly. Without the lock, both
+    concurrent reads see `claimed_at IS NULL` and the redemption
+    becomes single-use only by accident, via a downstream
+    `User.email` UNIQUE constraint that's not the right invariant
+    holder. See VL-2026-017 (#41).
+
+    Read-only callers (the `state` endpoint that just answers "is my
+    invite still valid") leave `lock=False` so they don't block
+    parallel state polls from other tabs / clients.
+
+    PgBouncer note: SELECT ... FOR UPDATE is held for the transaction
+    lifetime, which is exactly what transaction pooling guarantees, so
+    this is safe under the future PgBouncer rollout (#38).
+    """
     if not raw_token:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -110,7 +132,10 @@ async def _resolve_active_invite(
             detail="Invite verification required",
         ) from exc
 
-    result = await db.execute(select(Invite).where(Invite.invite_id == invite_uuid))
+    stmt = select(Invite).where(Invite.invite_id == invite_uuid)
+    if lock:
+        stmt = stmt.with_for_update()
+    result = await db.execute(stmt)
     invite = result.scalar_one_or_none()
     now = datetime.now(timezone.utc)
     if (
@@ -200,7 +225,12 @@ async def complete_onboarding(
     onboarding_token: str | None = Cookie(default=None, alias=ONBOARDING_COOKIE_NAME),
 ):
     try:
-        invite = await _resolve_active_invite(db, onboarding_token)
+        # `lock=True` holds the invite row via SELECT ... FOR UPDATE
+        # for the duration of this transaction so two concurrent
+        # redemption attempts serialize at the row level instead of
+        # both passing the `claimed_at IS NULL` check and racing into
+        # a downstream UNIQUE-constraint collision. See VL-2026-017.
+        invite = await _resolve_active_invite(db, onboarding_token, lock=True)
     except HTTPException:
         _clear_onboarding_cookie(response)
         raise
