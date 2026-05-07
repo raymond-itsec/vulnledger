@@ -62,12 +62,11 @@ services:
     networks:
       - monitoring_net
       - frontend_net   # vmagents on other tiers reach via this in allinone
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8428/health"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    # No healthcheck: the official victoriametrics image is FROM scratch
+    # so it has no wget / curl / nc / sh - nothing for `docker
+    # healthcheck` to probe with. The binary exits non-zero on real
+    # failure so `restart: unless-stopped` covers liveness; readiness is
+    # verified externally via /health from vmagent and vmalert.
 
   # ---- vmalert: rule evaluator -------------------------------------
   vmalert:
@@ -99,7 +98,7 @@ services:
       - monitoring_net
     depends_on:
       victoriametrics:
-        condition: service_healthy
+        condition: service_started
 
   # ---- vmagent (monitoring tier's own scraper) ---------------------
   vmagent-monitoring:
@@ -125,7 +124,7 @@ services:
       - monitoring_net
     depends_on:
       victoriametrics:
-        condition: service_healthy
+        condition: service_started
 
   # ---- Alertmanager -------------------------------------------------
   alertmanager:
@@ -194,6 +193,20 @@ services:
       retries: 3
       start_period: 30s
 
+  # ---- Loki init: chown the named volume so the non-root loki user
+  # (UID 10001 in the official image) can mkdir under /var/loki on
+  # first start. Named volumes ship root-owned by Docker default;
+  # without this, Loki crashes with `mkdir /var/loki/rules: permission
+  # denied`. One-shot: runs to completion before loki itself starts.
+  loki-init:
+    image: busybox:1.37.0
+    restart: "no"
+    logging: *default-logging
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /var/loki/rules /var/loki/chunks /var/loki/boltdb-shipper-active /var/loki/boltdb-shipper-cache /var/loki/compactor /var/loki/wal && chown -R 10001:10001 /var/loki"]
+    volumes:
+      - loki_data:/var/loki
+
   # ---- Loki ---------------------------------------------------------
   loki:
     image: grafana/loki:${LOKI_VERSION:?Set LOKI_VERSION (loaded from deploy/profiles/versions.env)}${LOKI_IMAGE_DIGEST:-}
@@ -217,12 +230,12 @@ services:
     networks:
       - monitoring_net
       - frontend_net   # promtails on other tiers push via this in allinone
-    healthcheck:
-      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3100/ready"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 30s
+    depends_on:
+      loki-init:
+        condition: service_completed_successfully
+    # No healthcheck: Loki's image ships without wget / curl. Readiness
+    # is verified externally by promtails on push and by Grafana's
+    # datasource health probe.
 
   # ---- promtail (monitoring tier's own log shipper) ----------------
   promtail-monitoring:
@@ -249,7 +262,7 @@ services:
       - monitoring_net
     depends_on:
       loki:
-        condition: service_healthy
+        condition: service_started
 
   # ---- node-exporter (monitoring host's system metrics) ------------
   node-exporter-monitoring:
