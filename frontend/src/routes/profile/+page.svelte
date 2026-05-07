@@ -7,6 +7,7 @@
   import { authApi, type SecurityEventInfo, type SessionInfo } from '$lib/api/auth';
   import { handleFormError, toToastMessage } from '$lib/api/errors';
   import FieldError from '$lib/components/FieldError.svelte';
+  import { formatDateTime } from '$lib/util/format';
   // TODO: Add password and MFA controls once backend endpoints are available.
 
   let loading = $state(true);
@@ -45,15 +46,6 @@
     fullName = user.full_name ?? '';
     companyName = user.company_name ?? '';
     email = user.email ?? '';
-  }
-
-  function formatDateTime(value: string): string {
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return value;
-    return new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(date);
   }
 
   function timeSince(value: string): string {

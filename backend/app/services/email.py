@@ -122,23 +122,8 @@ def notify_new_finding(
     return send_email(to_email, to_name, subject, html)
 
 
-def notify_report_ready(
-    to_email: str,
-    to_name: str,
-    session_name: str,
-    session_id: str,
-) -> bool:
-    base = settings.app_base_url.rstrip("/")
-    safe_session_name = escape_html(session_name)
-    safe_href = escape_html(f"{base}/sessions/{session_id}")
-    subject = f"Report ready: {sanitize_header_text(session_name)}"
-    html = f"""
-    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;">
-        <h2 style="color:#1a1a2e;">Report Available</h2>
-        <p>A report has been generated for session <strong>{safe_session_name}</strong>.</p>
-        <p>You can download the report in PDF, CSV, or JSON format from the session page:</p>
-        <p><a href="{safe_href}" style="display:inline-block;padding:10px 20px;background:#3b82f6;color:white;text-decoration:none;border-radius:6px;">View Session</a></p>
-        <p style="color:#9ca3af;font-size:12px;margin-top:24px;">Security Findings Manager</p>
-    </div>
-    """
-    return send_email(to_email, to_name, subject, html)
+# Note: an earlier `notify_report_ready` helper was removed because it
+# had no callers - report generation is currently synchronous and
+# returns the file in the same HTTP response, so there's nothing to
+# notify about. Resurrect from git history when async report generation
+# lands; tracked as https://github.com/raymond-itsec/vulnledger/issues/78.

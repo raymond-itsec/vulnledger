@@ -3,8 +3,7 @@
   import { page } from '$app/state';
   import { sessionsApi, type Session } from '$lib/api/sessions';
   import { findingsApi, type Finding } from '$lib/api/findings';
-  import { reportsApi, type ReportExport } from '$lib/api/reports';
-  import { authorizedFetch } from '$lib/api/client';
+  import { reportsApi, type ReportExport, type ReportFormat } from '$lib/api/reports';
   import { handleFormError } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';
@@ -14,6 +13,7 @@
   import MarkdownView from '$lib/components/MarkdownView.svelte';
   import { fieldId, downloadResponseAsFile } from '$lib/util/dom';
   import { copyToClipboard } from '$lib/util/clipboard';
+  import { formatDateTime, formatFileSize } from '$lib/util/format';
 
   let session = $state<Session | null>(null);
   let findings = $state<Finding[]>([]);
@@ -59,11 +59,11 @@
     }
   });
 
-  async function downloadReport(format: string) {
+  async function downloadReport(format: ReportFormat) {
     if (!session) return;
     exporting = format;
     try {
-      const res = await authorizedFetch(`/api/v1/reports/sessions/${session.session_id}/${format}`);
+      const res = await reportsApi.download(session.session_id, format);
       if (!res.ok) throw new Error('Export failed');
       await downloadResponseAsFile(res, `report.${format}`);
       storedExports = await reportsApi.list(session.session_id);
@@ -82,16 +82,6 @@
     } catch {
       toast.error('Could not download this stored export.');
     }
-  }
-
-  function formatFileSize(sizeBytes: number) {
-    if (sizeBytes < 1024) return `${sizeBytes} B`;
-    if (sizeBytes < 1024 * 1024) return `${(sizeBytes / 1024).toFixed(1)} KB`;
-    return `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
-  }
-
-  function formatDateTime(value?: string | null) {
-    return value ? new Date(value).toLocaleString() : '--';
   }
 
   function shortSha256(value?: string | null) {

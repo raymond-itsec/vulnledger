@@ -1,6 +1,5 @@
 """ClamAV virus scanning for file attachments."""
 
-import io
 import logging
 from typing import BinaryIO
 
@@ -48,10 +47,6 @@ def probe_scanner() -> tuple[str, str]:
         return "ok", "reachable"
     except Exception:
         return "down", "unreachable"
-
-
-def scan_file(data: bytes, filename: str) -> tuple[bool, str]:
-    return scan_file_stream(io.BytesIO(data), filename)
 
 
 def scan_file_stream(file_stream: BinaryIO, filename: str) -> tuple[bool, str]:

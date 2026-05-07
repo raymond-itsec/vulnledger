@@ -31,7 +31,7 @@ from app.middleware.metrics import (
 )
 from app.middleware.request_id import RequestIDMiddleware
 from app.services.business_metrics import collect_business_metrics
-from app.schemas.error import make_error_payload
+from app.schemas.error import COMMON_ERROR_RESPONSES, make_error_payload
 from app.services.antivirus import probe_scanner
 from app.services.seed import seed_admin_user, sync_builtin_templates
 from app.services.storage import (
@@ -339,10 +339,14 @@ init_app_info(settings.app_version)
 
 # Mount every router from the API_VERSIONS registry under its version
 # prefix. Adding a new version is a registry change; the loop picks it up.
+# COMMON_ERROR_RESPONSES wires the canonical error envelope into the
+# OpenAPI schema for every documented status (400, 401, 403, 404, 409,
+# 422, 429, 500) so consumers reading the spec see the actual error
+# shape, not just a generic Pydantic validation error.
 for _version, _meta in API_VERSIONS.items():
     _prefix = f"/api/{_version}"
     for _router in _meta["routers"]:
-        app.include_router(_router, prefix=_prefix)
+        app.include_router(_router, prefix=_prefix, responses=COMMON_ERROR_RESPONSES)
 
 # OIDC router is conditional on configuration. Today it lives under the
 # current version only; if v2 ships and OIDC routes change, add the v2
@@ -350,7 +354,7 @@ for _version, _meta in API_VERSIONS.items():
 # block.
 if settings.oidc_enabled:
     from app.api import oidc
-    app.include_router(oidc.router, prefix=CURRENT_API_PREFIX)
+    app.include_router(oidc.router, prefix=CURRENT_API_PREFIX, responses=COMMON_ERROR_RESPONSES)
 
 
 def _effective_probe_ip(request: Request) -> str | None:

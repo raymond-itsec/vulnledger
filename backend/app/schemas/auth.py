@@ -14,12 +14,6 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
-class TokenPayload(BaseModel):
-    sub: str
-    role: str
-    client_id: str | None = None
-
-
 class SessionInfo(BaseModel):
     refresh_session_id: UUID
     family_id: UUID

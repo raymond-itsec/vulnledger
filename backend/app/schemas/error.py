@@ -48,6 +48,23 @@ class ErrorResponse(BaseModel):
     error: ErrorBody = Field(...)
 
 
+# Canonical error-response set wired into FastAPI's `responses=` kwarg
+# at router-mount time (see app/main.py). Documents the error envelope
+# in OpenAPI for every status code our handlers can return. Keeps the
+# spec in sync with what callers actually receive without per-route
+# repetition.
+COMMON_ERROR_RESPONSES: dict[int | str, dict] = {
+    400: {"model": ErrorResponse, "description": "Bad request"},
+    401: {"model": ErrorResponse, "description": "Authentication required or refresh failed"},
+    403: {"model": ErrorResponse, "description": "Authenticated but not authorized"},
+    404: {"model": ErrorResponse, "description": "Resource not found"},
+    409: {"model": ErrorResponse, "description": "Conflict (e.g., duplicate, race-loser, version mismatch)"},
+    422: {"model": ErrorResponse, "description": "Request validation failed; details.errors carries per-field issues"},
+    429: {"model": ErrorResponse, "description": "Rate-limited at the edge or per-username throttle"},
+    500: {"model": ErrorResponse, "description": "Internal error; request_id is the correlation key"},
+}
+
+
 def make_error_payload(
     code: str,
     detail: str,

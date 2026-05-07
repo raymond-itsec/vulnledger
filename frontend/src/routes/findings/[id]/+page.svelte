@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { page } from '$app/state';
   import { findingsApi, type Finding, type FindingHistory } from '$lib/api/findings';
-  import { attachmentsApi, formatFileSize, type Attachment } from '$lib/api/attachments';
+  import { attachmentsApi, type Attachment } from '$lib/api/attachments';
+  import { formatFileSize } from '$lib/util/format';
   import { handleFormError, toToastMessage } from '$lib/api/errors';
   import { auth } from '$lib/stores/auth.svelte';
   import { taxonomy } from '$lib/stores/taxonomy.svelte';

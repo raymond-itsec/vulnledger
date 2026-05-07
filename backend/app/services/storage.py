@@ -135,17 +135,6 @@ def _put_object_stream(
     return storage_key
 
 
-def upload_evidence_file(
-    finding_id: str,
-    file_name: str,
-    content_type: str,
-    data: bytes,
-) -> str:
-    unique_name = f"{uuid4().hex}-{file_name}"
-    storage_key = f"findings/{finding_id}/{unique_name}"
-    return _put_object(EVIDENCE_BUCKET_NAME, storage_key, content_type, data)
-
-
 def upload_evidence_file_stream(
     finding_id: str,
     file_name: str,
@@ -180,22 +169,6 @@ def upload_report_file(
         data,
         retain_until=retain_until,
     )
-
-
-def _download_file(bucket_name: str, storage_key: str) -> tuple[bytes, str]:
-    client = get_object_storage_client()
-    response = client.get_object(bucket_name, storage_key)
-    try:
-        data = response.read()
-    finally:
-        response.close()
-        response.release_conn()
-    content_type = response.headers.get("Content-Type", "application/octet-stream")
-    return data, content_type
-
-
-def download_evidence_file(storage_key: str) -> tuple[bytes, str]:
-    return _download_file(EVIDENCE_BUCKET_NAME, storage_key)
 
 
 def stream_report_file(

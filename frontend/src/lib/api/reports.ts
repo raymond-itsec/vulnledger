@@ -15,9 +15,14 @@ export type ReportExport = {
   exported_at: string;
 };
 
+export type ReportFormat = 'pdf' | 'csv' | 'json';
+
 export const reportsApi = {
   list: (sessionId: string) =>
     api.get<ReportExport[]>(`/api/v1/reports/sessions/${sessionId}/exports`),
+
+  download: (sessionId: string, format: ReportFormat) =>
+    authorizedFetch(`/api/v1/reports/sessions/${sessionId}/${format}`),
 
   downloadStored: (exportId: string) =>
     authorizedFetch(`/api/v1/reports/exports/${exportId}/download`),

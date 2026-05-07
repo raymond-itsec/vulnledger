@@ -1,7 +1,5 @@
 import packageJson from '../../../package.json';
 
-export const APP_NAME = 'VulnLedger';
-
 const envVersion =
   typeof import.meta.env.VITE_APP_VERSION === 'string' &&
   import.meta.env.VITE_APP_VERSION.trim().length > 0

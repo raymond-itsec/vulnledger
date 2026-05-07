@@ -6,6 +6,12 @@
   import { handleFormError, toToastMessage } from '$lib/api/errors';
   import { toast } from '$lib/stores/toast.svelte';
   import FieldError from '$lib/components/FieldError.svelte';
+  import { formatDateTime as fmtDateTime } from '$lib/util/format';
+
+  /** Admin uses 'Never' as the placeholder for null timestamps. */
+  function formatDateTime(value: string | null): string {
+    return fmtDateTime(value, 'Never');
+  }
 
   let loading = $state(true);
   let users = $state<User[]>([]);
@@ -19,15 +25,6 @@
 
   const isAdmin = $derived(auth.user?.role === 'admin');
 
-  function formatDateTime(value: string | null): string {
-    if (!value) return 'Never';
-    const parsed = new Date(value);
-    if (Number.isNaN(parsed.getTime())) return value;
-    return new Intl.DateTimeFormat('en-GB', {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(parsed);
-  }
 
   function inviteStatus(invite: Invite): string {
     if (invite.revoked_at) return 'Revoked';
