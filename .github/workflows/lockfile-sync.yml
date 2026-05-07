@@ -57,7 +57,7 @@ jobs:
     if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout (PR head if applicable)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           # On pull_request from same repo, check out the head ref so we
           # can push back to the PR branch. On push events, github.ref
