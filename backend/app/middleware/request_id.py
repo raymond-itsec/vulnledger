@@ -31,16 +31,32 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 VL_REQUEST_ID_PREFIX = "VL-"
+BOOT_ID_PREFIX = "BOOT-"
 
-# Default `None` distinguishes "not in a request" from "in a request but the
-# upstream did not send a valid X-Request-ID" (in which case x_request_id_var
-# is also None - downstream code can treat both cases identically by checking
-# `is not None`).
+# Per-process boot identifier minted once at module import time.
+# Boot-time code paths (alembic migrations, seed routines, startup
+# hooks, or any other non-HTTP execution before the first request)
+# inherit this as the default for `vl_request_id_var`, which means
+# their structured log lines carry a stable correlation key instead
+# of `null`. All log lines from a single backend container start
+# share one BOOT-<uuid4>; the next restart mints a fresh one.
+#
+# HTTP requests overwrite the ContextVar via `.set(VL-<uuid4>)` for
+# the per-request task scope, so request-scoped logs still get a
+# distinct VL-* ID. After the request completes, the ContextVar
+# falls back to BOOT_ID for any subsequent non-request log lines on
+# the same process. Closes #77.
+BOOT_ID: str = f"{BOOT_ID_PREFIX}{uuid.uuid4()}"
+
+# x_request_id stays None by default. It only gets populated when an
+# upstream actually sent a valid X-Request-ID header on an incoming
+# request; we never invent one. Boot-time logs have no upstream, so
+# null is the correct semantic there.
 x_request_id_var: ContextVar[Optional[str]] = ContextVar(
     "x_request_id", default=None
 )
 vl_request_id_var: ContextVar[Optional[str]] = ContextVar(
-    "vl_request_id", default=None
+    "vl_request_id", default=BOOT_ID
 )
 
 
