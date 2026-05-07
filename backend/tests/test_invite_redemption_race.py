@@ -133,7 +133,6 @@ async def test_state_lookup_does_not_lock(db_session):
             invite_id=invite_id,
             code=code,
             email=email,
-            role="reviewer",
             expires_at=datetime.now(timezone.utc) + timedelta(days=1),
         )
     )
