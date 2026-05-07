@@ -13,6 +13,7 @@ from authlib.integrations.starlette_client import OAuth
 from fastapi import APIRouter, Cookie, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 
@@ -147,7 +148,40 @@ async def _resolve_or_create_user(
         oidc_subject=subject,
     )
     db.add(user)
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Two concurrent callbacks for the same first-time (issuer, subject)
+        # both pass the lookup above and both try to insert. The composite
+        # unique constraint `uq_users_oidc_identity` rejects the loser
+        # (and the username/email uniqueness constraints would too if the
+        # loser happened to derive the same seed). Recover gracefully:
+        # rollback, re-read by (issuer, subject) - the winner's row exists
+        # now - and return that. Closes #47.
+        await db.rollback()
+        result = await db.execute(
+            select(User).where(
+                User.oidc_issuer == issuer,
+                User.oidc_subject == subject,
+            )
+        )
+        winner = result.scalar_one_or_none()
+        if winner is None:
+            # Couldn't find the winner's row even after rollback. This
+            # indicates the IntegrityError came from a different unique
+            # constraint (username or email collision with an unrelated
+            # account, not the OIDC identity race we expect). Surface a
+            # 409 instead of a generic 500.
+            raise HTTPException(
+                status_code=409,
+                detail="Account creation collided with an existing account. Contact your administrator.",
+            )
+        logger.info(
+            "OIDC auto-provision race resolved; returning winner %s (%s)",
+            winner.username,
+            email,
+        )
+        return winner
     await db.refresh(user)
     logger.info("Auto-provisioned OIDC user: %s (%s)", user.username, email)
     return user

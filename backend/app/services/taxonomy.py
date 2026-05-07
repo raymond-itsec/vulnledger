@@ -2,6 +2,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -98,6 +99,16 @@ SUPPORTED_TAXONOMY_DOMAINS = tuple(DEFAULT_TAXONOMY.keys())
 
 
 class TaxonomyError(ValueError):
+    pass
+
+
+class TaxonomyConflictError(Exception):
+    """Raised when a concurrent operation collided on a unique constraint.
+
+    Distinct from TaxonomyError (validation) so the API layer can map it
+    to HTTP 409 Conflict instead of 422. See create_taxonomy_version's
+    retry loop for the only place this currently fires (closes #48).
+    """
     pass
 
 
@@ -222,19 +233,43 @@ async def create_taxonomy_version(
 ) -> TaxonomyBundle:
     _validate_domains_payload(domains)
 
-    next_version = (
-        await db.execute(select(func.coalesce(func.max(TaxonomyVersion.version_number), 0)))
-    ).scalar_one()
-    version = TaxonomyVersion(
-        version_number=int(next_version) + 1,
-        description=description,
-        is_current=make_current,
-    )
-    if make_current:
-        await db.execute(update(TaxonomyVersion).values(is_current=False))
+    # Two admins creating taxonomy versions concurrently can both compute
+    # the same `max(version_number) + 1` and race on insert. The unique
+    # constraint on `version_number` rejects the loser with IntegrityError.
+    # Catch + rollback + re-read max + retry; on the next pass the loser
+    # sees the winner's row and computes a fresh +1. Bounded retry
+    # protects against pathological storms (>3 concurrent admins, very
+    # rare). After the budget, surface a clean 409 instead of 500.
+    # Closes #48.
+    MAX_ATTEMPTS = 3
+    version: TaxonomyVersion | None = None
+    for attempt in range(MAX_ATTEMPTS):
+        next_version = (
+            await db.execute(
+                select(func.coalesce(func.max(TaxonomyVersion.version_number), 0))
+            )
+        ).scalar_one()
+        version = TaxonomyVersion(
+            version_number=int(next_version) + 1,
+            description=description,
+            is_current=make_current,
+        )
+        if make_current:
+            await db.execute(update(TaxonomyVersion).values(is_current=False))
 
-    db.add(version)
-    await db.flush()
+        db.add(version)
+        try:
+            await db.flush()
+            break
+        except IntegrityError:
+            await db.rollback()
+            version = None
+            if attempt == MAX_ATTEMPTS - 1:
+                raise TaxonomyConflictError(
+                    "Concurrent taxonomy version creates collided. Try again."
+                )
+
+    assert version is not None  # noqa: S101 - loop exits via break or raise
 
     for domain, entries in domains.items():
         for entry in entries:

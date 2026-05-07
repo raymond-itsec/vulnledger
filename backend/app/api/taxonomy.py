@@ -14,6 +14,7 @@ from app.schemas.taxonomy import (
     TaxonomyVersionResponse,
 )
 from app.services.taxonomy import (
+    TaxonomyConflictError,
     TaxonomyError,
     activate_taxonomy_version,
     create_taxonomy_version,
@@ -93,6 +94,11 @@ async def create_version(
             domains=body.domains,
             make_current=True,
         )
+    except TaxonomyConflictError as exc:
+        # Concurrent admin race; bounded retry inside the service was
+        # exhausted. Surface a clean 409 instead of bubbling the
+        # IntegrityError as a 500. Closes #48.
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except TaxonomyError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return _serialize_bundle(bundle)
