@@ -61,7 +61,7 @@ COMMON_ERROR_RESPONSES: dict[int | str, dict] = {
     409: {"model": ErrorResponse, "description": "Conflict (e.g., duplicate, race-loser, version mismatch)"},
     422: {"model": ErrorResponse, "description": "Request validation failed; details.errors carries per-field issues"},
     429: {"model": ErrorResponse, "description": "Rate-limited at the edge or per-username throttle"},
-    500: {"model": ErrorResponse, "description": "Internal error; request_id is the correlation key"},
+    500: {"model": ErrorResponse, "description": "Internal error; correlate via the X-VL-Request-ID response header (also echoed in the response body's request_id field)"},
 }
 
 
