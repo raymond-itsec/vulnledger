@@ -146,6 +146,23 @@ services:
       retries: 3
       start_period: 180s
 
+  # ---- Textfile-collector volume init: chown to UID 70 (postgres in
+  # alpine) so the backup container (which runs as user postgres) can
+  # write `vl_backup_latest_timestamp_seconds` after each run. The
+  # named volume ships root-owned by Docker default; without this,
+  # mktemp fails with "Permission denied" on every backup attempt and
+  # the textfile metric never appears, leaving BackupMetricMissing
+  # firing forever. node-exporter mounts the same volume read-only;
+  # ownership doesn't affect its scrape.
+  backup-textfile-init:
+    image: busybox:${BUSYBOX_VERSION:?Set BUSYBOX_VERSION (loaded from deploy/profiles/versions.env)}${BUSYBOX_IMAGE_DIGEST:-}
+    restart: "no"
+    logging: *default-logging
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "mkdir -p /var/lib/node-exporter/textfile && chown -R 70:70 /var/lib/node-exporter/textfile && chmod 0755 /var/lib/node-exporter/textfile"]
+    volumes:
+      - node_exporter_textfile:/var/lib/node-exporter/textfile
+
   backup:
     build: ../../backup
     # `no` (not `unless-stopped`) so a config error like a missing
@@ -168,6 +185,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      backup-textfile-init:
+        condition: service_completed_successfully
     environment:
       POSTGRES_HOST: db
       POSTGRES_PORT: "5432"

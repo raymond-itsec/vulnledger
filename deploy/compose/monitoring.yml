@@ -133,7 +133,7 @@ services:
   # render the template into a shared volume that alertmanager mounts
   # read-only.
   alertmanager-init:
-    image: nginx:1.27-alpine
+    image: nginx:${NGINX_VERSION:?Set NGINX_VERSION (loaded from deploy/profiles/versions.env)}${NGINX_IMAGE_DIGEST:-}
     restart: "no"
     logging: *default-logging
     user: "0:0"
@@ -218,7 +218,7 @@ services:
   # without this, Loki crashes with `mkdir /var/loki/rules: permission
   # denied`. One-shot: runs to completion before loki itself starts.
   loki-init:
-    image: busybox:1.37.0
+    image: busybox:${BUSYBOX_VERSION:?Set BUSYBOX_VERSION (loaded from deploy/profiles/versions.env)}${BUSYBOX_IMAGE_DIGEST:-}
     restart: "no"
     logging: *default-logging
     user: "0:0"
