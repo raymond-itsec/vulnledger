@@ -22,6 +22,7 @@ threading them through function arguments.
 """
 from __future__ import annotations
 
+import os
 import uuid
 from contextvars import ContextVar
 from typing import Optional
@@ -33,20 +34,29 @@ from starlette.responses import Response
 VL_REQUEST_ID_PREFIX = "VL-"
 BOOT_ID_PREFIX = "BOOT-"
 
-# Per-process boot identifier minted once at module import time.
+# Per-container-restart boot identifier. The backend container's
+# Dockerfile CMD mints this once in the entrypoint shell and exports
+# it as the BOOT_ID env var, so the alembic-migration child Python
+# process AND the uvicorn child Python process both inherit the same
+# value. Without that pattern, each Python process imports this module
+# independently and would mint its own UUID, producing two BOOT-<uuid>
+# values per restart.
+#
+# When BOOT_ID is not in the environment (local dev, pytest, ad-hoc
+# `docker compose exec backend python -c ...`), mint one here so the
+# ContextVar default still has a stable value.
+#
 # Boot-time code paths (alembic migrations, seed routines, startup
 # hooks, or any other non-HTTP execution before the first request)
 # inherit this as the default for `vl_request_id_var`, which means
 # their structured log lines carry a stable correlation key instead
-# of `null`. All log lines from a single backend container start
-# share one BOOT-<uuid4>; the next restart mints a fresh one.
+# of `null`.
 #
 # HTTP requests overwrite the ContextVar via `.set(VL-<uuid4>)` for
-# the per-request task scope, so request-scoped logs still get a
-# distinct VL-* ID. After the request completes, the ContextVar
-# falls back to BOOT_ID for any subsequent non-request log lines on
-# the same process. Closes #77.
-BOOT_ID: str = f"{BOOT_ID_PREFIX}{uuid.uuid4()}"
+# the per-request task scope. After the request completes, the
+# ContextVar falls back to BOOT_ID for any subsequent non-request
+# log lines on the same process. Closes #77.
+BOOT_ID: str = os.environ.get("BOOT_ID") or f"{BOOT_ID_PREFIX}{uuid.uuid4()}"
 
 # x_request_id stays None by default. It only gets populated when an
 # upstream actually sent a valid X-Request-ID header on an incoming

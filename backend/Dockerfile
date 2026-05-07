@@ -26,4 +26,12 @@ EXPOSE 8000
 
 USER appuser
 
-CMD ["/bin/sh", "-c", "alembic upgrade head && exec python -m app.runserver"]
+# Mint a single per-container-restart BOOT_ID up-front and export it
+# so both the alembic migration process AND the uvicorn process inherit
+# the same correlation ID. Without this, the two child Pythons would
+# each mint their own (request_id.py imports independently per
+# process), producing two BOOT-<uuid> values per restart and making
+# "everything from this restart" hard to grep.
+# /proc/sys/kernel/random/uuid is the kernel-supplied UUID source; it
+# avoids the uuidgen binary which is not in slim images.
+CMD ["/bin/sh", "-c", "export BOOT_ID=\"BOOT-$(cat /proc/sys/kernel/random/uuid)\" && alembic upgrade head && exec python -m app.runserver"]
