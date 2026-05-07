@@ -30,9 +30,9 @@ def _payload(domain_value: str = "info"):
     single trivial entry per domain so the focus stays on the version-
     number race rather than payload validation.
     """
-    from app.schemas.taxonomy import TaxonomyEntryInput
+    from app.schemas.taxonomy import TaxonomyEntryCreate
 
-    entry = TaxonomyEntryInput(
+    entry = TaxonomyEntryCreate(
         value=domain_value,
         label=domain_value.capitalize(),
         sort_order=0,
