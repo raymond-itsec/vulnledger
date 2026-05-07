@@ -129,6 +129,22 @@ if [ -z "$latest_age" ] || [ "$latest_age" -ge "$INITIAL_BACKUP_MAX_AGE_SECONDS"
   /usr/local/bin/backup.sh
 else
   echo "[$(date)] Skipping initial backup (latest backup age: ${latest_age}s)"
+  # Seed the textfile-collector metric from the existing backup's mtime
+  # so observability sees freshness even on a restart that skipped the
+  # initial run. backup.sh handles the metric on real run paths.
+  TEXTFILE_DIR="${TEXTFILE_COLLECTOR_DIR:-/var/lib/node-exporter/textfile}"
+  if [ -d "$TEXTFILE_DIR" ]; then
+    latest_file=$(ls -1t "$BACKUP_DIR"/findings_*.sql.gz* 2>/dev/null | head -n 1 || true)
+    if [ -n "$latest_file" ]; then
+      modified_epoch=$(stat -c %Y "$latest_file" 2>/dev/null || true)
+      if [ -n "$modified_epoch" ]; then
+        TMP_FILE=$(mktemp "$TEXTFILE_DIR/backup.prom.XXXXXX")
+        printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds %s\n' "$modified_epoch" > "$TMP_FILE"
+        mv -f "$TMP_FILE" "$TEXTFILE_DIR/backup.prom"
+        chmod 0644 "$TEXTFILE_DIR/backup.prom"
+      fi
+    fi
+  fi
 fi
 
 # Start supercronic (non-root cron) in foreground with the generated crontab.

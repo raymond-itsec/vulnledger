@@ -140,6 +140,106 @@ services:
     networks:
       - frontend_net    # caddy (on edge tier) reaches frontend SPA here
 
+  # ---- Observability sidecars (app tier) ---------------------------
+  # See edge.yml header for the per-host vmagent + bounded buffer rationale.
+
+  vmagent-app:
+    image: victoriametrics/vmagent:${VM_VERSION:?Set VM_VERSION (loaded from deploy/profiles/versions.env)}${VMAGENT_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    command:
+      - "--promscrape.config=/etc/vmagent/scrape.yml"
+      - "--remoteWrite.url=${VM_REMOTE_WRITE_URL:?Set VM_REMOTE_WRITE_URL in env profile}"
+      - "--remoteWrite.tmpDataPath=/vmagent-buffer"
+      - "--remoteWrite.maxDiskUsagePerURL=1GB"
+      - "--httpListenAddr=:8429"
+    volumes:
+      - ../../monitoring/vmagent/scrape-app.yml:/etc/vmagent/scrape.yml:ro
+      - vmagent_app_buffer:/vmagent-buffer
+    networks:
+      - frontend_net   # scrape backend:8000/api/v1/metrics here AND reach VM in allinone
+
+  promtail-app:
+    image: grafana/promtail:${LOKI_VERSION:?Set LOKI_VERSION (loaded from deploy/profiles/versions.env)}${PROMTAIL_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    environment:
+      LOKI_PUSH_URL: ${LOKI_PUSH_URL:?Set LOKI_PUSH_URL in env profile}
+      PROMTAIL_HOST: vl-app
+      PROMTAIL_TIER: app
+    volumes:
+      - ../../monitoring/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - frontend_net
+
+  node-exporter-app:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    networks:
+      - frontend_net
+    pid: host
+
+  cadvisor-app:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    privileged: true
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - frontend_net
+
+volumes:
+  vmagent_app_buffer:
+
 networks:
   # Each tier file declares the networks it uses with a stable
   # `name:`. In allinone mode (`include:` merges all 4 tier files)

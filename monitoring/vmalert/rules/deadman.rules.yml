@@ -1,0 +1,39 @@
+# Deadman heartbeat (Watchdog).
+#
+# Always-firing alert that exists for a single purpose: an external
+# heartbeat receiver detects when this STOPS firing, which means
+# either Alertmanager is down, the monitoring tier is unreachable,
+# or the entire stack has lost network. None of those conditions
+# can be alerted on by the monitoring tier itself - that's the
+# "who watches the watchman" gap.
+#
+# Operator wires `ALERTMANAGER_DEADMAN_WEBHOOK_URL` to an external
+# heartbeat receiver:
+#   - https://healthchecks.io (free tier supports 20 checks)
+#   - A self-hosted heartbeat receiver
+#   - A Slack heartbeat-bot
+#   - cron-monitored email digest
+#
+# The receiver is configured to expect Watchdog every N minutes.
+# When >2N minutes pass without it, the receiver alerts the
+# operator out-of-band that monitoring itself is dead.
+#
+# Without the deadman, "Slack just got really quiet" looks the same
+# as "everything is fine."
+
+groups:
+  - name: deadman
+    interval: 30s
+    rules:
+      - alert: Watchdog
+        expr: vector(1)
+        labels:
+          severity: none
+          team: ops
+        annotations:
+          summary: "Heartbeat - monitoring stack is alive"
+          description: |
+            This alert is supposed to ALWAYS be firing. If you stop
+            seeing this every 30 seconds at the heartbeat receiver,
+            something between vmalert -> Alertmanager -> external
+            receiver has broken.

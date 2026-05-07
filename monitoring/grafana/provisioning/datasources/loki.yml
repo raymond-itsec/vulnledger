@@ -1,0 +1,14 @@
+# Grafana data source: Loki for log queries.
+
+apiVersion: 1
+
+datasources:
+  - name: Loki
+    type: loki
+    uid: loki
+    url: http://loki:3100
+    access: proxy
+    isDefault: false
+    editable: false
+    jsonData:
+      maxLines: 1000

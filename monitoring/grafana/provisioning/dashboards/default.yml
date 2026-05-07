@@ -1,0 +1,21 @@
+# Grafana dashboard provisioner.
+#
+# Auto-loads any *.json file in /var/lib/grafana/dashboards/ into the
+# default org. Initial bring-up ships with that directory empty;
+# operators import community dashboards from grafana.com via the
+# UI on first login. See `monitoring/grafana/dashboards/README.md`
+# for the recommended IDs.
+
+apiVersion: 1
+
+providers:
+  - name: VulnLedger default
+    orgId: 1
+    folder: ''
+    type: file
+    disableDeletion: false
+    updateIntervalSeconds: 30
+    allowUiUpdates: true
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: true

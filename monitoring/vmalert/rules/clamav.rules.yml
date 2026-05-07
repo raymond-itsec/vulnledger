@@ -1,0 +1,37 @@
+# ClamAV health alert.
+#
+# Source: backend's `vl_clamav_up` gauge (1 = scanner ping ok,
+# 0 = scanner unreachable / unhealthy). The backend evaluates this
+# on each metrics scrape via `probe_scanner()` which talks to clamd
+# over the network socket.
+#
+# Why this matters: every attachment upload depends on the AV scan
+# step. If clamav is down, uploads fail with 422 - users see "File
+# rejected" with no clear root cause. Knowing the scanner state
+# turns that into "the scanner is down, restart clamav" instead of
+# "wait, why are uploads broken."
+
+groups:
+  - name: clamav
+    interval: 1m
+    rules:
+      - alert: ClamAVDown
+        expr: vl_clamav_up == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "ClamAV scanner unreachable from backend"
+          description: |
+            The backend cannot ping the ClamAV daemon. Attachment
+            uploads will fail with 422 'File rejected' until ClamAV
+            is reachable again.
+
+            Check:
+              docker compose ps clamav
+              docker compose logs clamav --tail=30
+
+            ClamAV takes ~3 minutes to load its signature database
+            on cold start; a brief alert during a restart is normal.
+            Alert fires only if condition holds for >5 minutes.

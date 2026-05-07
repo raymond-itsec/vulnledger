@@ -1,0 +1,62 @@
+# Promtail configuration: ship Docker container logs to Loki.
+#
+# Discovers containers via the Docker socket. Each scraped log line
+# inherits labels from the container's compose-project metadata
+# (service, container_name) so Loki queries can filter naturally.
+#
+# Cross-DC bandwidth: gzip on push, batch wait 1s / batch size 1 MiB.
+# At sustained 10 MB/s per host the effective compressed payload is
+# typically 1-2 MB/s.
+#
+# LOKI_PUSH_URL comes from the env profile (Docker DNS in allinone,
+# vl-monitoring.vuln.lan in multihost-{samedc,crossdc}).
+
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+  log_level: info
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: ${LOKI_PUSH_URL}
+    batchwait: 1s
+    batchsize: 1048576              # 1 MiB
+    backoff_config:
+      min_period: 500ms
+      max_period: 5m
+      max_retries: 10
+    external_labels:
+      host: ${PROMTAIL_HOST}        # vl-edge / vl-app / vl-data / vl-monitoring
+      tier: ${PROMTAIL_TIER}        # edge / app / data / monitoring
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 30s
+        filters:
+          - name: label
+            values: ["com.docker.compose.project=vulnledger"]
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        regex: '/(.*)'
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_label_com_docker_compose_service']
+        target_label: 'service'
+    pipeline_stages:
+      # Drop pure container stdout noise and lift JSON logs into
+      # structured fields. Backend's JSON formatter already emits
+      # `vl_request_id`, `x_request_id`, `level`, `logger`, `ts`,
+      # `message` - lift those into Loki labels for fast filtering.
+      - json:
+          expressions:
+            level: level
+            logger: logger
+            vl_request_id: vl_request_id
+            x_request_id: x_request_id
+            ts: ts
+      - labels:
+          level:
+          vl_request_id:

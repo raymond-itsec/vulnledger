@@ -1,0 +1,33 @@
+# Container restart-count alert.
+#
+# Source: cAdvisor's `container_start_time_seconds` (the time at
+# which the container was last started). Increase rate over a 1h
+# window approximates restart count.
+#
+# Fires when any container has restarted more than 3 times in the
+# last hour - a common signal for crashloop, OOM, healthcheck failure.
+
+groups:
+  - name: container
+    interval: 1m
+    rules:
+      - alert: ContainerCrashLooping
+        expr: |
+          changes(container_start_time_seconds{name!=""}[1h]) > 3
+        for: 5m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Container {{ $labels.name }} restarted {{ $value }} times in 1h"
+          description: |
+            Container `{{ $labels.name }}` (host `{{ $labels.host }}`)
+            has restarted more than 3 times in the last hour. Check:
+              docker compose logs {{ $labels.name }} --tail=80
+              docker compose ps {{ $labels.name }}
+
+            Common causes:
+              - Application crash on startup (config error, missing dep)
+              - Healthcheck failing
+              - OOM (check `container_memory_usage_bytes` near limit)
+              - External dependency unreachable (DB, scanner, etc.)

@@ -1,6 +1,6 @@
 # ---- Global server-level config ----------------------------------------
 {
-	# Item 14: tighter HTTP timeouts than Caddy defaults to limit DoS surface
+	# Tighter HTTP timeouts than Caddy defaults to limit DoS surface
 	# (slow-loris, idle keep-alive abuse). Values chosen for an interactive
 	# SPA: most calls finish in <1s, large attachment uploads need write
 	# headroom, idle connections recycle promptly.
@@ -11,7 +11,19 @@
 			write       60s
 			idle        2m
 		}
+		# Enable Prometheus exposition on the admin endpoint below.
+		# vmagent-edge scrapes caddy:2019/metrics over frontend_net.
+		metrics
 	}
+
+	# Admin API listener for the metrics endpoint. Bound to all container
+	# interfaces so vmagent-edge (on frontend_net) can reach :2019/metrics.
+	# Caveat: the admin API also serves config-reload endpoints on the
+	# same listener; any container that reaches frontend_net could in
+	# principle POST /load and reconfigure caddy. Acceptable for the
+	# initial bring-up since only sidecars share the network; tighten
+	# in a follow-up by moving admin to a metrics-only network.
+	admin :2019
 }
 
 {$CADDY_HOST:http://localhost} {
@@ -198,6 +210,19 @@
 				# header rewrite within the proxy handler) because the
 				# site-level `header` directive gets overwritten by
 				# Caddy's response writer on the way out.
+				header_down Server "VulnLedger"
+			}
+		}
+
+		# Grafana reverse proxy for the observability stack. Grafana is
+		# configured with GF_SERVER_SERVE_FROM_SUB_PATH=true and
+		# GF_SERVER_ROOT_URL set so /grafana/* paths route correctly.
+		# Only reachable in allinone (frontend_net spans monitoring tier);
+		# in multihost the operator either exposes Grafana directly via
+		# vl-monitoring's own NIC or proxies through caddy if vl-edge has
+		# a path to vl-monitoring on the private/WG network.
+		handle /grafana/* {
+			reverse_proxy grafana:3000 {
 				header_down Server "VulnLedger"
 			}
 		}

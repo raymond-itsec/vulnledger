@@ -36,17 +36,25 @@ ALLINONE_FILES := \
 	-f $(COMPOSE_DIR)/edge.yml \
 	-f $(COMPOSE_DIR)/monitoring.yml
 
-# Env-file order matters: profile loads first, project .env overrides.
+# Env-file order matters: versions first (image pins; deployment-shape
+# agnostic), then profile, then project .env (operator overrides).
 # Compose's repeated --env-file is supported in Compose v2.21+.
+# Loading versions.env first means a typo in a profile or .env can't
+# silently downgrade an image tag.
+VERSIONS_ENV := --env-file $(PROFILES_DIR)/versions.env
+
 ALLINONE_ENV := \
+	$(VERSIONS_ENV) \
 	--env-file $(PROFILES_DIR)/allinone.env \
 	--env-file $(ROOT)/.env
 
-# Multihost env: per-shape profile, then per-deploy .env override.
+# Multihost env: versions, then per-shape profile, then per-deploy override.
 MULTIHOST_SAMEDC_ENV := \
+	$(VERSIONS_ENV) \
 	--env-file $(PROFILES_DIR)/multihost-samedc.env \
 	--env-file $(ROOT)/.env
 MULTIHOST_CROSSDC_ENV := \
+	$(VERSIONS_ENV) \
 	--env-file $(PROFILES_DIR)/multihost-crossdc.env \
 	--env-file $(ROOT)/.env
 

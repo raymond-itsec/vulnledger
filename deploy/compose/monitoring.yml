@@ -1,23 +1,321 @@
-# Monitoring tier - empty stub.
+# Monitoring tier - observability stack.
 #
-# This file exists so the per-tier compose split is complete (Make
-# targets and the multihost deploy script can reference it without
-# conditional logic). The observability stack work fills it in with:
+# Runs:
+#   - victoriametrics    Time-series DB; remote-write target for every
+#                        tier's vmagent.
+#   - vmagent (local)    Scrapes monitoring tier's own services.
+#   - vmalert            Evaluates alert rules against VM.
+#   - alertmanager       Routes firing alerts to Slack + deadman receiver.
+#   - grafana            UI / dashboards.
+#   - loki               Log store.
+#   - promtail (local)   Ships monitoring tier's own logs to Loki.
+#   - node-exporter      Host system metrics.
+#   - cadvisor           Per-container metrics.
 #
-#   - VictoriaMetrics (TSDB)
-#   - vmagent (scrapes /api/v1/metrics on backend, plus per-VM
-#              node-exporter + cAdvisor on every tier)
-#   - vmalert + Alertmanager
-#   - Grafana (internal dashboards behind SSO; public statuspage at
-#              /status/ proxied via Caddy)
-#   - Loki + promtail (log aggregation)
+# Network shape:
+#   - In allinone mode (single Docker daemon), every other tier's
+#     vmagent / promtail reach victoriametrics + loki via Docker DNS
+#     across the shared frontend_net bridge.
+#   - In multihost mode (4 hosts), every other tier's vmagent /
+#     promtail reach this tier's services via vl-monitoring.vuln.lan
+#     (resolves to the WG overlay IP in cross-DC mode, to the
+#     provider-private IP in same-DC mode).
 #
-# In multihost mode this file runs on `vl-monitoring` (1 NIC on
-# vlan-wg-underlay only). Scraping reaches every other tier via the
-# WireGuard mesh, so no NICs on vlan-frontend or vlan-backend are
-# needed.
+# Image pins are by tag for the initial bring-up. Digest pinning is
+# tracked at https://github.com/raymond-itsec/vulnledger/issues/79.
 
-services: {}
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
 
-# No volumes or networks declared yet - the observability stack
-# work will add them when it ships.
+services:
+
+  # ---- VictoriaMetrics: TSDB ---------------------------------------
+  victoriametrics:
+    image: victoriametrics/victoria-metrics:${VM_VERSION:?Set VM_VERSION (loaded from deploy/profiles/versions.env)}${VICTORIAMETRICS_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    command:
+      - "--storageDataPath=/storage"
+      - "--retentionPeriod=${VM_RETENTION_MONTHS:-12}"
+      - "--httpListenAddr=:8428"
+      - "--maxLabelsPerTimeseries=40"
+      - "--search.maxQueryLen=16KB"
+    ports:
+      # Host-bind. In allinone the default 127.0.0.1 is correct (other
+      # tiers reach VM via Docker DNS on frontend_net, no host port
+      # needed). In multihost the env profile MUST override this to
+      # the monitoring host's private / WG-overlay IP so vmagents on
+      # vl-edge / vl-app / vl-data can push at vl-monitoring.vuln.lan:8428.
+      - "${VM_PORT_BIND:-127.0.0.1:8428}:8428"
+    volumes:
+      - vm_data:/storage
+    networks:
+      - monitoring_net
+      - frontend_net   # vmagents on other tiers reach via this in allinone
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:8428/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- vmalert: rule evaluator -------------------------------------
+  vmalert:
+    image: victoriametrics/vmalert:${VM_VERSION}${VMALERT_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    command:
+      - "--datasource.url=http://victoriametrics:8428"
+      - "--remoteWrite.url=http://victoriametrics:8428"
+      - "--notifier.url=http://alertmanager:9093"
+      - "--rule=/etc/vmalert/rules/*.yml"
+      - "--evaluationInterval=30s"
+      - "--httpListenAddr=:8880"
+    ports:
+      # vmalert UI on host port 8881 (not 8880) to avoid collision
+      # with caddy in allinone (CADDY_HTTP_PORT=8880). The container
+      # listens on :8880; only the host-side mapping is shifted.
+      - "${VMALERT_PORT_BIND:-127.0.0.1:8881}:8880"
+    volumes:
+      - ../../monitoring/vmalert/rules:/etc/vmalert/rules:ro
+    networks:
+      - monitoring_net
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+
+  # ---- vmagent (monitoring tier's own scraper) ---------------------
+  vmagent-monitoring:
+    image: victoriametrics/vmagent:${VM_VERSION}${VMAGENT_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    command:
+      - "--promscrape.config=/etc/vmagent/scrape.yml"
+      - "--remoteWrite.url=${VM_REMOTE_WRITE_URL:-http://victoriametrics:8428/api/v1/write}"
+      - "--remoteWrite.tmpDataPath=/vmagent-buffer"
+      - "--httpListenAddr=:8429"
+    volumes:
+      - ../../monitoring/vmagent/scrape-monitoring.yml:/etc/vmagent/scrape.yml:ro
+      - vmagent_monitoring_buffer:/vmagent-buffer
+    networks:
+      - monitoring_net
+    depends_on:
+      victoriametrics:
+        condition: service_healthy
+
+  # ---- Alertmanager -------------------------------------------------
+  alertmanager:
+    image: prom/alertmanager:${ALERTMANAGER_VERSION:?Set ALERTMANAGER_VERSION (loaded from deploy/profiles/versions.env)}${ALERTMANAGER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command:
+      - "--config.file=/etc/alertmanager/config.yml"
+      - "--storage.path=/alertmanager"
+      - "--web.listen-address=:9093"
+      - "--cluster.listen-address="    # disable HA gossip; we run single-node
+    environment:
+      ALERTMANAGER_SLACK_WEBHOOK_URL: ${ALERTMANAGER_SLACK_WEBHOOK_URL:-}
+      ALERTMANAGER_DEADMAN_WEBHOOK_URL: ${ALERTMANAGER_DEADMAN_WEBHOOK_URL:-}
+    ports:
+      - "${ALERTMANAGER_PORT_BIND:-127.0.0.1:9093}:9093"
+    volumes:
+      - ../../monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager_data:/alertmanager
+    networks:
+      - monitoring_net
+
+  # ---- Grafana ------------------------------------------------------
+  grafana:
+    image: grafana/grafana:${GRAFANA_VERSION:?Set GRAFANA_VERSION (loaded from deploy/profiles/versions.env)}${GRAFANA_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "0.5"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_SERVER_ROOT_URL: ${GRAFANA_ROOT_URL:-http://localhost:8880/grafana/}
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
+      GF_USERS_ALLOW_SIGN_UP: "false"
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    ports:
+      # Grafana not host-exposed in allinone (caddy reverse-proxies
+      # /grafana/ via frontend_net). Operators can override for
+      # multihost or direct dev access.
+      - "${GRAFANA_PORT_BIND:-127.0.0.1:3000}:3000"
+    volumes:
+      - ../../monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../../monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring_net
+      - frontend_net   # caddy reverse-proxies /grafana/ in allinone
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3000/api/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- Loki ---------------------------------------------------------
+  loki:
+    image: grafana/loki:${LOKI_VERSION:?Set LOKI_VERSION (loaded from deploy/profiles/versions.env)}${LOKI_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: "1.0"
+    command: -config.file=/etc/loki/config.yml
+    ports:
+      # See VM_PORT_BIND comment - same multihost rule applies. In
+      # allinone, promtails on other tiers reach Loki via Docker DNS.
+      - "${LOKI_PORT_BIND:-127.0.0.1:3100}:3100"
+    volumes:
+      - ../../monitoring/loki/config.yml:/etc/loki/config.yml:ro
+      - loki_data:/var/loki
+    networks:
+      - monitoring_net
+      - frontend_net   # promtails on other tiers push via this in allinone
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://localhost:3100/ready"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+
+  # ---- promtail (monitoring tier's own log shipper) ----------------
+  promtail-monitoring:
+    image: grafana/promtail:${LOKI_VERSION}${PROMTAIL_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    environment:
+      LOKI_PUSH_URL: ${LOKI_PUSH_URL:-http://loki:3100/loki/api/v1/push}
+      PROMTAIL_HOST: vl-monitoring
+      PROMTAIL_TIER: monitoring
+    volumes:
+      - ../../monitoring/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - monitoring_net
+    depends_on:
+      loki:
+        condition: service_healthy
+
+  # ---- node-exporter (monitoring host's system metrics) ------------
+  node-exporter-monitoring:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    networks:
+      - monitoring_net
+    pid: host
+
+  # ---- cAdvisor (monitoring host's container metrics) --------------
+  cadvisor-monitoring:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    privileged: true       # cAdvisor needs broad cgroup + namespace access
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - monitoring_net
+
+volumes:
+  vm_data:
+  vmagent_monitoring_buffer:
+  alertmanager_data:
+  grafana_data:
+  loki_data:
+
+networks:
+  # monitoring_net: intra-tier traffic between observability components.
+  # Stays on the monitoring host in multihost mode.
+  monitoring_net:
+    name: vulnledger_monitoring_net
+
+  # frontend_net: shared with edge tier so caddy can reverse-proxy
+  # /grafana/ in allinone. Also lets vmagents/promtails on other
+  # tiers reach VM/Loki via this network in allinone.
+  frontend_net:
+    name: vulnledger_frontend_net

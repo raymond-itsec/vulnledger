@@ -67,4 +67,18 @@ if [ "$DELETED" -gt 0 ]; then
     echo "[$(date)] Pruned $DELETED backup(s) older than $RETENTION_DAYS days"
 fi
 
+# Drop a textfile-collector metric so node-exporter on the data tier
+# surfaces backup freshness via vmagent. We expose the unix timestamp
+# of the most recent successful backup; PromQL derives age via
+# `time() - vl_backup_latest_timestamp_seconds`. Atomic rename so a
+# concurrent node-exporter scrape never reads a partial write.
+TEXTFILE_DIR="${TEXTFILE_COLLECTOR_DIR:-/var/lib/node-exporter/textfile}"
+if [ -d "$TEXTFILE_DIR" ]; then
+    NOW_EPOCH=$(date +%s)
+    TMP_FILE=$(mktemp "$TEXTFILE_DIR/backup.prom.XXXXXX")
+    printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds %s\n' "$NOW_EPOCH" > "$TMP_FILE"
+    mv -f "$TMP_FILE" "$TEXTFILE_DIR/backup.prom"
+    chmod 0644 "$TEXTFILE_DIR/backup.prom"
+fi
+
 echo "[$(date)] Backup complete."

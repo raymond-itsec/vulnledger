@@ -1,0 +1,36 @@
+# vmagent scrape config for the EDGE tier.
+#
+# Targets reachable on this host:
+#   - caddy admin endpoint (Caddy's built-in /metrics on :2019)
+#   - node-exporter sidecar (host system metrics on :9100)
+#   - cadvisor sidecar (per-container metrics on :8080)
+#
+# Remote-writes to VictoriaMetrics on the monitoring tier; URL comes
+# from the env-driven VM_REMOTE_WRITE_URL.
+
+global:
+  scrape_interval: 30s
+  scrape_timeout: 10s
+  external_labels:
+    host: vl-edge
+    tier: edge
+
+scrape_configs:
+  - job_name: caddy
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['caddy:2019']
+        labels:
+          service: caddy
+
+  - job_name: node-exporter
+    static_configs:
+      - targets: ['node-exporter:9100']
+        labels:
+          service: node-exporter
+
+  - job_name: cadvisor
+    static_configs:
+      - targets: ['cadvisor:8080']
+        labels:
+          service: cadvisor

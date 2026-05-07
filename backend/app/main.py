@@ -25,6 +25,7 @@ from app.middleware.metrics import (
     CONTENT_TYPE_LATEST,
     HTTP_ERRORS_TOTAL,
     MetricsMiddleware,
+    collect_clamav_metrics,
     collect_pool_metrics,
     init_app_info,
     render_metrics,
@@ -497,6 +498,7 @@ async def metrics_endpoint(
     # counters/histograms are updated by middleware/handlers throughout
     # the request lifecycle and are already current.
     collect_pool_metrics()
+    collect_clamav_metrics()
     await collect_business_metrics(db)
 
     return Response(content=render_metrics(), media_type=CONTENT_TYPE_LATEST)

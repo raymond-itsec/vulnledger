@@ -87,9 +87,112 @@ services:
       retries: 3
       start_period: 10s
 
+  # ---- Observability sidecars (edge tier) --------------------------
+  # Pattern repeats across every tier: vmagent (metrics scraper),
+  # promtail (log shipper), node-exporter (host metrics), cadvisor
+  # (container metrics). Per-host vmagent so each tier buffers its
+  # own metrics across a transient cross-DC link blip; remoteWrite
+  # disk usage capped at 1GB/URL so a long monitoring-tier outage
+  # never fills the host's disk.
+
+  vmagent-edge:
+    image: victoriametrics/vmagent:${VM_VERSION:?Set VM_VERSION (loaded from deploy/profiles/versions.env)}${VMAGENT_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    command:
+      - "--promscrape.config=/etc/vmagent/scrape.yml"
+      - "--remoteWrite.url=${VM_REMOTE_WRITE_URL:?Set VM_REMOTE_WRITE_URL in env profile}"
+      - "--remoteWrite.tmpDataPath=/vmagent-buffer"
+      - "--remoteWrite.maxDiskUsagePerURL=1GB"
+      - "--httpListenAddr=:8429"
+    volumes:
+      - ../../monitoring/vmagent/scrape-edge.yml:/etc/vmagent/scrape.yml:ro
+      - vmagent_edge_buffer:/vmagent-buffer
+    networks:
+      - frontend_net   # scrape caddy:2019 here AND reach victoriametrics in allinone
+
+  promtail-edge:
+    image: grafana/promtail:${LOKI_VERSION:?Set LOKI_VERSION (loaded from deploy/profiles/versions.env)}${PROMTAIL_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    environment:
+      LOKI_PUSH_URL: ${LOKI_PUSH_URL:?Set LOKI_PUSH_URL in env profile}
+      PROMTAIL_HOST: vl-edge
+      PROMTAIL_TIER: edge
+    volumes:
+      - ../../monitoring/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - frontend_net   # reach loki here in allinone
+
+  node-exporter-edge:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+    networks:
+      - frontend_net   # vmagent-edge scrapes here
+    pid: host
+
+  cadvisor-edge:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    privileged: true
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - frontend_net   # vmagent-edge scrapes here
+
 volumes:
   caddy_data:
   caddy_config:
+  vmagent_edge_buffer:
 
 networks:
   # Each tier file declares the networks it uses with a stable

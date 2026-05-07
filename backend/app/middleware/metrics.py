@@ -121,6 +121,40 @@ REPORT_EXPORTS_COUNT = Gauge(
 )
 
 # ---------------------------------------------------------------------
+# ClamAV reachability (refreshed on each scrape; cheap PING over TCP)
+# ---------------------------------------------------------------------
+
+CLAMAV_UP = Gauge(
+    "vl_clamav_up",
+    "1 if the ClamAV daemon answered PING on the last scrape, 0 otherwise. "
+    "Reads 0 when ClamAV is configured but unreachable; absent when not configured.",
+)
+
+
+def collect_clamav_metrics() -> None:
+    """Update vl_clamav_up by probing the ClamAV daemon.
+
+    Called from the /metrics handler on every scrape. probe_scanner()
+    catches all exceptions internally and returns a state string, so a
+    ClamAV outage cannot break the scrape.
+
+    "disabled" leaves the gauge unset (absent in the scrape output) so
+    operators can distinguish "not configured" from "configured + down"
+    via PromQL `absent(vl_clamav_up)` vs `vl_clamav_up == 0`.
+    """
+    # Local import: services.antivirus pulls in app config which
+    # imports a chain that ends back at metrics during startup.
+    from app.services.antivirus import probe_scanner
+
+    state, _detail = probe_scanner()
+    if state == "ok":
+        CLAMAV_UP.set(1)
+    elif state == "down":
+        CLAMAV_UP.set(0)
+    # "disabled" -> leave unset; absent metric is the signal.
+
+
+# ---------------------------------------------------------------------
 # App info (set once at module load; always reads as 1)
 # ---------------------------------------------------------------------
 
@@ -226,5 +260,6 @@ __all__ = [
     "HTTP_ERRORS_TOTAL",
     "init_app_info",
     "collect_pool_metrics",
+    "collect_clamav_metrics",
     "render_metrics",
 ]

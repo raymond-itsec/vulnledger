@@ -185,14 +185,144 @@ services:
     volumes:
       - backups:/backups
       - ../../secrets:/run/secrets:ro
+      # Shared with node-exporter-data so the backup script can drop
+      # `vl_backup_latest_age_seconds N` here after each successful run.
+      # node-exporter's textfile collector picks the file up and surfaces
+      # the metric under its own scrape, which vmagent-data ships to VM.
+      # Cross-tier signal without a TCP path between data and monitoring.
+      - node_exporter_textfile:/var/lib/node-exporter/textfile
     networks:
       - data_internal_net    # talks to db here intra-tier
+
+  # ---- Observability sidecars (data tier) --------------------------
+  # See edge.yml header for the per-host vmagent + bounded buffer rationale.
+  # Data tier additionally runs postgres-exporter (DB-internal metrics) and
+  # shares a textfile-collector volume with the backup container so backup
+  # freshness flows through node-exporter into VM.
+
+  vmagent-data:
+    image: victoriametrics/vmagent:${VM_VERSION:?Set VM_VERSION (loaded from deploy/profiles/versions.env)}${VMAGENT_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    command:
+      - "--promscrape.config=/etc/vmagent/scrape.yml"
+      - "--remoteWrite.url=${VM_REMOTE_WRITE_URL:?Set VM_REMOTE_WRITE_URL in env profile}"
+      - "--remoteWrite.tmpDataPath=/vmagent-buffer"
+      - "--remoteWrite.maxDiskUsagePerURL=1GB"
+      - "--httpListenAddr=:8429"
+    volumes:
+      - ../../monitoring/vmagent/scrape-data.yml:/etc/vmagent/scrape.yml:ro
+      - vmagent_data_buffer:/vmagent-buffer
+    networks:
+      - data_internal_net   # scrape postgres-exporter here
+      - frontend_net        # reach VM in allinone
+
+  promtail-data:
+    image: grafana/promtail:${LOKI_VERSION:?Set LOKI_VERSION (loaded from deploy/profiles/versions.env)}${PROMTAIL_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command: -config.file=/etc/promtail/config.yml -config.expand-env=true
+    environment:
+      LOKI_PUSH_URL: ${LOKI_PUSH_URL:?Set LOKI_PUSH_URL in env profile}
+      PROMTAIL_HOST: vl-data
+      PROMTAIL_TIER: data
+    volumes:
+      - ../../monitoring/promtail/config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    networks:
+      - frontend_net
+
+  node-exporter-data:
+    image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    command:
+      - "--path.procfs=/host/proc"
+      - "--path.sysfs=/host/sys"
+      - "--path.rootfs=/rootfs"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
+      - "--collector.textfile.directory=/var/lib/node-exporter/textfile"
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro,rslave
+      - node_exporter_textfile:/var/lib/node-exporter/textfile:ro
+    networks:
+      - data_internal_net
+    pid: host
+
+  cadvisor-data:
+    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION:?Set CADVISOR_VERSION (loaded from deploy/profiles/versions.env)}${CADVISOR_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "0.5"
+    privileged: true
+    command:
+      - "--housekeeping_interval=30s"
+      - "--docker_only=true"
+      - "--store_container_labels=false"
+      - "--whitelisted_container_labels=com.docker.compose.project,com.docker.compose.service"
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk/:/dev/disk:ro
+    networks:
+      - data_internal_net
+
+  postgres-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:${POSTGRES_EXPORTER_VERSION:?Set POSTGRES_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${POSTGRES_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    environment:
+      DATA_SOURCE_NAME: "postgresql://${POSTGRES_USER:-findings}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-findings}?sslmode=disable"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - data_internal_net   # connects to db; vmagent-data scrapes here
 
 volumes:
   pgdata:
   seaweedfs_data:
   backups:
   clamav_data:
+  vmagent_data_buffer:
+  node_exporter_textfile:
 
 networks:
   # Each tier file declares the networks it uses with a stable

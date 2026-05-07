@@ -1,0 +1,69 @@
+# Backup freshness alert.
+#
+# The backup container writes a textfile-collector metric file at
+# /var/lib/node-exporter/textfile/backup.prom every successful run.
+# node-exporter on the data tier exposes that file's contents as
+# `vl_backup_latest_timestamp_seconds` (unix epoch of the latest
+# successful backup). Age is derived in PromQL via
+# `time() - vl_backup_latest_timestamp_seconds` so the metric stays
+# accurate even between writes (a static `_age_seconds` would go
+# stale the moment it was written).
+#
+# Alert fires when the most recent backup is older than 26 hours.
+# Default backup cron is daily at 02:00, so a healthy stack always
+# has age < 24h. 26h gives a 2h grace window for "ran a few minutes
+# late" and "backup itself took 30 min" without false-positives.
+#
+# The metric is *also* missing entirely if the backup container has
+# never run (no file created). vmalert's `absent()` covers that case
+# with a separate alert that fires if the metric stops being scraped.
+#
+# Closes the gap captured in `memory/observability_gap.md` - the
+# 7-day silent backup outage prompted this rule.
+
+groups:
+  - name: backup
+    interval: 1m
+    rules:
+      - alert: BackupTooOld
+        expr: (time() - vl_backup_latest_timestamp_seconds) > 26 * 3600
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Backup is older than 26 hours (current age: {{ $value | humanizeDuration }})"
+          description: |
+            The most recent VulnLedger Postgres backup is older than 26 hours.
+            Default cron runs daily at 02:00 with a 2-hour grace window; 26h+
+            means the backup container is failing or not running.
+
+            Check:
+              docker compose ps backup
+              docker compose logs backup --tail=50
+
+            File expected at /backups/findings_*.sql.gz.enc (production)
+            or /backups/findings_*.sql.gz (development).
+
+      - alert: BackupMetricMissing
+        expr: absent(vl_backup_latest_timestamp_seconds)
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Backup-age metric is missing (textfile collector not emitting)"
+          description: |
+            The vl_backup_latest_timestamp_seconds metric is missing entirely.
+            This means either:
+              1. The backup container has never run (fresh deploy not yet
+                 hit its first cron), OR
+              2. The textfile-collector volume mount is broken (backup
+                 container can't write the .prom file, or node-exporter
+                 can't read it), OR
+              3. node-exporter on the data tier is down (in which case
+                 BackupTooOld fires too).
+
+            Check:
+              docker compose exec backup ls -la /var/lib/node-exporter/textfile/
+              docker compose logs node-exporter --tail=30
