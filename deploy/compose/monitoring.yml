@@ -126,6 +126,25 @@ services:
       victoriametrics:
         condition: service_started
 
+  # ---- Alertmanager init: envsubst the config template -------------
+  # Alertmanager v0.32 does not expand ${VAR} in its config natively
+  # (the literal string lands in URL fields and the parser rejects
+  # the empty scheme). nginx:alpine ships envsubst (gettext-tiny);
+  # render the template into a shared volume that alertmanager mounts
+  # read-only.
+  alertmanager-init:
+    image: nginx:1.27-alpine
+    restart: "no"
+    logging: *default-logging
+    user: "0:0"
+    entrypoint: ["/bin/sh", "-c", "envsubst < /tmpl/config.yml.tmpl > /rendered/config.yml && chmod 0644 /rendered/config.yml"]
+    environment:
+      ALERTMANAGER_SLACK_WEBHOOK_URL: ${ALERTMANAGER_SLACK_WEBHOOK_URL:?Set ALERTMANAGER_SLACK_WEBHOOK_URL (or use the disabled.invalid default in env profiles)}
+      ALERTMANAGER_DEADMAN_WEBHOOK_URL: ${ALERTMANAGER_DEADMAN_WEBHOOK_URL:?Set ALERTMANAGER_DEADMAN_WEBHOOK_URL (or use the disabled.invalid default in env profiles)}
+    volumes:
+      - ../../monitoring/alertmanager/config.yml.tmpl:/tmpl/config.yml.tmpl:ro
+      - alertmanager_rendered:/rendered
+
   # ---- Alertmanager -------------------------------------------------
   alertmanager:
     image: prom/alertmanager:${ALERTMANAGER_VERSION:?Set ALERTMANAGER_VERSION (loaded from deploy/profiles/versions.env)}${ALERTMANAGER_IMAGE_DIGEST:-}
@@ -143,16 +162,16 @@ services:
       - "--storage.path=/alertmanager"
       - "--web.listen-address=:9093"
       - "--cluster.listen-address="    # disable HA gossip; we run single-node
-    environment:
-      ALERTMANAGER_SLACK_WEBHOOK_URL: ${ALERTMANAGER_SLACK_WEBHOOK_URL:-}
-      ALERTMANAGER_DEADMAN_WEBHOOK_URL: ${ALERTMANAGER_DEADMAN_WEBHOOK_URL:-}
     ports:
       - "${ALERTMANAGER_PORT_BIND:-127.0.0.1:9093}:9093"
     volumes:
-      - ../../monitoring/alertmanager/config.yml:/etc/alertmanager/config.yml:ro
+      - alertmanager_rendered:/etc/alertmanager:ro
       - alertmanager_data:/alertmanager
     networks:
       - monitoring_net
+    depends_on:
+      alertmanager-init:
+        condition: service_completed_successfully
 
   # ---- Grafana ------------------------------------------------------
   grafana:
@@ -318,6 +337,7 @@ volumes:
   vm_data:
   vmagent_monitoring_buffer:
   alertmanager_data:
+  alertmanager_rendered:
   grafana_data:
   loki_data:
 
