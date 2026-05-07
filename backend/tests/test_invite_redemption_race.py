@@ -46,7 +46,6 @@ async def test_concurrent_resolve_with_lock_serializes_at_invite_row(test_engine
                 invite_id=invite_id,
                 code=code,
                 email=email,
-                role="reviewer",
                 expires_at=datetime.now(timezone.utc) + timedelta(days=1),
             )
         )
