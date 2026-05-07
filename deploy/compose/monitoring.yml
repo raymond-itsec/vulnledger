@@ -286,6 +286,10 @@ services:
   # ---- node-exporter (monitoring host's system metrics) ------------
   node-exporter-monitoring:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    # Hostname feeds into node_uname_info{nodename=...}, used by
+    # Grafana dashboard 1860 for the $node picker. Without this,
+    # uname -n returns the random Docker container ID.
+    hostname: vl-monitoring
     restart: unless-stopped
     logging: *default-logging
     cap_drop: ["ALL"]

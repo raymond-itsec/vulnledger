@@ -268,6 +268,8 @@ services:
 
   node-exporter-data:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
+    # See edge.yml node-exporter-edge for why hostname is set.
+    hostname: vl-data
     restart: unless-stopped
     logging: *default-logging
     cap_drop: ["ALL"]
