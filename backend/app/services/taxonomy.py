@@ -1,3 +1,4 @@
+import logging
 from collections import defaultdict
 from dataclasses import dataclass
 
@@ -8,6 +9,8 @@ from sqlalchemy.orm import joinedload
 
 from app.database import async_session
 from app.models.taxonomy import TaxonomyEntry, TaxonomyVersion
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_TAXONOMY = {
     "risk_level": [
@@ -182,7 +185,18 @@ async def ensure_default_taxonomy_version() -> None:
             is_current=True,
         )
         db.add(version)
-        await db.flush()
+        try:
+            await db.flush()
+        except IntegrityError:
+            # Boot race: a sibling backend container committed the
+            # default taxonomy version_number=1 between our existence
+            # check and our flush. Rollback and exit - the winner did
+            # the seeding.
+            await db.rollback()
+            logger.info(
+                "Default taxonomy seed lost to a concurrent boot (another instance won); continuing"
+            )
+            return
 
         for domain, entries in DEFAULT_TAXONOMY.items():
             for entry in entries:
@@ -198,7 +212,15 @@ async def ensure_default_taxonomy_version() -> None:
                     )
                 )
 
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError:
+            # Same boot race, caught at commit instead of flush (less
+            # likely after the flush above succeeded but defensive).
+            await db.rollback()
+            logger.info(
+                "Default taxonomy seed lost to a concurrent boot at commit; continuing"
+            )
 
 
 def _validate_domains_payload(domains: dict[str, list]) -> None:

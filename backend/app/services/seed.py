@@ -3,6 +3,7 @@ from pathlib import Path
 
 import yaml
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.database import async_session
 from app.config import settings
@@ -44,8 +45,18 @@ async def seed_admin_user() -> None:
             is_active=True,
         )
         db.add(admin)
-        await db.commit()
-        logger.info("Seeded initial admin user: %s", username)
+        try:
+            await db.commit()
+            logger.info("Seeded initial admin user: %s", username)
+        except IntegrityError:
+            # Boot race: a sibling backend container committed the seed
+            # between our existence check and our insert. The unique
+            # constraint on `username` (or `email`) rejects us. Rollback
+            # and treat as success - the winner already did the work.
+            await db.rollback()
+            logger.info(
+                "Initial admin seed lost to a concurrent boot (another instance won); continuing"
+            )
 
 
 async def sync_builtin_templates() -> None:
@@ -106,7 +117,18 @@ async def sync_builtin_templates() -> None:
                 db.add(template)
                 count_new += 1
 
-        await db.commit()
-        logger.info(
-            "Template sync complete: %d new, %d updated", count_new, count_updated
-        )
+        try:
+            await db.commit()
+            logger.info(
+                "Template sync complete: %d new, %d updated", count_new, count_updated
+            )
+        except IntegrityError:
+            # Boot race: a sibling backend container committed the same
+            # builtin templates between our per-template existence checks
+            # and this commit. The unique constraint on `stable_id`
+            # rejects the loser. Rollback and treat as success - the
+            # winner already wrote everything.
+            await db.rollback()
+            logger.info(
+                "Builtin template sync lost to a concurrent boot (another instance won); continuing"
+            )
