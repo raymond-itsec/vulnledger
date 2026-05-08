@@ -29,6 +29,22 @@
 {$CADDY_HOST:http://localhost} {
 	encode gzip
 
+	# Access logs in JSON, written to stdout so promtail picks them up
+	# alongside the rest of the stack's logs. Static assets are filtered
+	# out via log_skip so a single SPA cold-load (~50 requests for JS /
+	# CSS / fonts / images) doesn't drown signal. log_skip suppresses
+	# log emission only - the request still flows and the response
+	# status is unaffected.
+	@static_assets {
+		path /_app/* /assets/* /favicon.ico /robots.txt
+		path *.js *.css *.map *.svg *.png *.jpg *.jpeg *.gif *.ico *.webp *.woff *.woff2 *.ttf *.eot
+	}
+	log {
+		output stdout
+		format json
+	}
+	log_skip @static_assets
+
 	# Baseline edge hardening headers.
 	header {
 		# Server header override lives inside the reverse_proxy / handle
