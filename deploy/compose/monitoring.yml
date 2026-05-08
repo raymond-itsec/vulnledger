@@ -180,11 +180,15 @@ services:
     logging: *default-logging
     cap_drop: ["ALL"]
     security_opt: ["no-new-privileges:true"]
+    # 512 MiB was OOM-killing Grafana when heavy dashboards (1860 Node
+    # Exporter Full, 14282 cAdvisor) ran their query+render cycles
+    # against VM. 1 GiB matches the SeaweedFS bump from earlier today
+    # and gives Grafana headroom for the 30s panel-refresh storm.
     deploy:
       resources:
         limits:
-          memory: 512M
-          cpus: "0.5"
+          memory: 1G
+          cpus: "1.0"
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
       GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
