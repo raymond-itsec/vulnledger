@@ -90,6 +90,38 @@ For trending, alerting, and 1-year retention, the planned stack is:
 
 Set this up as part of moving to the multi-host topology described in [Deployment](deployment.md).
 
+### Deploy workflow & config refresh
+
+> **Applies to v0.3.0 and later.** Earlier releases used a single root `docker-compose.yml` without the per-tier Makefile; operators on those versions need the manual `docker compose up -d --force-recreate <service>` workaround described in the last paragraph of this section.
+
+`make allinone-up` (and `make multihost-{samedc,crossdc}-up`) does three things in order:
+
+1. `docker compose up -d --build --remove-orphans` — rebuilds local images on every invocation and creates / updates containers whose configuration changed.
+2. `docker compose up -d --no-deps --force-recreate ...` against a fixed list of services that have **single-file bind mounts** — see below.
+3. `docker kill -s HUP <alertmanager>` — graceful Alertmanager config reload after the rendered config refresh.
+
+The second step exists because of a Docker behaviour that bites silently: when a container has a bind mount of a single file (not a directory), Docker captures the host file's **inode** at container *create* time. Git updates files via rename-replace for atomicity, so after a `git pull` the path on disk points to a new inode while the running container's bind mount remains attached to the old (now-unlinked) inode. The container then serves stale content forever, even though `docker inspect` shows the bind mount as "attached" and the host path as correct.
+
+The services affected (every one bind-mounting a single file managed by git) are listed in the `FILE_MOUNT_SERVICES` variable at the top of `deploy/Makefile`:
+
+- **caddy** → `Caddyfile`
+- **vmagent-{edge,app,data,monitoring}** → `monitoring/vmagent/scrape-<tier>.yml`
+- **alertmanager-init** → `monitoring/alertmanager/config.yml.tmpl`
+- **loki** → `monitoring/loki/config.yml`
+- **promtail-{edge,app,data,monitoring}** → `monitoring/promtail/config.yml`
+
+Directory bind mounts are not affected (vmalert rules, Grafana provisioning, dashboards) — directory mounts re-resolve children automatically. The `Makefile` force-recreate list excludes them.
+
+Cost of the second step: ~10 seconds of recreate time per `make allinone-up`. The trade-off is firmly worth it; without it, edits to any of the listed config files appear to land but silently don't take effect.
+
+If you ever bypass the Makefile and call `docker compose up -d` directly, remember to also run:
+
+```
+docker compose -p vulnledger ... up -d --no-deps --force-recreate caddy vmagent-edge vmagent-app vmagent-data vmagent-monitoring alertmanager-init loki promtail-edge promtail-app promtail-data promtail-monitoring
+```
+
+If you add a new service that bind-mounts a single config file, add it to `FILE_MOUNT_SERVICES` so the same protection applies.
+
 ## Finding templates
 
 The application ships with **25 built-in finding templates** organized by category:
