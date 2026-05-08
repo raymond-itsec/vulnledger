@@ -1,4 +1,4 @@
-FROM caddy:2.11.2-builder-alpine@sha256:113249e07ac54f02da3e395a7150124562af1a3129b0b1498ddbb39f5b3fc430 AS builder
+FROM caddy:2.11.2-builder-alpine@sha256:447587861dcc5e1178e0c7aac0cabdb12ea30f21fc842130de5bc407b27fe634 AS builder
 
 # Pin caddy-ratelimit to a specific commit. Without an explicit tag/commit,
 # xcaddy resolves to the latest at build time - a backdoored release would
