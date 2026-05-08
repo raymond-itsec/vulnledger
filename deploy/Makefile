@@ -87,8 +87,15 @@ allinone-up: ## Bring up all 4 tiers on a single Docker daemon
 	@# propagate. After bringing the stack up, SIGHUP alertmanager so it
 	@# picks up the freshly-rendered config without restarting (preserves
 	@# in-flight alert state).
+	@#
+	@# `--build` makes compose re-evaluate Dockerfiles on every up, so
+	@# local source changes to backend / frontend / caddy / backup land
+	@# automatically. With the layer cache this is a no-op (~1s) when
+	@# nothing changed; when something did change, the rebuilt image's
+	@# new digest triggers an automatic container recreate. Closes the
+	@# "ran make up but the image is stale" footgun.
 	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
-	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --remove-orphans
+	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --build --remove-orphans
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 	@echo "alertmanager: SIGHUP sent (config reloaded from re-rendered template)"
 
@@ -132,7 +139,7 @@ multihost-samedc-up: ## Bring up THIS host's tier in same-DC multihost mode
 	@# applies when bringing up the monitoring tier; harmless no-op on
 	@# the other tiers (the container doesn't exist there).
 	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
-	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --build --remove-orphans
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-samedc-down
@@ -150,7 +157,7 @@ multihost-crossdc-up: ## Bring up THIS host's tier in cross-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
 	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
-	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --build --remove-orphans
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-crossdc-down
