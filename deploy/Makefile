@@ -36,6 +36,26 @@ ALLINONE_FILES := \
 	-f $(COMPOSE_DIR)/edge.yml \
 	-f $(COMPOSE_DIR)/monitoring.yml
 
+# Services with single-file bind mounts. Docker captures the host
+# file's inode at container CREATE time; git updates files via rename-
+# replace, so after a pull the host path points to a new inode while
+# the running container's bind mount stays attached to the old (now-
+# unlinked) one. The container then serves stale content silently
+# until manually recreated. We force-recreate these services on every
+# `up` so a `git pull` always propagates. Caddy hit this 2026-05-08;
+# every service in this list has the same vulnerability.
+#
+# Excluded from this list: backend's .env / docker-compose.yml mounts
+# (reference paths only, never read at runtime) and any service that
+# bind-mounts a directory (directory mounts re-resolve children
+# automatically and don't have the inode-pinning issue).
+FILE_MOUNT_SERVICES := \
+	caddy \
+	vmagent-edge vmagent-app vmagent-data vmagent-monitoring \
+	alertmanager-init \
+	loki \
+	promtail-edge promtail-app promtail-data promtail-monitoring
+
 # Env-file order matters: versions first (image pins; deployment-shape
 # agnostic), then profile, then project .env (operator overrides).
 # Compose's repeated --env-file is supported in Compose v2.21+.
@@ -80,22 +100,23 @@ help:
 .PHONY: allinone-up
 allinone-up: ## Bring up all 4 tiers on a single Docker daemon
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
-	@# Force the alertmanager-init one-shot to re-run so it re-renders
-	@# config.yml.tmpl into the named volume from the current env. Without
-	@# this, Compose treats the completed init container as up-to-date and
-	@# never re-renders, so edits to .env / the template silently don't
-	@# propagate. After bringing the stack up, SIGHUP alertmanager so it
-	@# picks up the freshly-rendered config without restarting (preserves
-	@# in-flight alert state).
-	@#
 	@# `--build` makes compose re-evaluate Dockerfiles on every up, so
 	@# local source changes to backend / frontend / caddy / backup land
 	@# automatically. With the layer cache this is a no-op (~1s) when
 	@# nothing changed; when something did change, the rebuilt image's
-	@# new digest triggers an automatic container recreate. Closes the
-	@# "ran make up but the image is stale" footgun.
-	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
+	@# new digest triggers an automatic container recreate.
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --build --remove-orphans
+	@# Force-recreate services with single-file bind mounts so a recent
+	@# `git pull` (which rename-replaces files, breaking Docker's inode-
+	@# based bind mount) actually propagates. Without this every config
+	@# edit to the Caddyfile / scrape configs / Loki config / promtail
+	@# config / alertmanager template silently keeps serving stale
+	@# content. See FILE_MOUNT_SERVICES comment for the full rationale.
+	@# This also covers the alertmanager-init re-render: recreating it
+	@# re-runs envsubst against the current env vars.
+	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --no-deps --force-recreate $(FILE_MOUNT_SERVICES)
+	@# SIGHUP alertmanager so it picks up the freshly-rendered config
+	@# without losing in-flight alert state.
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 	@echo "alertmanager: SIGHUP sent (config reloaded from re-rendered template)"
 
@@ -138,8 +159,12 @@ multihost-samedc-up: ## Bring up THIS host's tier in same-DC multihost mode
 	@# Same alertmanager-init re-render trick as allinone-up. Only
 	@# applies when bringing up the monitoring tier; harmless no-op on
 	@# the other tiers (the container doesn't exist there).
-	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
 	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --build --remove-orphans
+	@# Force-recreate file-mount services that exist in this tier to
+	@# refresh bind-mount inodes after a git pull. compose ignores
+	@# unknown services in --force-recreate, so passing the full list
+	@# is safe across all four tier files.
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --no-deps --force-recreate $(FILE_MOUNT_SERVICES) 2>/dev/null || true
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-samedc-down
@@ -156,8 +181,8 @@ multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
 multihost-crossdc-up: ## Bring up THIS host's tier in cross-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
-	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
 	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --build --remove-orphans
+	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --no-deps --force-recreate $(FILE_MOUNT_SERVICES) 2>/dev/null || true
 	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-crossdc-down
