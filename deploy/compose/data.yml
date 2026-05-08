@@ -280,8 +280,15 @@ services:
 
   node-exporter-data:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION:?Set NODE_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${NODE_EXPORTER_IMAGE_DIGEST:-}
-    # See edge.yml node-exporter-edge for why this is multihost-only.
-    profiles: ["multihost"]
+    # NOT multihost-only - data tier's node-exporter is the canonical
+    # textfile-collector for vl_backup_latest_timestamp_seconds. The
+    # backup container writes that metric to the shared
+    # node_exporter_textfile volume; only node-exporter-data has that
+    # volume mounted, and BackupTooOld / BackupMetricMissing alerts
+    # depend on it. Profiling this off in allinone breaks backup
+    # freshness monitoring entirely. The duplication cost in allinone
+    # is one extra node-exporter measuring the same host kernel - low.
+    # In multihost this stays on its own VM, no duplication.
     # See edge.yml node-exporter-edge for why hostname is set.
     hostname: vl-data
     restart: unless-stopped

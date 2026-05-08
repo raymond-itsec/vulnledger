@@ -80,7 +80,17 @@ help:
 .PHONY: allinone-up
 allinone-up: ## Bring up all 4 tiers on a single Docker daemon
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
+	@# Force the alertmanager-init one-shot to re-run so it re-renders
+	@# config.yml.tmpl into the named volume from the current env. Without
+	@# this, Compose treats the completed init container as up-to-date and
+	@# never re-renders, so edits to .env / the template silently don't
+	@# propagate. After bringing the stack up, SIGHUP alertmanager so it
+	@# picks up the freshly-rendered config without restarting (preserves
+	@# in-flight alert state).
+	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
 	docker compose -p $(PROJECT) $(ALLINONE_ENV) $(ALLINONE_FILES) up -d --remove-orphans
+	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
+	@echo "alertmanager: SIGHUP sent (config reloaded from re-rendered template)"
 
 .PHONY: allinone-build
 allinone-build: ## Rebuild local images (backend, frontend, caddy, backup)
@@ -118,7 +128,12 @@ logs: ## Tail logs from a service in allinone (usage: make logs SERVICE=backend)
 multihost-samedc-up: ## Bring up THIS host's tier in same-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
+	@# Same alertmanager-init re-render trick as allinone-up. Only
+	@# applies when bringing up the monitoring tier; harmless no-op on
+	@# the other tiers (the container doesn't exist there).
+	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
 	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_SAMEDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-samedc-down
 multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
@@ -134,7 +149,9 @@ multihost-samedc-down: ## Tear down THIS host's tier (same-DC)
 multihost-crossdc-up: ## Bring up THIS host's tier in cross-DC multihost mode
 	@test -n "$(TIER)" || { echo "ERROR: could not detect tier from hostname (expected vl-edge / vl-app / vl-data / vl-monitoring). Pass TIER= explicitly."; exit 1; }
 	@test -f $(ROOT)/.env || { echo "ERROR: $(ROOT)/.env not found. Copy .env.example to .env and fill in secrets."; exit 1; }
+	@docker rm -f $(PROJECT)-alertmanager-init-1 >/dev/null 2>&1 || true
 	docker compose -p $(PROJECT) --profile multihost $(MULTIHOST_CROSSDC_ENV) -f $(COMPOSE_DIR)/$(TIER).yml up -d --remove-orphans
+	@docker kill -s HUP $(PROJECT)-alertmanager-1 >/dev/null 2>&1 || true
 
 .PHONY: multihost-crossdc-down
 multihost-crossdc-down: ## Tear down THIS host's tier (cross-DC)
