@@ -42,7 +42,7 @@ charset-normalizer==3.4.7
     # via requests
 clamd==1.0.2
     # via -r requirements.txt
-click==8.3.3
+click==8.4.0
     # via uvicorn
 cryptography==48.0.0
     # via
