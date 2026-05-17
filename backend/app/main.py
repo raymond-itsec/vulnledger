@@ -34,7 +34,7 @@ from app.middleware.request_id import RequestIDMiddleware
 from app.services.business_metrics import collect_business_metrics
 from app.schemas.error import COMMON_ERROR_RESPONSES, make_error_payload
 from app.services.antivirus import probe_scanner
-from app.services.seed import seed_admin_user, sync_builtin_templates
+from app.services.seed import seed_admin_user, seed_synthetic_user, sync_builtin_templates
 from app.services.storage import (
     EVIDENCE_BUCKET_NAME,
     REPORTS_BUCKET_NAME,
@@ -84,6 +84,7 @@ limiter = Limiter(
 async def lifespan(app: FastAPI):
     await ensure_default_taxonomy_version()
     await seed_admin_user()
+    await seed_synthetic_user()
     await sync_builtin_templates()
     try:
         await asyncio.to_thread(ensure_buckets)

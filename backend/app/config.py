@@ -135,6 +135,13 @@ class Settings(BaseSettings):
     initial_admin_password: str
     initial_admin_email: str
     initial_admin_full_name: str
+    # Synthetic monitoring user. Optional: when all three are set, the
+    # backend seeds a low-privilege `reviewer` account the observability
+    # synthetic-probe logs in as. Left empty (the default) the seed is
+    # skipped and the probe simply reports down.
+    synthetic_user_username: str = ""
+    synthetic_user_password: str = ""
+    synthetic_user_email: str = ""
     clamav_host: str = "clamav"
     clamav_port: int = 3310
     jwt_issuer: str

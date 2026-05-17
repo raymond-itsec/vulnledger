@@ -1,0 +1,110 @@
+# Synthetic probe + blackbox alerts.
+#
+# Two synthetic checks catch failures a liveness probe cannot:
+#   - synthetic-probe (app tier) runs login -> refresh -> logout against
+#     the backend and exports vl_synthetic_auth_* metrics.
+#   - blackbox-exporter (app tier) does GET / against the frontend and
+#     exports probe_success / probe_ssl_earliest_cert_expiry.
+#
+# A liveness probe answers "is the process up"; these answer "does the
+# auth flow actually work" and "does the site actually render".
+
+groups:
+  - name: probe
+    interval: 1m
+    rules:
+      - alert: SyntheticAuthDown
+        expr: vl_synthetic_auth_up == 0
+        for: 10m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Synthetic auth flow has been failing for 10m"
+          description: |
+            The synthetic-probe's login -> refresh -> logout cycle against
+            the backend has failed for over 10 minutes. Users very likely
+            cannot sign in.
+
+            Likely causes:
+              - Backend down or unhealthy (check the backend health alert)
+              - JWT signing key missing or unreadable
+              - Database reachable but rejecting the auth query
+              - Refresh-token rotation regression
+              - Synthetic user missing or disabled
+
+            Check:
+              docker compose logs synthetic-probe --tail=50
+              docker compose logs backend --tail=80
+              curl -fsS http://127.0.0.1:8000/api/v1/health/debug
+
+      - alert: SyntheticAuthProbeMissing
+        expr: absent(vl_synthetic_auth_up)
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Synthetic auth probe metric is missing"
+          description: |
+            vl_synthetic_auth_up is not being scraped at all. Either the
+            synthetic-probe container is not running, or vmagent-app cannot
+            reach it.
+
+            Check:
+              docker compose ps synthetic-probe
+              docker compose logs synthetic-probe --tail=30
+
+      - alert: SyntheticAuthSlow
+        expr: vl_synthetic_auth_flow_duration_seconds > 5
+        for: 15m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Synthetic auth flow is slow ({{ $value | humanizeDuration }})"
+          description: |
+            The full login -> refresh -> logout cycle is taking more than 5
+            seconds. It normally completes in well under 2s. Sustained
+            slowness points at database contention, pool exhaustion, or a
+            saturated backend.
+
+            Check:
+              VictoriaMetrics: vl_db_pool_checked_out, vl_http_request_duration_seconds
+
+      - alert: FrontendSmokeDown
+        expr: probe_success{job="blackbox-http"} == 0
+        for: 10m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Frontend smoke check failing for {{ $labels.instance }}"
+          description: |
+            blackbox-exporter's GET against {{ $labels.instance }} has not
+            returned HTTP 200 with the expected VulnLedger branding token
+            for over 10 minutes. The SPA is down or serving a broken shell.
+
+            Check:
+              docker compose ps frontend
+              docker compose logs frontend --tail=50
+              curl -i http://127.0.0.1:5173/
+
+      - alert: TLSCertExpiringSoon
+        expr: probe_ssl_earliest_cert_expiry - time() < 14 * 86400
+        for: 1h
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "TLS certificate for {{ $labels.instance }} expires in under 14 days"
+          description: |
+            The TLS certificate served at {{ $labels.instance }} expires in
+            less than 14 days. If Caddy auto-TLS is in use it should renew
+            on its own; if it has not, investigate the ACME flow.
+
+            This alert only has data once an HTTPS target is added to the
+            blackbox scrape config (see scrape-app.yml).
+
+            Check:
+              docker compose logs caddy --tail=80

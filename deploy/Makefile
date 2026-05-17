@@ -54,7 +54,8 @@ FILE_MOUNT_SERVICES := \
 	vmagent-edge vmagent-app vmagent-data vmagent-monitoring \
 	alertmanager-init \
 	loki \
-	promtail-edge promtail-app promtail-data promtail-monitoring
+	promtail-edge promtail-app promtail-data promtail-monitoring \
+	blackbox-exporter
 
 # Env-file order matters: versions first (image pins; deployment-shape
 # agnostic), then profile, then project .env (operator overrides).
