@@ -2,6 +2,8 @@
 #
 # Targets reachable on this host:
 #   - backend /api/v1/metrics (the existing 16-metric Prom endpoint)
+#   - synthetic-probe /metrics (synthetic auth-flow result)
+#   - blackbox-exporter (frontend smoke check via the relabel pattern)
 #   - node-exporter sidecar
 #   - cadvisor sidecar
 #
@@ -22,6 +24,38 @@ scrape_configs:
       - targets: ['backend:8000']
         labels:
           service: backend
+
+  - job_name: synthetic-probe
+    static_configs:
+      - targets: ['synthetic-probe:8900']
+        labels:
+          service: synthetic-probe
+
+  # Frontend smoke check via blackbox-exporter. The relabel chain
+  # rewrites the scrape so vmagent hits blackbox-exporter:9115/probe
+  # with ?module=http_2xx&target=<the probed URL>. The probed URL is
+  # the frontend container by local Docker DNS, which resolves on the
+  # app tier in allinone and multihost alike.
+  #
+  # To monitor TLS-certificate expiry once HTTPS fronts prod, add the
+  # public HTTPS URL as a second target here; blackbox then also emits
+  # probe_ssl_earliest_cert_expiry, which TLSCertExpiringSoon consumes.
+  - job_name: blackbox-http
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - http://frontend:5173/
+        labels:
+          service: blackbox
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
 
   - job_name: node-exporter
     static_configs:

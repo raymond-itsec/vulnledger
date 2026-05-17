@@ -1,0 +1,186 @@
+{
+  "uid": "vulnledger-overview",
+  "title": "VulnLedger Overview",
+  "tags": ["vulnledger"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Synthetic auth",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 4, "w": 5, "x": 0, "y": 0 },
+      "targets": [
+        { "refId": "A", "expr": "vl_synthetic_auth_up", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 2,
+      "title": "Frontend smoke",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 4, "w": 5, "x": 5, "y": 0 },
+      "targets": [
+        { "refId": "A", "expr": "min(probe_success{job=\"blackbox-http\"})", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 3,
+      "title": "ClamAV",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 4, "w": 5, "x": 10, "y": 0 },
+      "targets": [
+        { "refId": "A", "expr": "vl_clamav_up", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            { "type": "value", "options": { "0": { "text": "DOWN", "color": "red" }, "1": { "text": "UP", "color": "green" } } }
+          ],
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "red", "value": null }, { "color": "green", "value": 1 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "Backup age (hours)",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 4, "w": 4, "x": 15, "y": 0 },
+      "targets": [
+        { "refId": "A", "expr": "(time() - vl_backup_latest_timestamp_seconds{source=\"backup\"}) / 3600", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "options": { "colorMode": "background", "graphMode": "none", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "h",
+          "decimals": 1,
+          "thresholds": { "mode": "absolute", "steps": [ { "color": "green", "value": null }, { "color": "yellow", "value": 24 }, { "color": "red", "value": 26 } ] }
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "Findings",
+      "type": "stat",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 4, "w": 5, "x": 19, "y": 0 },
+      "targets": [
+        { "refId": "A", "expr": "sum(vl_findings_count)", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "options": { "colorMode": "value", "graphMode": "area", "textMode": "auto", "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "fieldConfig": { "defaults": { "thresholds": { "mode": "absolute", "steps": [ { "color": "blue", "value": null } ] } }, "overrides": [] }
+    },
+    {
+      "id": 6,
+      "title": "HTTP request rate by status",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "targets": [
+        { "refId": "A", "expr": "sum by (status) (rate(vl_http_requests_total[5m]))", "legendFormat": "{{status}}", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 7,
+      "title": "HTTP request latency (p95)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "targets": [
+        { "refId": "A", "expr": "histogram_quantile(0.95, sum by (le) (rate(vl_http_request_duration_seconds_bucket[5m])))", "legendFormat": "p95", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 8,
+      "title": "Database connection pool",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 12 },
+      "targets": [
+        { "refId": "A", "expr": "vl_db_pool_checked_out", "legendFormat": "checked out", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "B", "expr": "vl_db_pool_checked_in", "legendFormat": "checked in", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "C", "expr": "vl_db_pool_size", "legendFormat": "pool size", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 9,
+      "title": "Synthetic auth flow duration",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 12 },
+      "targets": [
+        { "refId": "A", "expr": "vl_synthetic_auth_flow_duration_seconds", "legendFormat": "flow", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "B", "expr": "vl_synthetic_auth_login_duration_seconds", "legendFormat": "login", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "C", "expr": "vl_synthetic_auth_refresh_duration_seconds", "legendFormat": "refresh", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "D", "expr": "vl_synthetic_auth_logout_duration_seconds", "legendFormat": "logout", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 10,
+      "title": "Business entity counts",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 20 },
+      "targets": [
+        { "refId": "A", "expr": "sum(vl_clients_count)", "legendFormat": "clients", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "B", "expr": "sum(vl_assets_count)", "legendFormat": "assets", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "C", "expr": "sum(vl_sessions_count)", "legendFormat": "sessions", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "D", "expr": "sum(vl_users_count)", "legendFormat": "users", "datasource": { "type": "prometheus", "uid": "victoriametrics" } },
+        { "refId": "E", "expr": "sum(vl_attachments_count)", "legendFormat": "attachments", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "short", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    },
+    {
+      "id": 11,
+      "title": "Rate-limited responses (HTTP 429)",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "victoriametrics" },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 20 },
+      "targets": [
+        { "refId": "A", "expr": "sum(rate(vl_http_requests_total{status=\"429\"}[5m]))", "legendFormat": "429/s", "datasource": { "type": "prometheus", "uid": "victoriametrics" } }
+      ],
+      "fieldConfig": { "defaults": { "unit": "reqps", "custom": { "drawStyle": "line", "fillOpacity": 10 } }, "overrides": [] },
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" }, "tooltip": { "mode": "multi" } }
+    }
+  ]
+}

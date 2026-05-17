@@ -67,3 +67,27 @@ groups:
             Check:
               docker compose exec backup ls -la /var/lib/node-exporter/textfile/
               docker compose logs node-exporter --tail=30
+
+      - alert: BackupNotEncrypted
+        expr: vl_backup_encryption_expected{source="backup"} == 1 and vl_backup_latest_encrypted{source="backup"} == 0
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Latest backup is not encrypted on a deployment that expects encryption"
+          description: |
+            This deployment expects encrypted backups (production mode, or
+            BACKUP_ENCRYPTION_REQUIRED=true), but the most recent backup was
+            written in plaintext.
+
+            backup.sh exits before dumping when encryption is required and
+            the passphrase secret is missing, so this is a belt-and-braces
+            posture check. If it fires, the backup container is producing
+            plaintext dumps where encrypted ones are expected.
+
+            Check:
+              docker compose exec backup ls -la /backups/
+              (expect findings_*.sql.gz.enc, not findings_*.sql.gz)
+              docker compose exec backup ls -la /run/secrets/
+              docker compose logs backup --tail=50

@@ -67,11 +67,17 @@ if [ "$DELETED" -gt 0 ]; then
     echo "[$(date)] Pruned $DELETED backup(s) older than $RETENTION_DAYS days"
 fi
 
-# Drop a textfile-collector metric so node-exporter on the data tier
-# surfaces backup freshness via vmagent. We expose the unix timestamp
-# of the most recent successful backup; PromQL derives age via
-# `time() - vl_backup_latest_timestamp_seconds`. Atomic rename so a
-# concurrent node-exporter scrape never reads a partial write.
+# Drop a textfile-collector metric file so node-exporter on the data
+# tier surfaces backup state via vmagent. Three metrics:
+#   - vl_backup_latest_timestamp_seconds: unix epoch of the most recent
+#     successful backup; PromQL derives age via `time() - <metric>`.
+#   - vl_backup_latest_encrypted: 1 if this backup was written
+#     encrypted, 0 if plaintext.
+#   - vl_backup_encryption_expected: 1 if this deployment expects
+#     encrypted backups (production mode or BACKUP_ENCRYPTION_REQUIRED).
+# The BackupNotEncrypted alert fires on `expected == 1 and encrypted == 0`.
+# Atomic rename so a concurrent node-exporter scrape never reads a
+# partial write.
 #
 # Wrapped in `|| ...` so a textfile-volume permission glitch can never
 # kill an otherwise successful backup. The dump is what matters; the
@@ -80,8 +86,14 @@ TEXTFILE_DIR="${TEXTFILE_COLLECTOR_DIR:-/var/lib/node-exporter/textfile}"
 if [ -d "$TEXTFILE_DIR" ]; then
     {
         NOW_EPOCH=$(date +%s)
+        if [ "$ENCRYPT_BACKUP" = "true" ]; then ENC_VAL=1; else ENC_VAL=0; fi
+        if [ "$BACKUP_ENCRYPTION_REQUIRED" = "true" ] || [ "$RUNTIME_MODE" = "production" ]; then
+            ENC_EXPECTED=1
+        else
+            ENC_EXPECTED=0
+        fi
         TMP_FILE=$(mktemp "$TEXTFILE_DIR/backup.prom.XXXXXX") && \
-        printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds{source="backup"} %s\n' "$NOW_EPOCH" > "$TMP_FILE" && \
+        printf '# HELP vl_backup_latest_timestamp_seconds Unix epoch of the most recent successful Postgres backup.\n# TYPE vl_backup_latest_timestamp_seconds gauge\nvl_backup_latest_timestamp_seconds{source="backup"} %s\n# HELP vl_backup_latest_encrypted Whether the most recent backup was written encrypted (1) or plaintext (0).\n# TYPE vl_backup_latest_encrypted gauge\nvl_backup_latest_encrypted{source="backup"} %s\n# HELP vl_backup_encryption_expected Whether this deployment expects encrypted backups (1) or not (0).\n# TYPE vl_backup_encryption_expected gauge\nvl_backup_encryption_expected{source="backup"} %s\n' "$NOW_EPOCH" "$ENC_VAL" "$ENC_EXPECTED" > "$TMP_FILE" && \
         mv -f "$TMP_FILE" "$TEXTFILE_DIR/backup.prom" && \
         chmod 0644 "$TEXTFILE_DIR/backup.prom"
     } || echo "[$(date)] WARN: failed to write textfile metric to $TEXTFILE_DIR (backup itself succeeded)"

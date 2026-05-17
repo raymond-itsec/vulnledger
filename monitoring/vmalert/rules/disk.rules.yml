@@ -1,0 +1,57 @@
+# Host disk-space alerts.
+#
+# The `backups` and `pgdata` Docker named volumes are directories on
+# each host's root filesystem, not separate mounts, so node-exporter
+# reports them as part of the root filesystem (`mountpoint="/"`, the
+# `--path.rootfs` translation). Alerting on the root filesystem
+# therefore covers a filling backups or database volume.
+#
+# In allinone all tiers share one host, so one series fires. In
+# multihost each tier's node-exporter reports its own root filesystem;
+# the `host` external label distinguishes them.
+
+groups:
+  - name: disk
+    interval: 1m
+    rules:
+      - alert: DiskSpaceLow
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          < 0.20
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Root filesystem on {{ $labels.host }} is over 80% full"
+          description: |
+            The root filesystem on host `{{ $labels.host }}` has less than
+            20% free space. The `backups` and `pgdata` volumes live here, so
+            a full disk stops new backups and can crash Postgres.
+
+            Check:
+              docker system df
+              du -sh /var/lib/docker/volumes/* | sort -h | tail
+              docker compose exec backup ls -la /backups/
+
+      - alert: DiskSpaceCritical
+        expr: |
+          node_filesystem_avail_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          / node_filesystem_size_bytes{mountpoint="/",fstype!~"tmpfs|overlay"}
+          < 0.05
+        for: 5m
+        labels:
+          severity: critical
+          team: ops
+        annotations:
+          summary: "Root filesystem on {{ $labels.host }} is over 95% full"
+          description: |
+            The root filesystem on host `{{ $labels.host }}` has less than
+            5% free space. Postgres writes and backups are about to fail (or
+            already are). Free space now: prune old backups, old Docker
+            images, or expand the volume.
+
+            Check:
+              docker system df
+              find /backups -name 'findings_*.sql.gz*' -printf '%T+ %p\n' | sort

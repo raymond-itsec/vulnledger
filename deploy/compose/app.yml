@@ -71,6 +71,12 @@ services:
       FINDINGS_INITIAL_ADMIN_PASSWORD: ${FINDINGS_INITIAL_ADMIN_PASSWORD:?Set FINDINGS_INITIAL_ADMIN_PASSWORD in .env}
       FINDINGS_INITIAL_ADMIN_EMAIL: ${FINDINGS_INITIAL_ADMIN_EMAIL:?Set FINDINGS_INITIAL_ADMIN_EMAIL in .env}
       FINDINGS_INITIAL_ADMIN_FULL_NAME: ${FINDINGS_INITIAL_ADMIN_FULL_NAME:?Set FINDINGS_INITIAL_ADMIN_FULL_NAME in .env}
+      # Synthetic monitoring user. Optional: when all three are set the
+      # backend seeds a low-privilege reviewer account the synthetic-probe
+      # logs in as. Unset -> seed skipped, probe reports down.
+      FINDINGS_SYNTHETIC_USER_USERNAME: ${FINDINGS_SYNTHETIC_USER_USERNAME:-}
+      FINDINGS_SYNTHETIC_USER_PASSWORD: ${FINDINGS_SYNTHETIC_USER_PASSWORD:-}
+      FINDINGS_SYNTHETIC_USER_EMAIL: ${FINDINGS_SYNTHETIC_USER_EMAIL:-}
       FINDINGS_APP_VERSION: ${APP_VERSION}
       FINDINGS_CLAMAV_HOST: ${FINDINGS_CLAMAV_HOST:-clamav}
       FINDINGS_CLAMAV_PORT: ${FINDINGS_CLAMAV_PORT:-3310}
@@ -242,6 +248,55 @@ services:
       - /dev/disk/:/dev/disk:ro
     networks:
       - frontend_net
+
+  # Synthetic auth-flow probe. Loops login -> refresh -> logout against
+  # the backend and exposes the result on :8900/metrics. Lives on the
+  # app tier so `backend` resolves by local Docker DNS in allinone,
+  # samedc, and crossdc alike. No `profiles:` key - runs in every mode.
+  # Scraped by vmagent-app (see scrape-app.yml).
+  synthetic-probe:
+    build:
+      context: ../../monitoring/synthetic-probe
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+          cpus: "0.25"
+    environment:
+      PROBE_TARGET_URL: ${PROBE_TARGET_URL:-http://backend:8000}
+      PROBE_USERNAME: ${FINDINGS_SYNTHETIC_USER_USERNAME:-}
+      PROBE_PASSWORD: ${FINDINGS_SYNTHETIC_USER_PASSWORD:-}
+      PROBE_INTERVAL: ${PROBE_INTERVAL:-300}
+    networks:
+      - frontend_net   # reach backend:8000 on the app tier's daemon
+
+  # blackbox-exporter for the frontend smoke check (and TLS-expiry once
+  # HTTPS fronts prod). Lives on the app tier so it probes the frontend
+  # container by local Docker DNS (`frontend:5173`) in allinone, samedc,
+  # and crossdc alike - the frontend is always co-located with this
+  # tier. No `profiles:` key - runs in every mode. Scraped by
+  # vmagent-app via the relabel pattern in scrape-app.yml.
+  blackbox-exporter:
+    image: prom/blackbox-exporter:${BLACKBOX_EXPORTER_VERSION:?Set BLACKBOX_EXPORTER_VERSION (loaded from deploy/profiles/versions.env)}${BLACKBOX_EXPORTER_IMAGE_DIGEST:-}
+    restart: unless-stopped
+    logging: *default-logging
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]
+    deploy:
+      resources:
+        limits:
+          memory: 64M
+          cpus: "0.25"
+    command:
+      - "--config.file=/etc/blackbox_exporter/config.yml"
+    volumes:
+      - ../../monitoring/blackbox/config.yml:/etc/blackbox_exporter/config.yml:ro
+    networks:
+      - frontend_net   # probe frontend:5173 on the app tier's daemon
 
 volumes:
   vmagent_app_buffer:

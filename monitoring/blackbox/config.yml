@@ -1,0 +1,24 @@
+# blackbox-exporter modules for VulnLedger synthetic checks.
+#
+# `http_2xx` is used for the frontend smoke check: GET / must return
+# 200 and the response body must contain the "VulnLedger" branding
+# token. A 200 with the token missing means the SPA shell loaded but
+# the build or asset pipeline is broken.
+#
+# The same module works against an HTTPS endpoint, in which case
+# blackbox additionally emits `probe_ssl_earliest_cert_expiry`, which
+# the TLSCertExpiringSoon alert consumes. Until HTTPS fronts prod
+# there is simply no such target and the alert never fires.
+
+modules:
+  http_2xx:
+    prober: http
+    timeout: 5s
+    http:
+      method: GET
+      valid_status_codes: [200]
+      valid_http_versions: ["HTTP/1.1", "HTTP/2.0"]
+      fail_if_body_not_matches_regexp:
+        - "VulnLedger"
+      preferred_ip_protocol: ip4
+      ip_protocol_fallback: false

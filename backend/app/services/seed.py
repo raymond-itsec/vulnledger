@@ -3,6 +3,7 @@ from pathlib import Path
 
 import yaml
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.exc import IntegrityError
 
 from app.database import async_session
@@ -57,6 +58,51 @@ async def seed_admin_user() -> None:
             logger.info(
                 "Initial admin seed lost to a concurrent boot (another instance won); continuing"
             )
+
+
+async def seed_synthetic_user() -> None:
+    """Seed the low-privilege monitoring account the synthetic-probe uses.
+
+    Optional: skipped unless all three FINDINGS_SYNTHETIC_USER_* settings
+    are provided. The account is a plain `reviewer` (no client link, no
+    admin rights) so the probe exercises the real login/refresh/logout
+    path without privileged access.
+
+    Uses an atomic INSERT ... ON CONFLICT DO NOTHING: no check-then-insert
+    window, so concurrent backend boots cannot race. A second booter is a
+    zero-row no-op rather than an IntegrityError to catch.
+    """
+    username = settings.synthetic_user_username.strip()
+    password = settings.synthetic_user_password
+    email = settings.synthetic_user_email.strip()
+
+    if not username or not password or not email:
+        logger.info(
+            "Skipping synthetic monitoring user seed "
+            "(FINDINGS_SYNTHETIC_USER_* not fully set)"
+        )
+        return
+
+    async with async_session() as db:
+        # on_conflict_do_nothing() with no index_elements covers any
+        # unique constraint (username and email), so a row that already
+        # exists by either is left untouched.
+        stmt = (
+            pg_insert(User)
+            .values(
+                username=username,
+                password_hash=hash_password(password),
+                full_name="Synthetic Monitoring Probe",
+                email=email,
+                role="reviewer",
+                is_active=True,
+            )
+            .on_conflict_do_nothing()
+        )
+        result = await db.execute(stmt)
+        await db.commit()
+        if result.rowcount:
+            logger.info("Seeded synthetic monitoring user: %s", username)
 
 
 async def sync_builtin_templates() -> None:
