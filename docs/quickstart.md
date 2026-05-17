@@ -6,7 +6,7 @@ Get a local VulnLedger instance running in about five minutes.
 
 - [Docker](https://docs.docker.com/get-docker/) and [Docker Compose](https://docs.docker.com/compose/install/) v2+
 - [Node.js](https://nodejs.org/) 22+ (only if you plan to do frontend development)
-- [Python](https://www.python.org/) 3.12+ (only if you plan to do backend development)
+- [Python](https://www.python.org/) 3.14+ (only if you plan to do backend development)
 
 ## Quick Start (Docker, recommended)
 
@@ -47,7 +47,7 @@ The repository includes a helper script for smoother installs:
 ./scripts/first-run.sh init             # create .env from .env.example
 ./scripts/first-run.sh doctor           # validate ports, secrets, and common setup issues
 ./scripts/first-run.sh redeploy         # ff-only pull + ordered rollout: migrate DB, backend, frontend
-./scripts/first-run.sh verify-backend   # local Python 3.12 backend smoke-check
+./scripts/first-run.sh verify-backend   # local Python 3.14 backend smoke-check
 ./scripts/first-run.sh up               # ordered rollout (same as redeploy)
 ./scripts/first-run.sh logs             # follow caddy, frontend, and backend logs
 ./scripts/first-run.sh down             # stop the stack

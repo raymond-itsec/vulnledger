@@ -4,7 +4,7 @@
 
 | Layer | Technology | Purpose |
 |---|---|---|
-| Backend | Python 3.12, FastAPI | REST API, async request handling |
+| Backend | Python 3.14, FastAPI | REST API, async request handling |
 | ORM | SQLAlchemy 2.0 (async) | Database models and queries |
 | Database | PostgreSQL 16 | Primary data store |
 | Migrations | Alembic | Database schema versioning |
