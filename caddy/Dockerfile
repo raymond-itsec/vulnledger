@@ -1,4 +1,4 @@
-FROM caddy:2.11.2-builder-alpine@sha256:113249e07ac54f02da3e395a7150124562af1a3129b0b1498ddbb39f5b3fc430 AS builder
+FROM caddy:2.11.3-builder-alpine@sha256:52575959b1eeee9900869325a953d71e4c521ab9102dd5cce07d429ea8246b85 AS builder
 
 # Pin caddy-ratelimit to a specific commit. Without an explicit tag/commit,
 # xcaddy resolves to the latest at build time - a backdoored release would
@@ -7,7 +7,7 @@ FROM caddy:2.11.2-builder-alpine@sha256:113249e07ac54f02da3e395a7150124562af1a31
 RUN xcaddy build v2.11.2 \
   --with github.com/mholt/caddy-ratelimit@v0.1.0
 
-FROM caddy:2.11.2-alpine@sha256:834468128c7696cec0ceea6172f7d692daf645ae51983ca76e39da54a97c570d
+FROM caddy:2.11.3-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
 
 USER root
 RUN apk add --no-cache libcap
