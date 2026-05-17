@@ -21,9 +21,12 @@ When prompted for a data source during import, pick `VictoriaMetrics`
 
 ## VulnLedger-specific dashboards
 
-A custom dashboard for the 8 `vl_*_count` business gauges plus the
-HTTP / DB pool metrics is a follow-up. When that lands, the JSON
-will live in this directory and auto-load on next Grafana restart.
+`vulnledger-overview.json` is committed here and auto-loads. It covers
+the synthetic auth probe and frontend smoke check, ClamAV and backup
+freshness, HTTP request rate / p95 latency / 429 rate, the database
+connection pool, and the `vl_*_count` business gauges. Edit it in the
+Grafana UI and the provisioner writes changes back to this file
+(`allowUiUpdates: true`).
 
 ## License note on community dashboards
 
