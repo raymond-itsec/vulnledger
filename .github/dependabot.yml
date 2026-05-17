@@ -10,7 +10,6 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "security"
     open-pull-requests-limit: 10
 
   - package-ecosystem: "docker"
@@ -23,7 +22,6 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "security"
     open-pull-requests-limit: 10
     # Node has a two-step release cycle: even-numbered majors release
     # in April, become Active LTS in October of the same year, and
@@ -53,7 +51,6 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "security"
     open-pull-requests-limit: 10
 
   - package-ecosystem: "docker"
@@ -66,7 +63,6 @@ updates:
     labels:
       - "dependencies"
       - "docker"
-      - "security"
     open-pull-requests-limit: 10
 
   - package-ecosystem: "github-actions"
@@ -79,7 +75,6 @@ updates:
     labels:
       - "dependencies"
       - "ci"
-      - "security"
     open-pull-requests-limit: 10
 
   - package-ecosystem: "pip"
@@ -92,7 +87,6 @@ updates:
     labels:
       - "dependencies"
       - "backend"
-      - "security"
     open-pull-requests-limit: 10
 
   - package-ecosystem: "npm"
@@ -105,5 +99,4 @@ updates:
     labels:
       - "dependencies"
       - "frontend"
-      - "security"
     open-pull-requests-limit: 10
