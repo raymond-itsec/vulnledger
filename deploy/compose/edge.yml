@@ -25,7 +25,7 @@ services:
   caddy-init:
     build:
       context: ../../caddy
-    image: vulnledger-caddy:2.11.2-ratelimit
+    image: vulnledger-caddy:2.11.3-ratelimit
     restart: "no"
     logging: *default-logging
     user: "0:0"
@@ -44,7 +44,7 @@ services:
   caddy:
     build:
       context: ../../caddy
-    image: vulnledger-caddy:2.11.2-ratelimit
+    image: vulnledger-caddy:2.11.3-ratelimit
     restart: unless-stopped
     logging: *default-logging
     user: "10001:10001"

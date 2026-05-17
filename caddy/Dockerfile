@@ -4,7 +4,7 @@ FROM caddy:2.11.3-builder-alpine@sha256:52575959b1eeee9900869325a953d71e4c521ab9
 # xcaddy resolves to the latest at build time - a backdoored release would
 # silently land on next image rebuild. Update this commit hash deliberately
 # after reviewing the diff at https://github.com/mholt/caddy-ratelimit/commits
-RUN xcaddy build v2.11.2 \
+RUN xcaddy build v2.11.3 \
   --with github.com/mholt/caddy-ratelimit@v0.1.0
 
 FROM caddy:2.11.3-alpine@sha256:86deaf5e3d3408a6ccec08fbb79989783dd26e206ae10bcf78a801dc8c9ab794
