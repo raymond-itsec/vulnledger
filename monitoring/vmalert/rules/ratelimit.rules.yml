@@ -1,0 +1,38 @@
+# Rate-limit health alert.
+#
+# Caddy's ratelimit module exposes no Prometheus metrics, so the
+# available signal is the backend's own request counter. The metrics
+# middleware (`backend/app/middleware/metrics.py`) records
+# `vl_http_requests_total` labelled by method, path_template, and
+# status; a sustained rate of HTTP 429 responses means the login
+# throttle and/or the slowapi limiter are actively rejecting traffic.
+#
+# A short 429 burst is normal (one client misbehaving). A sustained
+# rate is worth a look: a credential-stuffing run, a broken client in
+# a retry storm, or a limit set too low for legitimate load.
+
+groups:
+  - name: ratelimit
+    interval: 1m
+    rules:
+      - alert: RateLimitElevated
+        expr: sum(rate(vl_http_requests_total{status="429"}[5m])) > 1
+        for: 10m
+        labels:
+          severity: warning
+          team: ops
+        annotations:
+          summary: "Sustained HTTP 429 rate ({{ $value | humanize }}/s over 5m)"
+          description: |
+            The backend has been returning HTTP 429 (rate limited) at more
+            than 1 request/second for over 10 minutes.
+
+            Likely causes:
+              - Credential-stuffing or brute-force attempt against /login
+              - A client stuck in a retry loop ignoring Retry-After
+              - A rate limit set too low for current legitimate load
+
+            Check:
+              Loki: {tier="app"} |= "429"
+              backend login throttle: docker compose logs backend | grep -i throttl
+              By route: topk(5, sum by (path_template) (rate(vl_http_requests_total{status="429"}[5m])))
