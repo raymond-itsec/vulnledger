@@ -199,6 +199,19 @@ jobs:
         run: npm --prefix frontend run generate:types
       - name: Ensure generated file exists
         run: test -s frontend/src/lib/api/generated.ts
+      - name: Fail on uncommitted OpenAPI / type drift
+        # The steps above regenerate the schema and types from the live
+        # backend. If the committed copies differ, the API changed but
+        # the generated artifacts were not regenerated and committed.
+        run: |
+          if ! git diff --quiet -- backend/openapi.generated.json frontend/src/lib/api/generated.ts; then
+            echo "::error::backend/openapi.generated.json or frontend/src/lib/api/generated.ts is out of sync with the backend."
+            echo "Regenerate locally and commit the result:"
+            echo "  python backend/scripts/export_openapi.py backend/openapi.generated.json"
+            echo "  npm --prefix frontend run generate:types"
+            git diff --stat -- backend/openapi.generated.json frontend/src/lib/api/generated.ts
+            exit 1
+          fi
 
   image-trivy:
     runs-on: ubuntu-latest
