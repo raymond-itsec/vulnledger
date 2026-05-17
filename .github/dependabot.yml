@@ -52,6 +52,14 @@ updates:
       - "dependencies"
       - "docker"
     open-pull-requests-limit: 10
+    # The backup container's pg_dump must stay on the same Postgres
+    # major as the DB server (deploy/compose/data.yml). Dependabot only
+    # scans Dockerfiles, so it cannot see the server image and would
+    # drift the two apart. Track 16.x minor/patch only; do Postgres
+    # majors manually as a coordinated server + backup change.
+    ignore:
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: "docker"
     directory: "/caddy"
