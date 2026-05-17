@@ -109,7 +109,7 @@ pydantic==2.13.4
     #   pydantic-settings
 pydantic-core==2.46.4
     # via pydantic
-pydantic-settings==2.14.0
+pydantic-settings==2.14.1
     # via -r requirements.txt
 pydyf==0.12.1
     # via
