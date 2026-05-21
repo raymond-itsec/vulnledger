@@ -27,7 +27,7 @@ bcrypt==5.0.0
     # via -r requirements.txt
 brotli==1.2.0
     # via fonttools
-certifi==2026.4.22
+certifi==2026.5.20
     # via
     #   httpcore
     #   httpx
